@@ -1,0 +1,7 @@
+.point {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 4px;
+    background: red;
+}
