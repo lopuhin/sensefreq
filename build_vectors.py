@@ -32,7 +32,7 @@ def train(path, model_filename, limit=1000*1000000, min_count=5*100):
 def play(model_filename):
     model = Word2Vec.load(model_filename)
 
-    for word in [u'сказал', u'франция', u'красный', u'гриф']:
+    for word in [u'сказал', u'франция', u'красный', u'замок', u'гриф']:
         print
         print word
         for w, d in model.most_similar(word):

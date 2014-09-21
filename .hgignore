@@ -4,4 +4,4 @@ syntax: glob
 *~
 .*.swp
 *.egg-info
-
+*.pkl
