@@ -25,7 +25,7 @@ def cluster(model_filename):
     context_vectors = utils.load(model_filename)
     for word, vectors in context_vectors.iteritems():
         print word
-        v_size = len(context_vector(vectors[0][1]))
+        v_size = len(context_vector(*vectors[0]))
         data = numpy.zeros((len(vectors), v_size), dtype=numpy.float32)
         for i, (w, v) in enumerate(vectors):
             data[i] = context_vector(w, v)
