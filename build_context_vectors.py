@@ -11,7 +11,7 @@ import libru
 import utils
 
 
-def contexts_iter(words, sentences, delta=5):
+def contexts_iter(words, sentences, delta=10):
     words = set(words)
     for i, sentence in enumerate(sentences):
         if i and i % 10000 == 0:
@@ -28,19 +28,33 @@ def build_contexts(path, word_model_filename, model_filename):
         1000000)
     print 'loading model...'
     word_model = Word2Vec.load(word_model_filename)
-    words = [u'замок', u'гриф', u'кран']
+    words = [
+        u'гриф',
+        # Dialog
+        u'альбом', u'билет', u'блок', u'вешалка', u'вилка', u'винт', u'горшок',
+        # IO
+        u'замок', u'кран', u'брак', u'дисциплина', u'лавка', u'мат', u'тост',
+        ]
     context_vectors = defaultdict(list)
+
+    def _report():
+        print
+        for word, contexts in context_vectors.iteritems():
+            print word, len(contexts)
+
     print 'building context vectors...'
     for i, (word, context) in enumerate(contexts_iter(words, sentences)):
         #print word, ' '.join(context)
         print '.',
         sys.stdout.flush()
         vectors = [(w, word_model[w], word_model.vocab[w].count)
-                   for w in context if w != word and w in word_model]
+                   for w in context if w in word_model]
         context_vectors[word].append((context, vectors))
-    print
-    for word, contexts in context_vectors.iteritems():
-        print word, len(contexts)
+        if i and i % 100 == 0:
+            _report()
+
+    _report()
+
     utils.save(context_vectors, model_filename)
 
 
