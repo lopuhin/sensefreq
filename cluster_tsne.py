@@ -5,18 +5,29 @@ import sys
 import json
 
 import numpy
+from gensim.matutils import unitvec
 
 import calc_tsne
 import utils
 
 
+def context_vector(vectors):
+    ''' idf-weighted context vector (normalized)
+    '''
+    vector = numpy.zeros(len(vectors[0][1]), dtype=numpy.float32)
+    for _, v, c in vectors:
+        vector += v / c # FIXME - no c?
+    return unitvec(vector)
+
+
 def cluster(model_filename):
     context_vectors = utils.load(model_filename)
     for word, vectors in context_vectors.iteritems():
-        v_size = len(vectors[0][1])
+        print word
+        v_size = len(context_vector(vectors[0][1]))
         data = numpy.zeros((len(vectors), v_size), dtype=numpy.float32)
         for i, (_, v) in enumerate(vectors):
-            data[i] = v
+            data[i] = context_vector(v)
         Xmat = calc_tsne.calc_tsne(data, INITIAL_DIMS=v_size)
         data = []
         xs, ys = Xmat[:, 0], Xmat[:, 1]
