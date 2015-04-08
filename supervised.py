@@ -10,13 +10,13 @@ from operator import itemgetter
 import numpy
 from gensim.matutils import unitvec
 
-from utils import w2v_vec, w2v_count, lemmatize_s, debug_exec
+from utils import w2v_vec, w2v_count, lemmatize_s, debug_exec, avg
 
 
 random.seed(1)
 
 
-def get_word_data(filename, test_ratio=0.3):
+def get_word_data(filename, test_ratio=0.5):
     w_d = []
     with open(filename, 'rb') as f:
         legend = {}
@@ -100,13 +100,19 @@ def main(path):
     for filename in filenames:
         print
         word = filename.split('/')[-1].split('.')[0]
-        for i in xrange(3):
+        word_results = []
+        for i in xrange(4):
             test_data, train_data = get_word_data(filename)
             if not i:
-                print '%s: %d test samples' % (word, len(test_data))
-            results.append(evaluate(test_data, train_data))
+                print word
+                print '%d test samples, %d train samples' % (
+                    len(test_data), len(train_data))
+            r = evaluate(test_data, train_data)
+            word_results.append(r)
+            results.append(r)
+        print 'avg: %.2f' % avg(word_results)
     print
-    print 'final avg %.2f' % (sum(results) / len(results))
+    print 'final avg %.2f' % avg(results)
 
 
 if __name__ == '__main__':

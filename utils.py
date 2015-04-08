@@ -73,6 +73,10 @@ def lemmatize_s(s):
     return [w for w in mystem.lemmatize(s) if w != ' ' and w != '\n']
 
 
+def avg(v):
+    return float(sum(v)) / len(v)
+
+
 _word2vec_client = None
 
 
