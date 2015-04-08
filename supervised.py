@@ -65,7 +65,7 @@ class Model(object):
     def __call__(self, x):
         v = context_vector(x)
         return max(
-            ((ans, distance(v, sense_v))
+            ((ans, closeness(v, sense_v))
                 for ans, sense_v in self.sense_vectors.iteritems()),
             key=itemgetter(1))[0]
 
@@ -84,7 +84,7 @@ def context_vector((before, word, after)):
     return unitvec(vector)
 
 
-def distance(v1, v2):
+def closeness(v1, v2):
     return numpy.dot(unitvec(v1), unitvec(v2))
 
 
