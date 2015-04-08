@@ -79,8 +79,8 @@ def context_vector((before, word, after)):
             v = numpy.array(v)
             if vector is None:
                 vector = v
-            else:
-                vector += v #/ c # FIXME - no c?
+            elif c < 1e6:  # FIXME
+                vector += v
     return unitvec(vector)
 
 
