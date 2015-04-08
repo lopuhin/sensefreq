@@ -82,7 +82,7 @@ def context_vector((before, word, after)):
             if vector is None:
                 vector = v
             else:
-                vector += v / c # FIXME - no c?
+                vector += v #/ c # FIXME - no c?
     return unitvec(vector)
 
 
