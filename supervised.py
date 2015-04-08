@@ -110,9 +110,11 @@ def main(path):
             r = evaluate(test_data, train_data)
             word_results.append(r)
             results.append(r)
-        print 'avg: %.2f ± %.2f' % (avg(word_results), std_dev(word_results))
+        print 'avg: %.2f ± %.2f' % (
+            avg(word_results),
+            1.96 * std_dev(word_results))
     print
-    print 'final avg %.2f ± %.2f' % (avg(results), std_dev(results))
+    print 'final avg %.2f' % avg(results)
 
 
 if __name__ == '__main__':
