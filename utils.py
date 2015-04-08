@@ -6,6 +6,10 @@ import cPickle as pickle
 from functools import wraps
 
 from pymystem3 import Mystem
+import msgpackrpc
+
+from word2vec_server import PORT as WORD2VEC_PORT
+
 
 mystem = Mystem()
 
@@ -62,5 +66,27 @@ def load(filename):
 
 def lemmatized_sentences(sentences_iter):
     for s in sentences_iter:
-        yield [w for w in mystem.lemmatize(' '.join(s))
-               if w != ' ' and w != '\n']
+        yield lemmatize_s(' '.join(s))
+
+
+def lemmatize_s(s):
+    return [w for w in mystem.lemmatize(s) if w != ' ' and w != '\n']
+
+
+_word2vec_client = None
+
+
+def _w2v_client():
+    global _word2vec_client
+    if _word2vec_client is None:
+        _word2vec_client = msgpackrpc.Client(
+                msgpackrpc.Address('localhost', WORD2VEC_PORT))
+    return _word2vec_client
+
+
+def w2v_vec(word):
+    return _w2v_client().call('vector', word)
+
+
+def w2v_count(word):
+    return _w2v_client().call('count', word)
