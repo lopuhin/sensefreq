@@ -29,7 +29,6 @@ def get_word_data(filename, test_ratio=0.3):
                 before, word, after, ans1, ans2 = row
                 if ans1 == ans2 and ans1 != '0' and ans1 != other:
                     w_d.append(((before, word, after), ans1))
-    print 'other', other
     n_test = int(len(w_d) * test_ratio)
     random.shuffle(w_d)
     return w_d[:n_test], w_d[n_test:]
@@ -47,10 +46,13 @@ def evaluate(test_data, train_data):
     for x, ans in test_data:
         n_correct += ans == model(x)
 
+    ratio = float(n_correct) / len(test_data)
+
     print len(test_data), 'test samples'
     print 'baseline', baseline
-    print 'correct', n_correct, float(n_correct) / len(test_data)
+    print 'correct', n_correct, ratio
 
+    return ratio
 
 
 class Model(object):
@@ -72,7 +74,7 @@ class Model(object):
 
 def context_vector((before, word, after)):
     vector = None
-    print before, word, after
+   #print before, word, after
     for w in itertools.chain(*map(lemmatize_s, [before, after])):
         v, c = w2v_vec(w), w2v_count(w)
         if v is not None:
@@ -89,8 +91,12 @@ def distance(v1, v2):
 
 
 def main(filename):
-    test_data, train_data = get_word_data(filename)
-    evaluate(test_data, train_data)
+    results = []
+    for _ in xrange(4):
+        test_data, train_data = get_word_data(filename)
+        results.append(evaluate(test_data, train_data))
+    print
+    print 'final avg', sum(results) / len(results)
 
 
 if __name__ == '__main__':
