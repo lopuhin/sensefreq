@@ -19,21 +19,21 @@ random.seed(1)
 def get_word_data(filename, test_ratio=0.5):
     w_d = []
     with open(filename, 'rb') as f:
-        legend = {}
+        senses = {}
         for line in f:
             row = filter(None, line.decode('utf-8').strip().split('\t'))
             if line.startswith('\t'):
                 meaning, ans, ans2 = row
                 assert ans == ans2
-                legend[meaning] = ans
+                senses[meaning] = ans
             else:
-                other = str(len(legend) - 1)
+                other = str(len(senses) - 1)
                 before, word, after, ans1, ans2 = row
                 if ans1 == ans2 and ans1 != '0' and ans1 != other:
                     w_d.append(((before, word, after), ans1))
     n_test = int(len(w_d) * test_ratio)
     random.shuffle(w_d)
-    return w_d[:n_test], w_d[n_test:]
+    return senses, w_d[:n_test], w_d[n_test:]
 
 
 def evaluate(test_data, train_data):
@@ -70,7 +70,7 @@ class Model(object):
             key=itemgetter(1))[0]
 
 
-def context_vector((before, word, after)):
+def context_vector((before, _, after)):
     vector = None
     cutoff = w2v_count(u'она')  # eh
     for w in itertools.chain(*map(lemmatize_s, [before, after])):
@@ -102,9 +102,9 @@ def main(path):
         word = filename.split('/')[-1].split('.')[0]
         word_results = []
         for i in xrange(4):
-            test_data, train_data = get_word_data(filename)
+            senses, test_data, train_data = get_word_data(filename)
             if not i:
-                print word
+                print '%s: %d senses' % (word, len(senses))
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
             r = evaluate(test_data, train_data)
