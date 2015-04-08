@@ -104,8 +104,12 @@ def _w2v_client():
 
 
 def w2v_vec(word):
-    return _w2v_client().call('vector', word)
+    return _w2v_client().call('vec', word)
 
 
 def w2v_count(word):
     return _w2v_client().call('count', word)
+
+
+def w2v_vec_counts(w_list):
+    return _w2v_client().call('vec_counts', w_list)

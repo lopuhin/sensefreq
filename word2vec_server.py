@@ -12,7 +12,10 @@ class Word2VecServer(object):
     def __init__(self, filename):
         self.model = Word2Vec.load(filename)
 
-    def vector(self, w):
+    def vec_counts(self, w_list):
+        return [(self.vec(w), self.count(w)) for w in w_list]
+
+    def vec(self, w):
         w = w.decode('utf-8')
         try:
             return map(float, self.model[w])

@@ -4,13 +4,14 @@ import os
 import sys
 import random
 from collections import defaultdict
+from functools import partial
 import itertools
 from operator import itemgetter
 
 import numpy
 
-from utils import w2v_vec, w2v_count, lemmatize_s, debug_exec, \
-    avg, std_dev, unitvec
+from utils import w2v_vec, w2v_count, w2v_vec_counts, \
+    lemmatize_s, debug_exec, avg, std_dev, unitvec
 
 
 random.seed(1)
@@ -58,23 +59,24 @@ class Model(object):
         examples = defaultdict(list)
         for x, ans in train_data:
             examples[ans].append(x)
-        self.sense_vectors = {
-            ans: unitvec(sum(map(context_vector, xs)))
+        self.cutoff = w2v_count(u'она')  # eh
+        cv = partial(context_vector, cutoff=self.cutoff)
+        self.sense_vectors = {ans: unitvec(sum(map(cv, xs)))
             for ans, xs in examples.iteritems()}
 
     def __call__(self, x):
-        v = context_vector(x)
+        v = context_vector(x, self.cutoff)
         return max(
             ((ans, closeness(v, sense_v))
                 for ans, sense_v in self.sense_vectors.iteritems()),
             key=itemgetter(1))[0]
 
 
-def context_vector((before, _, after)):
+
+def context_vector((before, _, after), cutoff):
     vector = None
-    cutoff = w2v_count(u'она')  # eh
-    for w in itertools.chain(*map(lemmatize_s, [before, after])):
-        v, c = w2v_vec(w), w2v_count(w)
+    words = list(itertools.chain(*map(lemmatize_s, [before, after])))
+    for v, c in w2v_vec_counts(words):
         if v is not None:
             v = numpy.array(v)
             if vector is None:
