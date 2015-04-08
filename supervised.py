@@ -72,14 +72,14 @@ class Model(object):
 
 def context_vector((before, word, after)):
     vector = None
-   #print before, word, after
+    cutoff = w2v_count(u'она')  # eh
     for w in itertools.chain(*map(lemmatize_s, [before, after])):
         v, c = w2v_vec(w), w2v_count(w)
         if v is not None:
             v = numpy.array(v)
             if vector is None:
                 vector = v
-            elif c < 1e6:  # FIXME
+            elif c < cutoff:
                 vector += v
     return unitvec(vector)
 
