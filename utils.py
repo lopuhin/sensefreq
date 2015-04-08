@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import time
+import math
 import traceback
 import cPickle as pickle
 from functools import wraps
@@ -75,6 +76,11 @@ def lemmatize_s(s):
 
 def avg(v):
     return float(sum(v)) / len(v)
+
+
+def std_dev(v):
+    m = avg(v)
+    return math.sqrt(avg([(x - m)**2 for x in v]))
 
 
 _word2vec_client = None
