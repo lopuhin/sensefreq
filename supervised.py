@@ -10,8 +10,8 @@ from operator import itemgetter
 
 import numpy
 
-from utils import w2v_vec, w2v_count, w2v_vec_counts, \
-    lemmatize_s, debug_exec, avg, std_dev, unitvec
+from utils import w2v_count, w2v_vec_counts, lemmatize_s, \
+    avg, std_dev, unitvec
 
 
 random.seed(1)
@@ -21,23 +21,30 @@ def get_word_data(filename, test_ratio=0.5):
     w_d = []
     with open(filename, 'rb') as f:
         senses = {}
+        counts = defaultdict(int)
         for line in f:
             row = filter(None, line.decode('utf-8').strip().split('\t'))
             if line.startswith('\t'):
                 meaning, ans, ans2 = row
                 assert ans == ans2
-                senses[meaning] = ans
+                senses[ans] = meaning
             else:
                 other = str(len(senses) - 1)
                 before, word, after, ans1, ans2 = row
-                if ans1 == ans2 and ans1 != '0' and ans1 != other:
-                    w_d.append(((before, word, after), ans1))
+                if ans1 == ans2:
+                    ans = ans1
+                    if ans != '0' and ans != other:
+                        counts[ans] += 1
+                        w_d.append(((before, word, after), ans))
     n_test = int(len(w_d) * test_ratio)
     random.shuffle(w_d)
-    return senses, w_d[:n_test], w_d[n_test:]
+    return (
+        {ans: (meaning, counts[ans]) for ans, meaning in senses.iteritems()},
+        w_d[:n_test],
+        w_d[n_test:])
 
 
-def evaluate(test_data, train_data):
+def evaluate(test_data, train_data, i, filename, senses):
     sense_freq = defaultdict(int)
 
     for _, ans in train_data:
@@ -46,8 +53,24 @@ def evaluate(test_data, train_data):
 
     model = Model(test_data)
     n_correct = 0
+    errors = []
     for x, ans in test_data:
-        n_correct += ans == model(x)
+        model_ans = model(x)
+        if ans == model_ans:
+            n_correct += 1
+        else:
+            errors.append((x, ans, model_ans))
+
+    with open(filename[:-4] + ('.errors%d.tsv' % (i + 1)), 'wb') as f:
+        _w = lambda *x: f.write('\t'.join(map(unicode, x)).encode('utf-8') + '\n')
+        _w('ans', 'count', 'meaning')
+        for ans, (sense, count) in sorted(senses.iteritems(), key=itemgetter(0)):
+            _w(ans, count, sense)
+        _w()
+        _w('ans', 'model_ans', 'before', 'word', 'after')
+        for (before, w, after), ans, model_ans in \
+                sorted(errors, key=lambda x: x[-2:]):
+            _w(ans, model_ans, before, w, after)
 
     correct_ratio = float(n_correct) / len(test_data)
     print 'baseline/correct: %.2f / %.2f' % (baseline, correct_ratio)
@@ -109,7 +132,7 @@ def main(path):
                 print '%s: %d senses' % (word, len(senses))
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
-            r = evaluate(test_data, train_data)
+            r = evaluate(test_data, train_data, i, filename, senses)
             word_results.append(r)
             results.append(r)
         print 'avg: %.2f ± %.2f' % (
