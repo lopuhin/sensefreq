@@ -5,3 +5,5 @@ syntax: glob
 .*.swp
 *.egg-info
 *.pkl
+pypy-env
+numpy

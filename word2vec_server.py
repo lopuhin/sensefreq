@@ -5,8 +5,7 @@ import sys
 import msgpackrpc
 from gensim.models import Word2Vec
 
-
-PORT = 18800
+from conf import WORD2VEC_PORT
 
 
 class Word2VecServer(object):
@@ -30,6 +29,6 @@ class Word2VecServer(object):
 
 if __name__ == '__main__':
     server = msgpackrpc.Server(Word2VecServer(sys.argv[1]))
-    server.listen(msgpackrpc.Address('localhost', PORT))
+    server.listen(msgpackrpc.Address('localhost', WORD2VEC_PORT))
     print 'running...'
     server.start()

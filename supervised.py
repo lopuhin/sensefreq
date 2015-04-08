@@ -8,9 +8,9 @@ import itertools
 from operator import itemgetter
 
 import numpy
-from gensim.matutils import unitvec
 
-from utils import w2v_vec, w2v_count, lemmatize_s, debug_exec, avg, std_dev
+from utils import w2v_vec, w2v_count, lemmatize_s, debug_exec, \
+    avg, std_dev, unitvec
 
 
 random.seed(1)

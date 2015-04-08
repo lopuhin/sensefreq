@@ -8,8 +8,9 @@ from functools import wraps
 
 from pymystem3 import Mystem
 import msgpackrpc
+import numpy
 
-from word2vec_server import PORT as WORD2VEC_PORT
+from conf import WORD2VEC_PORT
 
 
 mystem = Mystem()
@@ -81,6 +82,14 @@ def avg(v):
 def std_dev(v):
     m = avg(v)
     return math.sqrt(avg([(x - m)**2 for x in v]))
+
+
+def unitvec(vec):
+    veclen = numpy.sqrt(numpy.sum(vec ** 2))
+    if veclen > 0.0:
+        return vec / veclen
+    else:
+        return vec
 
 
 _word2vec_client = None
