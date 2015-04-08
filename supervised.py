@@ -58,9 +58,6 @@ class Model(object):
         examples = defaultdict(list)
         for x, ans in train_data:
             examples[ans].append(x)
-        self.sense_probs = {
-            ans: float(len(xs)) / len(train_data)
-            for ans, xs in examples.iteritems()}
         self.sense_vectors = {
             ans: unitvec(sum(map(context_vector, xs)))
             for ans, xs in examples.iteritems()}
@@ -68,7 +65,7 @@ class Model(object):
     def __call__(self, x):
         v = context_vector(x)
         return max(
-            ((ans, distance(v, sense_v) * self.sense_probs[ans])
+            ((ans, distance(v, sense_v))
                 for ans, sense_v in self.sense_vectors.iteritems()),
             key=itemgetter(1))[0]
 
