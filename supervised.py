@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import os
 import sys
 import random
 from collections import defaultdict
@@ -22,7 +23,8 @@ def get_word_data(filename, test_ratio=0.3):
         for line in f:
             row = filter(None, line.decode('utf-8').strip().split('\t'))
             if line.startswith('\t'):
-                meaning, ans, _ = row
+                meaning, ans, ans2 = row
+                assert ans == ans2
                 legend[meaning] = ans
             else:
                 other = str(len(legend) - 1)
@@ -46,13 +48,9 @@ def evaluate(test_data, train_data):
     for x, ans in test_data:
         n_correct += ans == model(x)
 
-    ratio = float(n_correct) / len(test_data)
-
-    print len(test_data), 'test samples'
-    print 'baseline', baseline
-    print 'correct', n_correct, ratio
-
-    return ratio
+    correct_ratio = float(n_correct) / len(test_data)
+    print 'baseline/correct: %.2f / %.2f' % (baseline, correct_ratio)
+    return correct_ratio
 
 
 class Model(object):
@@ -90,13 +88,25 @@ def distance(v1, v2):
     return numpy.dot(unitvec(v1), unitvec(v2))
 
 
-def main(filename):
+def main(path):
+    if os.path.isdir(path):
+        filenames = [os.path.join(path, f) for f in os.listdir(path)
+                     if f.endswith('.txt')]
+    else:
+        filenames = [path]
+    filenames.sort()
+
     results = []
-    for _ in xrange(4):
-        test_data, train_data = get_word_data(filename)
-        results.append(evaluate(test_data, train_data))
+    for filename in filenames:
+        print
+        word = filename.split('/')[-1].split('.')[0]
+        for i in xrange(3):
+            test_data, train_data = get_word_data(filename)
+            if not i:
+                print '%s: %d test samples' % (word, len(test_data))
+            results.append(evaluate(test_data, train_data))
     print
-    print 'final avg', sum(results) / len(results)
+    print 'final avg %.2f' % (sum(results) / len(results))
 
 
 if __name__ == '__main__':
