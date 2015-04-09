@@ -8,10 +8,11 @@ from functools import partial
 import itertools
 from operator import itemgetter
 
-import numpy
+import numpy as np
+from sklearn.mixture import GMM
 
 from utils import w2v_count, w2v_vec_counts, lemmatize_s, \
-    avg, std_dev, unitvec
+    avg, std_dev, unitvec, debug_exec
 
 
 random.seed(1)
@@ -44,14 +45,14 @@ def get_word_data(filename, test_ratio=0.5):
         w_d[n_test:])
 
 
-def evaluate(test_data, train_data, i, filename, senses):
+def evaluate(test_data, train_data, i, filename, senses, model_class):
     sense_freq = defaultdict(int)
 
     for _, ans in train_data:
         sense_freq[ans] += 1
     baseline = float(max(sense_freq.values())) / len(train_data)
 
-    model = Model(test_data)
+    model = model_class(test_data)
     n_correct = 0
     errors = []
     for x, ans in test_data:
@@ -79,21 +80,40 @@ def evaluate(test_data, train_data, i, filename, senses):
 
 class Model(object):
     def __init__(self, train_data):
-        examples = defaultdict(list)
+        self.examples = defaultdict(list)
         for x, ans in train_data:
-            examples[ans].append(x)
-        self.cutoff = w2v_count(u'она')  # eh
-        cv = partial(context_vector, cutoff=self.cutoff)
-        self.sense_vectors = {ans: unitvec(sum(map(cv, xs)))
-            for ans, xs in examples.iteritems()}
+            self.examples[ans].append(x)
+        cutoff = w2v_count(u'она')  # eh
+        self.cv = partial(context_vector, cutoff=cutoff)
+        self.context_vectors = {ans: np.array(map(self.cv, xs))
+            for ans, xs in self.examples.iteritems()}
+        self.sense_vectors = {ans: cvs.mean(axis=0)
+            for ans, cvs in self.context_vectors.iteritems()}
 
     def __call__(self, x):
-        v = context_vector(x, self.cutoff)
+        v = self.cv(x)
         return max(
             ((ans, closeness(v, sense_v))
                 for ans, sense_v in self.sense_vectors.iteritems()),
             key=itemgetter(1))[0]
 
+
+class GMMModel(Model):
+    def __init__(self, train_data):
+        super(GMMModel, self).__init__(train_data)
+        self.senses = np.array(self.context_vectors.keys())
+        self.classifier = GMM(
+            n_components=len(self.context_vectors),
+            covariance_type='full', init_params='wc')
+        self.classifier.means_ = np.array([
+            self.sense_vectors[ans] for ans in self.senses])
+        x_train = np.array(
+            list(itertools.chain(*self.context_vectors.values())))
+        self.classifier.fit(x_train)
+
+    def __call__(self, x):
+        v = self.cv(x)
+        return self.senses[self.classifier.predict(v)[0]]
 
 
 def context_vector((before, _, after), cutoff):
@@ -101,7 +121,7 @@ def context_vector((before, _, after), cutoff):
     words = tuple(itertools.chain(*map(lemmatize_s, [before, after])))
     for v, c in w2v_vec_counts(words):
         if v is not None:
-            v = numpy.array(v)
+            v = np.array(v)
             if vector is None:
                 vector = v
             elif c < cutoff:
@@ -110,7 +130,7 @@ def context_vector((before, _, after), cutoff):
 
 
 def closeness(v1, v2):
-    return numpy.dot(unitvec(v1), unitvec(v2))
+    return np.dot(unitvec(v1), unitvec(v2))
 
 
 def main(path):
@@ -122,6 +142,7 @@ def main(path):
     filenames.sort()
 
     results = []
+    model_class = GMMModel
     for filename in filenames:
         print
         word = filename.split('/')[-1].split('.')[0]
@@ -132,7 +153,8 @@ def main(path):
                 print '%s: %d senses' % (word, len(senses))
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
-            r = evaluate(test_data, train_data, i, filename, senses)
+            r = evaluate(test_data, train_data, i, filename, senses,
+                         model_class)
             word_results.append(r)
             results.append(r)
         print 'avg: %.2f ± %.2f' % (
