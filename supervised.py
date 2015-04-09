@@ -98,7 +98,7 @@ class Model(object):
 
 def context_vector((before, _, after), cutoff):
     vector = None
-    words = list(itertools.chain(*map(lemmatize_s, [before, after])))
+    words = tuple(itertools.chain(*map(lemmatize_s, [before, after])))
     for v, c in w2v_vec_counts(words):
         if v is not None:
             v = numpy.array(v)

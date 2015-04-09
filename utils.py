@@ -56,6 +56,19 @@ def debug_exec(*deco_args, **deco_kwargs):
         return deco
 
 
+def memoize(func):
+    cache = {}
+    @wraps(func)
+    def wrapper(*args):
+        mem_args = args
+        if mem_args in cache:
+            return cache[mem_args]
+        result = func(*args)
+        cache[mem_args] = result
+        return result
+    return wrapper
+
+
 def save(model, filename):
     with open(filename, 'wb') as f:
         pickle.dump(model, f, protocol=-1)
@@ -71,6 +84,7 @@ def lemmatized_sentences(sentences_iter):
         yield lemmatize_s(' '.join(s))
 
 
+@memoize
 def lemmatize_s(s):
     return [w for w in mystem.lemmatize(s) if w != ' ' and w != '\n']
 
@@ -111,5 +125,6 @@ def w2v_count(word):
     return _w2v_client().call('count', word)
 
 
+@memoize
 def w2v_vec_counts(w_list):
     return _w2v_client().call('vec_counts', w_list)
