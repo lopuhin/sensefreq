@@ -52,7 +52,7 @@ def evaluate(test_data, train_data, i, filename, senses, model_class):
         sense_freq[ans] += 1
     baseline = float(max(sense_freq.values())) / len(train_data)
 
-    model = model_class(test_data)
+    model = model_class(train_data)
     n_correct = 0
     errors = []
     for x, ans in test_data:
