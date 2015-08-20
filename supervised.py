@@ -18,7 +18,7 @@ from utils import w2v_count, w2v_vec_counts, lemmatize_s, \
 random.seed(1)
 
 
-def get_word_data(filename, test_ratio=0.8):
+def get_word_data(filename, n_train=50, test_ratio=None):
     w_d = []
     with open(filename, 'rb') as f:
         senses = {}
@@ -37,7 +37,10 @@ def get_word_data(filename, test_ratio=0.8):
                     if ans != '0' and ans != other:
                         counts[ans] += 1
                         w_d.append(((before, word, after), ans))
-    n_test = int(len(w_d) * test_ratio)
+    if n_train is None:
+        n_test = int(len(w_d) * test_ratio)
+    else:
+        n_test = len(w_d) - n_train
     random.shuffle(w_d)
     return (
         {ans: (meaning, counts[ans]) for ans, meaning in senses.iteritems()},
