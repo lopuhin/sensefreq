@@ -18,7 +18,7 @@ from utils import w2v_count, w2v_vec_counts, lemmatize_s, \
 random.seed(1)
 
 
-def get_word_data(filename, test_ratio=0.5):
+def get_word_data(filename, test_ratio=0.8):
     w_d = []
     with open(filename, 'rb') as f:
         senses = {}
@@ -74,8 +74,8 @@ def evaluate(test_data, train_data, i, filename, senses, model_class):
             _w(ans, model_ans, before, w, after)
 
     correct_ratio = float(n_correct) / len(test_data)
-    print 'baseline/correct: %.2f / %.2f' % (baseline, correct_ratio)
-    return correct_ratio
+   #print 'baseline/correct: %.2f / %.2f' % (baseline, correct_ratio)
+    return baseline, correct_ratio
 
 
 class Model(object):
@@ -142,7 +142,7 @@ def main(path):
     filenames.sort()
 
     results = []
-    model_class = GMMModel
+    model_class = Model
     for filename in filenames:
         print
         word = filename.split('/')[-1].split('.')[0]
@@ -157,11 +157,14 @@ def main(path):
                          model_class)
             word_results.append(r)
             results.append(r)
-        print 'avg: %.2f ± %.2f' % (
-            avg(word_results),
-            1.96 * std_dev(word_results))
+        print 'baseline: %.2f' % avg(word_results, 0)
+        print '     avg: %.2f ± %.2f' % (
+            avg(word_results, 1),
+            1.96 * std_dev(map(itemgetter(1), word_results)))
     print
-    print 'final avg %.2f' % avg(results)
+    print '---------'
+    print 'baseline: %.2f' % avg(results, 0)
+    print '     avg: %.2f' % avg(results, 1)
 
 
 if __name__ == '__main__':
