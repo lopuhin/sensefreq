@@ -61,4 +61,6 @@ def build_contexts(path, word_model_filename, model_filename):
 if __name__ == '__main__':
     if len(sys.argv) == 4:
         build_contexts(*sys.argv[1:])
+    else:
+        print 'usage: ./build_context_vectors.py libru_path word_model_filename model_filename'
 
