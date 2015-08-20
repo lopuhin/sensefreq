@@ -30,3 +30,4 @@ if __name__ == '__main__':
         main(*sys.argv[1:])
     else:
         print 'usage: ./extract_contexts.py corpus word'
+        sys.exit(-1)

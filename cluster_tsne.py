@@ -22,6 +22,7 @@ def context_vector(word, vectors):
 
 
 def cluster(model_filename):
+    # prepare model with ./build_context_vectors.py
     context_vectors = utils.load(model_filename)
     for word, vectors in context_vectors.iteritems():
         print word
