@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
 import os
@@ -18,7 +19,8 @@ from utils import w2v_count, w2v_vec_counts, lemmatize_s, \
 random.seed(1)
 
 
-def get_word_data(filename, n_train=50, test_ratio=None):
+def get_word_data(filename, n_train=None, test_ratio=None):
+    assert n_train or test_ratio
     w_d = []
     with open(filename, 'rb') as f:
         senses = {}
@@ -136,7 +138,8 @@ def closeness(v1, v2):
     return np.dot(unitvec(v1), unitvec(v2))
 
 
-def main(path):
+def main(path, n_train=80):
+    n_train = int(n_train)
     if os.path.isdir(path):
         filenames = [os.path.join(path, f) for f in os.listdir(path)
                      if f.endswith('.txt')]
@@ -151,7 +154,8 @@ def main(path):
         word = filename.split('/')[-1].split('.')[0]
         word_results = []
         for i in xrange(4):
-            senses, test_data, train_data = get_word_data(filename)
+            senses, test_data, train_data = \
+                get_word_data(filename, n_train=n_train)
             if not i:
                 print '%s: %d senses' % (word, len(senses))
                 print '%d test samples, %d train samples' % (
@@ -171,4 +175,4 @@ def main(path):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1])
+    main(*sys.argv[1:])
