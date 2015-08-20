@@ -5,6 +5,7 @@ import math
 import traceback
 import cPickle as pickle
 from functools import wraps
+import codecs
 
 from pymystem3 import Mystem
 import msgpackrpc
@@ -106,6 +107,17 @@ def unitvec(vec):
         return vec / veclen
     else:
         return vec
+
+
+def read_stopwords(filename):
+    stopwords = set()
+    with codecs.open(filename, 'rb', 'utf-8') as f:
+        for l in f:
+            l = l.split('|')[0]
+            w = l.strip().lower()
+            if w:
+                stopwords.add(w)
+    return stopwords
 
 
 _word2vec_client = None

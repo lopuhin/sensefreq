@@ -7,7 +7,7 @@ from operator import itemgetter
 
 import numpy as np
 
-from utils import w2v_vec, unitvec, load, save
+from utils import w2v_vec, unitvec, load, save, read_stopwords
 
 
 def cluster(context_vectors_filename,
@@ -21,12 +21,24 @@ def cluster(context_vectors_filename,
         clusters = globals()[method](m, n_senses)
         m[method] = clusters
         save(m, context_vectors_filename)
+    stopwords = read_stopwords('stopwords.txt')
     for c, elements in clusters.iteritems():
         elements.sort(key=itemgetter(1))
         print
         print c + 1
+        for w, count in best_words(elements, m['word'], stopwords)[:10]:
+            print count, w
         for ctx, dist in elements[:7]:
             print u'%.2f: %s' % (dist, u' '.join(ctx))
+
+
+def best_words(elements, word, stopwords):
+    counts = defaultdict(int)
+    for ctx, __ in elements:
+        for w in ctx:
+            if w not in stopwords and w != word:
+                counts[w] += 1
+    return sorted(counts.iteritems(), key=itemgetter(1), reverse=True)
 
 
 def cluster_kmeans(m, n_senses):
