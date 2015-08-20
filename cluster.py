@@ -10,9 +10,23 @@ import numpy as np
 from utils import w2v_vec, unitvec, load, save
 
 
-def cluster(context_vectors_filename, n_senses=12):
+def cluster(context_vectors_filename,
+        n_senses=12,
+        method='cluster_kmeans',
+        rebuild=False,
+        ):
     m = load(context_vectors_filename)
-    cluster_kmeans(m, n_senses)
+    clusters = m.get(method)
+    if rebuild or clusters is None:
+        clusters = globals()[method](m, n_senses)
+        m[method] = clusters
+        save(m, context_vectors_filename)
+    for c, elements in clusters.iteritems():
+        elements.sort(key=itemgetter(1))
+        print
+        print c + 1
+        for ctx, dist in elements[:7]:
+            print u'%.2f: %s' % (dist, u' '.join(ctx))
 
 
 def cluster_kmeans(m, n_senses):
@@ -25,15 +39,10 @@ def cluster_kmeans(m, n_senses):
     print 'distortion', distortion
     assignment, distances = vq(features, centroids)
     # TODO - find "best" contexts
-    ctx_by_cluster = defaultdict(list)
+    clusters = defaultdict(list)
     for c, ctx, dist in zip(assignment, contexts, distances):
-        ctx_by_cluster[c].append((ctx, dist))
-    for c, elements in ctx_by_cluster.iteritems():
-        elements.sort(key=itemgetter(1))
-        print
-        print c + 1
-        for ctx, dist in elements[:7]:
-            print u'%.2f: %s' % (dist, u' '.join(ctx))
+        clusters[c].append((ctx, dist))
+    return clusters
 
 
 def build_context_vectors(contexts_filename, word, out_filename):
