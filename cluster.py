@@ -6,6 +6,7 @@ from __future__ import division
 import sys
 import os.path
 import codecs
+import argparse
 from collections import defaultdict
 from operator import itemgetter
 
@@ -26,6 +27,7 @@ def cluster(context_vectors_filename,
         method='KMeans',
         rebuild=False,
         print_clusters=False,
+        **_
         ):
     m = load(context_vectors_filename)
     word = m['word']
@@ -106,7 +108,7 @@ class KMeans(object):
         return assignment
 
 
-def build_context_vectors(contexts_filename, word, out_filename):
+def build_context_vectors(contexts_filename, word, out_filename, **_):
     if os.path.isdir(contexts_filename):
         assert os.path.isfile(word)
         assert os.path.isdir(out_filename)
@@ -153,16 +155,25 @@ def iter_contexts(contexts_filename):
 
 
 if __name__ == '__main__':
-    args = sys.argv[1:]
-    if len(args) == 3:
-        build_context_vectors(*args)
-    elif len(args) == 1:
-        cluster(*args)
+    n_args = len(sys.argv[1:])
+    parser = argparse.ArgumentParser(
+        description='''
+Usage:
+To build context vectors:
+    ./cluster.py contexts_filename word context_vectors.pkl
+or  ./cluster.py contexts_folder word_list vectors_folder
+To cluster context vectors:
+    ./cluster.py context_vectors.pkl''')
+    arg = parser.add_argument
+    arg('args', nargs='+')
+    arg('--rebuild', action='store_true', help='force rebuild of clusters')
+    arg('--n-senses', type=int, help='number of senses (clusters)')
+    arg('--print-clusters', action='store_true', help='print resulting senses')
+    args = parser.parse_args()
+    if len(args.args) == 3:
+        fn = build_context_vectors
+    elif len(args.args) == 1:
+        fn = cluster
     else:
-        print 'Usage:'
-        print 'To build context vectors:'
-        print '    ./cluster.py contexts_filename word context_vectors.pkl'
-        print 'or  ./cluster.py contexts_folder word_list vectors_folder'
-        print 'To cluster context vectors:'
-        print '    ./cluster.py context_vectors.pkl'
-        sys.exit(-1)
+        parser.error('Expected 3 or 1 positional args')
+    fn(*args.args, **vars(args))
