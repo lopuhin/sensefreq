@@ -12,7 +12,7 @@ from operator import itemgetter
 import numpy as np
 from sklearn.mixture import GMM
 
-from utils import w2v_count, w2v_vec_counts, lemmatize_s, \
+from utils import w2v_count, w2v_vecs_counts, lemmatize_s, \
     avg, std_dev, unitvec, debug_exec
 
 
@@ -124,7 +124,7 @@ class GMMModel(Model):
 def context_vector((before, _, after), cutoff):
     vector = None
     words = tuple(itertools.chain(*map(lemmatize_s, [before, after])))
-    for v, c in w2v_vec_counts(words):
+    for v, c in w2v_vecs_counts(words):
         if v is not None:
             v = np.array(v)
             if vector is None:

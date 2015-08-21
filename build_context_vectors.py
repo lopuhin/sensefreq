@@ -11,6 +11,9 @@ import libru
 import utils
 
 
+# used by cluster_tsne.py
+
+
 def contexts_iter(words, sentences, delta=10):
     words = set(words)
     for i, sentence in enumerate(sentences):

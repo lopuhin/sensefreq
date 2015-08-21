@@ -13,9 +13,6 @@ class Word2VecServer(object):
     def __init__(self, filename):
         self.model = Word2Vec.load(filename)
 
-    def vec_counts(self, w_list):
-        return [(self.vec(w), self.count(w)) for w in w_list]
-
     def vec(self, w):
         w = w.decode('utf-8')
         try:
@@ -29,6 +26,12 @@ class Word2VecServer(object):
             return self.model.vocab[w].count
         except KeyError:
             return None
+
+    def vecs(self, w_list):
+        return [self.vec(w) for w in w_list]
+
+    def vec_counts(self, w_list):
+        return [(self.vec(w), self.count(w)) for w in w_list]
 
 
 if __name__ == '__main__':

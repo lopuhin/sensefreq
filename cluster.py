@@ -9,7 +9,7 @@ from operator import itemgetter
 
 import numpy as np
 
-from utils import w2v_vec, unitvec, load, save, read_stopwords
+from utils import w2v_vecs, unitvec, load, save, read_stopwords
 
 
 def cluster(context_vectors_filename,
@@ -73,14 +73,13 @@ def build_context_vectors(contexts_filename, word, out_filename):
 
 def context_vector(word, ctx):
     vector = None
-    for w in ctx:
-        if w != word:
-            v = w2v_vec(w)
-            if v is not None:
-                if vector is None:
-                    vector = np.array(v, dtype=np.float32)
-                else:
-                    vector += v
+    w_to_get = [w for w in ctx if w != word]
+    for v in w2v_vecs(w_to_get):
+        if v is not None:
+            if vector is None:
+                vector = np.array(v, dtype=np.float32)
+            else:
+                vector += v
     if vector is not None:
         return unitvec(vector)
 
