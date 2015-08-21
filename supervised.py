@@ -13,18 +13,36 @@ import numpy as np
 from sklearn.mixture import GMM
 
 from utils import w2v_count, w2v_vecs_counts, lemmatize_s, \
-    avg, std_dev, unitvec, debug_exec
+    avg, std_dev, unitvec
 
 
 random.seed(1)
 
 
-def get_word_data(filename, n_train=None, test_ratio=None):
+def get_ans_test_train(filename, n_train=None, test_ratio=None):
     assert n_train or test_ratio
+    senses, w_d = get_labeled_ctx(filename)
+    counts = defaultdict(int)
+    for __, ans in w_d:
+        counts[ans] += 1
+    if n_train is None:
+        n_test = int(len(w_d) * test_ratio)
+    else:
+        n_test = len(w_d) - n_train
+    random.shuffle(w_d)
+    return (
+        {ans: (meaning, counts[ans]) for ans, meaning in senses.iteritems()},
+        w_d[:n_test],
+        w_d[n_test:])
+
+
+def get_labeled_ctx(filename):
+    ''' Read results from two annotators, return only contexts
+    where both annotators agree on the meaning and it is defined.
+    '''
     w_d = []
     with open(filename, 'rb') as f:
         senses = {}
-        counts = defaultdict(int)
         for line in f:
             row = filter(None, line.decode('utf-8').strip().split('\t'))
             if line.startswith('\t'):
@@ -37,17 +55,8 @@ def get_word_data(filename, n_train=None, test_ratio=None):
                 if ans1 == ans2:
                     ans = ans1
                     if ans != '0' and ans != other:
-                        counts[ans] += 1
                         w_d.append(((before, word, after), ans))
-    if n_train is None:
-        n_test = int(len(w_d) * test_ratio)
-    else:
-        n_test = len(w_d) - n_train
-    random.shuffle(w_d)
-    return (
-        {ans: (meaning, counts[ans]) for ans, meaning in senses.iteritems()},
-        w_d[:n_test],
-        w_d[n_test:])
+    return senses, w_d
 
 
 def evaluate(test_data, train_data, i, filename, senses, model_class):
@@ -155,7 +164,7 @@ def main(path, n_train=80):
         word_results = []
         for i in xrange(4):
             senses, test_data, train_data = \
-                get_word_data(filename, n_train=n_train)
+                get_ans_test_train(filename, n_train=n_train)
             if not i:
                 print '%s: %d senses' % (word, len(senses))
                 print '%d test samples, %d train samples' % (
