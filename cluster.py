@@ -65,9 +65,13 @@ def cluster_kmeans(m, n_senses):
 def build_context_vectors(contexts_filename, word, out_filename):
     word = word.decode('utf-8')
     vectors = []
+    seen = set()
     for ctx in iter_contexts(contexts_filename):
-        v = context_vector(word, ctx)
-        vectors.append((ctx, v))
+        key = ' '.join(ctx)
+        if key not in seen:
+            seen.add(key)
+            v = context_vector(word, ctx)
+            vectors.append((ctx, v))
     save({'word': word, 'context_vectors': vectors}, out_filename)
 
 
