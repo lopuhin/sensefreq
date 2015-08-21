@@ -117,8 +117,10 @@ if __name__ == '__main__':
     elif len(args) == 1:
         cluster(*args)
     else:
-        print 'usage:'
+        print 'Usage:'
+        print 'To build context vectors:'
         print '    ./cluster.py contexts_filename word context_vectors.pkl'
         print 'or  ./cluster.py contexts_folder word_list vectors_folder'
-        print 'or  ./cluster.py context_vectors.pkl'
+        print 'To cluster context vectors:'
+        print '    ./cluster.py context_vectors.pkl'
         sys.exit(-1)
