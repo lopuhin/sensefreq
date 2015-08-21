@@ -4,6 +4,8 @@
 from __future__ import division
 
 import sys
+import os.path
+import codecs
 from collections import defaultdict
 from operator import itemgetter
 
@@ -63,16 +65,30 @@ def cluster_kmeans(m, n_senses):
 
 
 def build_context_vectors(contexts_filename, word, out_filename):
-    word = word.decode('utf-8')
-    vectors = []
-    seen = set()
-    for ctx in iter_contexts(contexts_filename):
-        key = ' '.join(ctx)
-        if key not in seen:
-            seen.add(key)
-            v = context_vector(word, ctx)
-            vectors.append((ctx, v))
-    save({'word': word, 'context_vectors': vectors}, out_filename)
+    if os.path.isdir(contexts_filename):
+        assert os.path.isfile(word)
+        assert os.path.isdir(out_filename)
+        with codecs.open(word, 'rb', 'utf-8') as f:
+            for w in f:
+                w = w.strip()
+                build_context_vectors(
+                    os.path.join(contexts_filename, w + '.txt'),
+                    w,
+                    os.path.join(out_filename, w + '.pkl'))
+    else:
+        if not isinstance(word, unicode):
+            word = word.decode('utf-8')
+        vectors = []
+        seen = set()
+        print word
+        for ctx in iter_contexts(contexts_filename):
+            key = ' '.join(ctx)
+            if key not in seen:
+                seen.add(key)
+                v = context_vector(word, ctx)
+                vectors.append((ctx, v))
+        print len(vectors), 'contexts'
+        save({'word': word, 'context_vectors': vectors}, out_filename)
 
 
 def context_vector(word, ctx):
@@ -103,5 +119,6 @@ if __name__ == '__main__':
     else:
         print 'usage:'
         print '    ./cluster.py contexts_filename word context_vectors.pkl'
+        print 'or  ./cluster.py contexts_folder word_list vectors_folder'
         print 'or  ./cluster.py context_vectors.pkl'
         sys.exit(-1)
