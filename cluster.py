@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
+from __future__ import division
+
 import sys
 from collections import defaultdict
 from operator import itemgetter
@@ -16,16 +18,19 @@ def cluster(context_vectors_filename,
         rebuild=False,
         ):
     m = load(context_vectors_filename)
+    print
+    print m['word']
     clusters = m.get(method)
     if rebuild or clusters is None:
         clusters = globals()[method](m, n_senses)
         m[method] = clusters
         save(m, context_vectors_filename)
     stopwords = read_stopwords('stopwords.txt')
+    n_contexts = len(m['context_vectors'])
     for c, elements in clusters.iteritems():
         elements.sort(key=itemgetter(1))
         print
-        print c + 1
+        print '#%d: %.2f' % (c + 1, len(elements) / n_contexts)
         for w, count in best_words(elements, m['word'], stopwords)[:10]:
             print count, w
         for ctx, dist in elements[:7]:
