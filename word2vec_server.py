@@ -30,7 +30,7 @@ class Word2VecServer(object):
     def vecs(self, w_list):
         return [self.vec(w) for w in w_list]
 
-    def vec_counts(self, w_list):
+    def vecs_counts(self, w_list):
         return [(self.vec(w), self.count(w)) for w in w_list]
 
 
