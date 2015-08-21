@@ -18,52 +18,62 @@ from supervised import get_labeled_ctx
 
 
 LABELED_DIR = 'train'
+STOPWORDS = read_stopwords('stopwords.txt')
 
 
 def cluster(context_vectors_filename,
         n_senses=12,
         method='KMeans',
         rebuild=False,
+        print_clusters=False,
         ):
     m = load(context_vectors_filename)
-    print
-    print m['word']
+    word = m['word']
+    print word
     clusters = m.get(method)
     classifier = globals()[method](m, n_senses)
     if rebuild or clusters is None:
         clusters = classifier.cluster()
         m[method] = clusters
         save(m, context_vectors_filename)
-    stopwords = read_stopwords('stopwords.txt')
     n_contexts = len(m['context_vectors'])
+    if print_clusters:
+        _print_clusters(word, clusters, n_contexts)
+    labeled_filename = os.path.join(LABELED_DIR, word + '.txt')
+    if os.path.isfile(labeled_filename):
+        _print_metrics(word, classifier, labeled_filename)
+
+
+def _print_clusters(word, clusters, n_contexts):
     for c, elements in clusters.iteritems():
         elements.sort(key=itemgetter(1))
         print
         print '#%d: %.2f' % (c + 1, len(elements) / n_contexts)
-        for w, count in best_words(elements, m['word'], stopwords)[:10]:
+        for w, count in _best_words(elements, word)[:10]:
             print count, w
         for ctx, dist in elements[:7]:
             print u'%.2f: %s' % (dist, u' '.join(ctx))
-    labeled_filename = os.path.join(LABELED_DIR, m['word'] + '.txt')
-    if os.path.isfile(labeled_filename):
-        __, w_d = get_labeled_ctx(labeled_filename)
-        contexts = [lemmatize_s(u' '.join(c)) for c, __ in w_d]
-        vectors = [context_vector(m['word'], ctx) for ctx in contexts]
-        true_labels = [int(ans) for __, ans in w_d]
-        pred_labels = classifier.predict(vectors)
-        ari = adjusted_rand_score(true_labels, pred_labels)
-        vm = v_measure_score(true_labels, pred_labels)
-        print 'ARI: %.2f' % ari
-        print ' VM: %.2f' % vm
 
 
-def best_words(elements, word, stopwords):
+def _best_words(elements, word):
     counts = defaultdict(int)
     for ctx, __ in elements:
         for w in ctx:
-            if w not in stopwords and w != word:
+            if w not in STOPWORDS and w != word:
                 counts[w] += 1
     return sorted(counts.iteritems(), key=itemgetter(1), reverse=True)
+
+
+def _print_metrics(word, classifier, labeled_filename):
+    __, w_d = get_labeled_ctx(labeled_filename)
+    contexts = [lemmatize_s(u' '.join(c)) for c, __ in w_d]
+    vectors = [context_vector(word, ctx) for ctx in contexts]
+    true_labels = [int(ans) for __, ans in w_d]
+    pred_labels = classifier.predict(vectors)
+    ari = adjusted_rand_score(true_labels, pred_labels)
+    vm = v_measure_score(true_labels, pred_labels)
+    print 'ARI: %.2f' % ari
+    print ' VM: %.2f' % vm
 
 
 class KMeans(object):
