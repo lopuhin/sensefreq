@@ -2,6 +2,7 @@
 # -*- encoding: utf-8 -*-
 
 from collections import defaultdict
+from operator import itemgetter
 
 import numpy as np
 from scipy.cluster.vq import vq, kmeans #, whiten
@@ -27,10 +28,9 @@ class Method(object):
     def __init__(self, m, n_senses):
         self.m = m
         self.n_senses = n_senses
-        context_vectors = self.m['context_vectors']
+        context_vectors = self.m['context_vectors'][:10000]
         self.contexts = [ctx for ctx, __ in context_vectors]
-        self.features = np.array([v for __, v in context_vectors],
-                                 dtype=np.float32)
+        self.features = np.array([v for __, v in context_vectors])
 
     def cluster(self):
         raise NotImplementedError
@@ -45,7 +45,7 @@ class Method(object):
         return clusters
 
 
-class KMeans(Method):
+class SCKMeans(Method):
     def cluster(self):
         # features = whiten(features)  # FIXME?
         self.centroids, distortion = kmeans(self.features, self.n_senses)
@@ -53,21 +53,26 @@ class KMeans(Method):
         return self._build_clusters(assignment, distances)
 
     def predict(self, vectors):
-        features = np.array(vectors, dtype=np.float32)
+        features = np.array(vectors)
         assignment, __ = vq(features, self.centroids)
         return assignment
 
+class KMeans(Method):
+    method = sklearn.cluster.KMeans
 
-class MBKMeans(Method):
     def cluster(self):
-        self._c = sklearn.cluster.MiniBatchKMeans(n_clusters=self.n_senses)
+        self._c = self.method(n_clusters=self.n_senses)
         transformed = self._c.fit_transform(self.features)
         assignment = transformed.argmin(axis=1)
         distances = transformed.min(axis=1)
         return self._build_clusters(assignment, distances)
 
     def predict(self, vectors):
-        return self._c.predict(np.array(vectors, dtype=np.float32))
+        return self._c.predict(np.array(vectors))
+
+
+class MBKMeans(KMeans):
+    method = sklearn.cluster.MiniBatchKMeans
 
 
 class Agglomerative(Method):
@@ -93,4 +98,28 @@ class MeanShift(Method):
         return self._build_clusters(assignment, distances)
 
     def predict(self, vectors):
-        return self._c.predict(np.array(vectors, dtype=np.float32))
+        return self._c.predict(np.array(vectors))
+
+
+class Spectral(Method):
+    def cluster(self):
+        self._c = sklearn.cluster.SpectralClustering(
+            n_clusters=self.n_senses,
+            affinity='cosine')
+        self.assignment = self._c.fit_predict(self.features)
+        distances = [0.0] * len(self.assignment)  # FIXME
+        return self._build_clusters(self.assignment, distances)
+
+    def predict(self, vectors):
+        vectors = np.array(vectors)
+        similarity_matrix = np.dot(vectors, np.transpose(self.features))
+        predictions = []
+        for v in similarity_matrix:
+            av = zip(self.assignment, v)
+            av.sort(key=itemgetter(1), reverse=True)
+            weighted_sims = defaultdict(float)
+            for c, s in av[:10]:
+                weighted_sims[c] += s
+            predictions.append(
+                max(weighted_sims.items(), key=itemgetter(1))[0])
+        return np.array(predictions)
