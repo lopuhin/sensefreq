@@ -5,15 +5,14 @@ import os
 import sys
 import random
 from collections import defaultdict
-from functools import partial
 import itertools
 from operator import itemgetter
 
 import numpy as np
 from sklearn.mixture import GMM
 
-from utils import w2v_count, w2v_vecs_counts, lemmatize_s, \
-    avg, std_dev, unitvec
+from utils import w2v_vecs_counts, lemmatize_s, \
+    avg, std_dev, unitvec, STOPWORDS
 
 
 random.seed(1)
@@ -97,8 +96,7 @@ class Model(object):
         self.examples = defaultdict(list)
         for x, ans in train_data:
             self.examples[ans].append(x)
-        cutoff = w2v_count(u'она')  # eh
-        self.cv = partial(context_vector, cutoff=cutoff)
+        self.cv = context_vector
         self.context_vectors = {ans: np.array(map(self.cv, xs))
             for ans, xs in self.examples.iteritems()}
         self.sense_vectors = {ans: cvs.mean(axis=0)
@@ -130,15 +128,16 @@ class GMMModel(Model):
         return self.senses[self.classifier.predict(v)[0]]
 
 
-def context_vector((before, _, after), cutoff):
+def context_vector((before, _, after), cutoff=None, excl_stopwords=True):
     vector = None
     words = tuple(itertools.chain(*map(lemmatize_s, [before, after])))
-    for v, c in w2v_vecs_counts(words):
+    for w, (v, c) in zip(words, w2v_vecs_counts(words)):
         if v is not None:
             v = np.array(v)
             if vector is None:
                 vector = v
-            elif c < cutoff:
+            elif (cutoff is None or c < cutoff) and \
+                 (not excl_stopwords or w not in STOPWORDS):
                 vector += v
     return unitvec(vector)
 
