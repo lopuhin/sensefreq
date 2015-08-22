@@ -55,7 +55,8 @@ def _cluster(context_vectors_filename,
 
 
 def _print_clusters(word, clusters, n_contexts):
-    for c, elements in clusters.iteritems():
+    for c, elements in sorted(
+            clusters.iteritems(), key=lambda (__, v): len(v)):
         elements.sort(key=itemgetter(1))
         print
         print '#%d: %.2f' % (c + 1, len(elements) / n_contexts)

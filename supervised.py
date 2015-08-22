@@ -15,9 +15,6 @@ from utils import w2v_vecs_counts, lemmatize_s, \
     avg, std_dev, unitvec, STOPWORDS
 
 
-random.seed(1)
-
-
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
     assert n_train or test_ratio
     senses, w_d = get_labeled_ctx(filename)
@@ -183,4 +180,5 @@ def main(path, n_train=80):
 
 
 if __name__ == '__main__':
+    random.seed(1)
     main(*sys.argv[1:])

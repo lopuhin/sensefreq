@@ -6,10 +6,11 @@ from functools import partial
 from operator import itemgetter
 
 import numpy as np
-from scipy.cluster.vq import vq, kmeans #, whiten
+import scipy.cluster.vq
 import sklearn.cluster
 
 from utils import w2v_vecs, unitvec, STOPWORDS
+import kmeans
 
 
 def context_vector(word, ctx):
@@ -49,13 +50,15 @@ class Method(object):
 class SCKMeans(Method):
     def cluster(self):
         # features = whiten(features)  # FIXME?
-        self.centroids, distortion = kmeans(self.features, self.n_senses)
-        assignment, distances = vq(self.features, self.centroids)
+        self.centroids, distortion = scipy.cluster.vq.kmeans(
+            self.features, self.n_senses)
+        assignment, distances = scipy.cluster.vq.vq(
+            self.features, self.centroids)
         return self._build_clusters(assignment, distances)
 
     def predict(self, vectors):
         features = np.array(vectors)
-        assignment, __ = vq(features, self.centroids)
+        assignment, __ = scipy.cluster.vq.vq(features, self.centroids)
         return assignment
 
 
@@ -75,6 +78,18 @@ class KMeans(Method):
 
 class MBKMeans(KMeans):
     method = partial(sklearn.cluster.MiniBatchKMeans, batch_size=10)
+
+
+class SKMeans(Method):
+    def cluster(self):
+        self._c = kmeans.KMeans(self.features, k=self.n_senses,
+            metric='cosine', verbose=0)
+        assignment = self._c.Xtocentre
+        distances = self._c.distances
+        return self._build_clusters(assignment, distances)
+
+    def predict(self, vectors):
+        return [np.argmax(np.dot(self._c.centres, v)) for v in vectors]
 
 
 class Agglomerative(Method):
