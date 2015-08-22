@@ -15,6 +15,7 @@ from sklearn.metrics import v_measure_score, adjusted_rand_score
 from utils import load, save, lemmatize_s, STOPWORDS
 from supervised import get_labeled_ctx
 import cluster_methods
+from cluster_methods import context_vector
 
 
 LABELED_DIR = 'train'
@@ -30,12 +31,7 @@ def cluster(context_vectors_filename, **kwargs):
 
 
 def _cluster(context_vectors_filename,
-        n_senses=12,
-        method='KMeans',
-        rebuild=False,
-        print_clusters=False,
-        **_
-        ):
+        n_senses, method, rebuild, print_clusters, **_):
     m = load(context_vectors_filename)
     word = m['word']
     print word
@@ -76,7 +72,7 @@ def _best_words(elements, word):
 def _print_metrics(word, classifier, labeled_filename):
     __, w_d = get_labeled_ctx(labeled_filename)
     contexts = [lemmatize_s(u' '.join(c)) for c, __ in w_d]
-    vectors = [cluster_methods.context_vector(word, ctx) for ctx in contexts]
+    vectors = [context_vector(word, ctx) for ctx in contexts]
     true_labels = [int(ans) for __, ans in w_d]
     pred_labels = classifier.predict(vectors)
     ari = adjusted_rand_score(true_labels, pred_labels)
@@ -130,6 +126,7 @@ To cluster context vectors:
 or  ./cluster.py context_vectors_folder/''')
     arg = parser.add_argument
     arg('args', nargs='+')
+    arg('--method', help='clustering method', default='KMeans')
     arg('--rebuild', action='store_true', help='force rebuild of clusters')
     arg('--n-senses', type=int, default=12, help='number of senses (clusters)')
     arg('--print-clusters', action='store_true', help='print resulting senses')
