@@ -35,15 +35,11 @@ def cluster(context_vectors_filename, **kwargs):
 
 
 def _cluster(context_vectors_filename,
-        n_senses, method, rebuild, print_clusters, **_):
+        n_senses, method, print_clusters, **_):
     m = load(context_vectors_filename)
     word = m['word']
-    clusters = m.get(method)
     classifier = getattr(cluster_methods, method)(m, n_senses)
-    if rebuild or clusters is None:
-        clusters = classifier.cluster()
-        m[method] = clusters
-        save(m, context_vectors_filename)
+    clusters = classifier.cluster()
     n_contexts = len(m['context_vectors'])
     if print_clusters:
         print

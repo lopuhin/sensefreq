@@ -48,14 +48,11 @@ class KMeans(Method):
     def cluster(self):
         # features = whiten(features)  # FIXME?
         self.centroids, distortion = kmeans(self.features, self.n_senses)
-        self.m['KMeans_centroids'] = self.centroids
         print 'distortion', distortion
         assignment, distances = vq(self.features, self.centroids)
         return self._build_clusters(assignment, distances)
 
     def predict(self, vectors):
-        if not hasattr(self, 'centroids'):
-            self.centroids = self.m['KMeans_centroids']
         features = np.array(vectors, dtype=np.float32)
         assignment, __ = vq(features, self.centroids)
         return assignment
