@@ -12,7 +12,7 @@ from operator import itemgetter
 
 from sklearn.metrics import v_measure_score, adjusted_rand_score
 
-from utils import load, save, lemmatize_s, STOPWORDS
+from utils import load, save, lemmatize_s, STOPWORDS, avg
 from supervised import get_labeled_ctx
 import cluster_methods
 from cluster_methods import context_vector
@@ -23,9 +23,13 @@ LABELED_DIR = 'train'
 
 def cluster(context_vectors_filename, **kwargs):
     if os.path.isdir(context_vectors_filename):
+        all_metrics = defaultdict(list)
         for f in os.listdir(context_vectors_filename):
-            print
-            _cluster(os.path.join(context_vectors_filename, f), **kwargs)
+            mt = _cluster(os.path.join(context_vectors_filename, f), **kwargs)
+            for k, v in mt.iteritems():
+                all_metrics[k].append(v)
+        print 'Avg.\t%s' % '\t'.join(
+            '%s\t%.2f' % (k, avg(v)) for k, v in all_metrics.iteritems())
     else:
         _cluster(context_vectors_filename, **kwargs)
 
@@ -34,7 +38,6 @@ def _cluster(context_vectors_filename,
         n_senses, method, rebuild, print_clusters, **_):
     m = load(context_vectors_filename)
     word = m['word']
-    print word
     clusters = m.get(method)
     classifier = getattr(cluster_methods, method)(m, n_senses)
     if rebuild or clusters is None:
@@ -43,10 +46,16 @@ def _cluster(context_vectors_filename,
         save(m, context_vectors_filename)
     n_contexts = len(m['context_vectors'])
     if print_clusters:
+        print
+        print word
         _print_clusters(word, clusters, n_contexts)
     labeled_filename = os.path.join(LABELED_DIR, word + '.txt')
+    mt = {}
     if os.path.isfile(labeled_filename):
-        _print_metrics(word, classifier, labeled_filename)
+        mt = _get_metrics(word, classifier, labeled_filename)
+        print '%s\t%s' % (
+            word, '\t'.join('%s\t%.2f' % it for it in mt.iteritems()))
+    return mt
 
 
 def _print_clusters(word, clusters, n_contexts):
@@ -69,7 +78,7 @@ def _best_words(elements, word):
     return sorted(counts.iteritems(), key=itemgetter(1), reverse=True)
 
 
-def _print_metrics(word, classifier, labeled_filename):
+def _get_metrics(word, classifier, labeled_filename):
     __, w_d = get_labeled_ctx(labeled_filename)
     contexts = [lemmatize_s(u' '.join(c)) for c, __ in w_d]
     vectors = [context_vector(word, ctx) for ctx in contexts]
@@ -77,7 +86,7 @@ def _print_metrics(word, classifier, labeled_filename):
     pred_labels = classifier.predict(vectors)
     ari = adjusted_rand_score(true_labels, pred_labels)
     vm = v_measure_score(true_labels, pred_labels)
-    print 'ARI\t%.2f\tVM\t%.2f' % (ari, vm)
+    return dict(ARI=ari, VM=vm)
 
 
 def build_context_vectors(contexts_filename, word, out_filename, **_):
