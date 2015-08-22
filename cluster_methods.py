@@ -2,6 +2,7 @@
 # -*- encoding: utf-8 -*-
 
 from collections import defaultdict
+from functools import partial
 from operator import itemgetter
 
 import numpy as np
@@ -28,7 +29,7 @@ class Method(object):
     def __init__(self, m, n_senses):
         self.m = m
         self.n_senses = n_senses
-        context_vectors = self.m['context_vectors'][:10000]
+        context_vectors = self.m['context_vectors']
         self.contexts = [ctx for ctx, __ in context_vectors]
         self.features = np.array([v for __, v in context_vectors])
 
@@ -57,6 +58,7 @@ class SCKMeans(Method):
         assignment, __ = vq(features, self.centroids)
         return assignment
 
+
 class KMeans(Method):
     method = sklearn.cluster.KMeans
 
@@ -72,7 +74,7 @@ class KMeans(Method):
 
 
 class MBKMeans(KMeans):
-    method = sklearn.cluster.MiniBatchKMeans
+    method = partial(sklearn.cluster.MiniBatchKMeans, batch_size=10)
 
 
 class Agglomerative(Method):

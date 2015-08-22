@@ -131,7 +131,7 @@ To cluster context vectors:
 or  ./cluster.py context_vectors_folder/''')
     arg = parser.add_argument
     arg('args', nargs='+')
-    arg('--method', help='clustering method', default='KMeans')
+    arg('--method', help='clustering method', default='MBKMeans')
     arg('--rebuild', action='store_true', help='force rebuild of clusters')
     arg('--n-senses', type=int, default=12, help='number of senses (clusters)')
     arg('--print-clusters', action='store_true', help='print resulting senses')
