@@ -7,12 +7,12 @@ import numpy as np
 from scipy.cluster.vq import vq, kmeans #, whiten
 from sklearn.cluster import MiniBatchKMeans
 
-from utils import w2v_vecs, unitvec
+from utils import w2v_vecs, unitvec, STOPWORDS
 
 
 def context_vector(word, ctx):
     vector = None
-    w_to_get = [w for w in ctx if w != word]
+    w_to_get = [w for w in ctx if w != word and w not in STOPWORDS]
     for v in w2v_vecs(w_to_get):
         if v is not None:
             if vector is None:
