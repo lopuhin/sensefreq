@@ -22,7 +22,14 @@ LABELED_DIR = 'train'
 STOPWORDS = read_stopwords('stopwords.txt')
 
 
-def cluster(context_vectors_filename,
+def cluster(context_vectors_filename, **kwargs):
+    if os.path.isdir(context_vectors_filename):
+        for f in os.listdir(context_vectors_filename):
+            cluster(os.path.join(context_vectors_filename, f), **kwargs)
+    else:
+        _cluster(context_vectors_filename, **kwargs)
+
+def _cluster(context_vectors_filename,
         n_senses=12,
         method='KMeans',
         rebuild=False,
@@ -161,9 +168,10 @@ if __name__ == '__main__':
 Usage:
 To build context vectors:
     ./cluster.py contexts_filename word context_vectors.pkl
-or  ./cluster.py contexts_folder word_list vectors_folder
+or  ./cluster.py contexts_folder/ word_list vectors_folder/
 To cluster context vectors:
-    ./cluster.py context_vectors.pkl''')
+    ./cluster.py context_vectors.pkl
+or  ./cluster.py context_vectors_folder/''')
     arg = parser.add_argument
     arg('args', nargs='+')
     arg('--rebuild', action='store_true', help='force rebuild of clusters')
