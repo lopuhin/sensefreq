@@ -175,7 +175,7 @@ or  ./cluster.py context_vectors_folder/''')
     arg = parser.add_argument
     arg('args', nargs='+')
     arg('--rebuild', action='store_true', help='force rebuild of clusters')
-    arg('--n-senses', type=int, help='number of senses (clusters)')
+    arg('--n-senses', type=int, default=12, help='number of senses (clusters)')
     arg('--print-clusters', action='store_true', help='print resulting senses')
     args = parser.parse_args()
     if len(args.args) == 3:
