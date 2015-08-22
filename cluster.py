@@ -10,24 +10,24 @@ import argparse
 from collections import defaultdict
 from operator import itemgetter
 
-import numpy as np
 from sklearn.metrics import v_measure_score, adjusted_rand_score
-from scipy.cluster.vq import vq, kmeans #, whiten
 
-from utils import w2v_vecs, unitvec, load, save, read_stopwords, lemmatize_s
+from utils import load, save, lemmatize_s, STOPWORDS
 from supervised import get_labeled_ctx
+import cluster_methods
 
 
 LABELED_DIR = 'train'
-STOPWORDS = read_stopwords('stopwords.txt')
 
 
 def cluster(context_vectors_filename, **kwargs):
     if os.path.isdir(context_vectors_filename):
         for f in os.listdir(context_vectors_filename):
-            cluster(os.path.join(context_vectors_filename, f), **kwargs)
+            print
+            _cluster(os.path.join(context_vectors_filename, f), **kwargs)
     else:
         _cluster(context_vectors_filename, **kwargs)
+
 
 def _cluster(context_vectors_filename,
         n_senses=12,
@@ -40,7 +40,7 @@ def _cluster(context_vectors_filename,
     word = m['word']
     print word
     clusters = m.get(method)
-    classifier = globals()[method](m, n_senses)
+    classifier = getattr(cluster_methods, method)(m, n_senses)
     if rebuild or clusters is None:
         clusters = classifier.cluster()
         m[method] = clusters
@@ -76,43 +76,12 @@ def _best_words(elements, word):
 def _print_metrics(word, classifier, labeled_filename):
     __, w_d = get_labeled_ctx(labeled_filename)
     contexts = [lemmatize_s(u' '.join(c)) for c, __ in w_d]
-    vectors = [context_vector(word, ctx) for ctx in contexts]
+    vectors = [cluster_methods.context_vector(word, ctx) for ctx in contexts]
     true_labels = [int(ans) for __, ans in w_d]
     pred_labels = classifier.predict(vectors)
     ari = adjusted_rand_score(true_labels, pred_labels)
     vm = v_measure_score(true_labels, pred_labels)
-    print 'ARI: %.2f' % ari
-    print ' VM: %.2f' % vm
-
-
-class KMeans(object):
-    def __init__(self, m, n_senses):
-        self.m = m
-        self.n_senses = n_senses
-
-    def cluster(self):
-        contexts = [ctx for ctx, __ in self.m['context_vectors']]
-        features = np.array([v for __, v in self.m['context_vectors']],
-                            dtype=np.float32)
-        # features = whiten(features)  # FIXME?
-        self.centroids, distortion = kmeans(features, self.n_senses)
-        self.m['KMeans_centroids'] = self.centroids
-        print 'distortion', distortion
-        assignment, distances = vq(features, self.centroids)
-        clusters = defaultdict(list)
-        for c, ctx, dist in zip(assignment, contexts, distances):
-            clusters[c].append((ctx, dist))
-        return clusters
-
-    def predict(self, vectors):
-        if not hasattr(self, 'centroids'):
-            if 'KMeans_centroids' in self.m:
-                self.centroids = self.m['KMeans_centroids']
-            else:
-                self.cluster()
-        features = np.array(vectors, dtype=np.float32)
-        assignment, __ = vq(features, self.centroids)
-        return assignment
+    print 'ARI\t%.2f\tVM\t%.2f' % (ari, vm)
 
 
 def build_context_vectors(contexts_filename, word, out_filename, **_):
@@ -140,19 +109,6 @@ def build_context_vectors(contexts_filename, word, out_filename, **_):
                 vectors.append((ctx, v))
         print len(vectors), 'contexts'
         save({'word': word, 'context_vectors': vectors}, out_filename)
-
-
-def context_vector(word, ctx):
-    vector = None
-    w_to_get = [w for w in ctx if w != word]
-    for v in w2v_vecs(w_to_get):
-        if v is not None:
-            if vector is None:
-                vector = np.array(v, dtype=np.float32)
-            else:
-                vector += v
-    if vector is not None:
-        return unitvec(vector)
 
 
 def iter_contexts(contexts_filename):

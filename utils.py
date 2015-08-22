@@ -119,6 +119,8 @@ def read_stopwords(filename):
                 stopwords.add(w)
     return stopwords
 
+STOPWORDS = read_stopwords('stopwords.txt')
+
 
 _word2vec_client = None
 
