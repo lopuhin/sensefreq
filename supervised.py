@@ -182,7 +182,7 @@ def main(path, n_train=80):
             senses, test_data, train_data = \
                 get_ans_test_train(filename, n_train=n_train)
             if not i:
-                print '%s: %d senses' % (word, len(senses))
+                print '%s: %d senses' % (word, len(senses) - 2)  # "n/a" and "other"
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
             correct_ratio, errors = evaluate(test_data, train_data, model_class)
