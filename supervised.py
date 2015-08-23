@@ -42,27 +42,31 @@ def get_labeled_ctx(filename):
     w_d = []
     with open(filename, 'rb') as f:
         senses = {}
-        for line in f:
+        for i, line in enumerate(f, 1):
             row = filter(None, line.decode('utf-8').strip().split('\t'))
-            if line.startswith('\t'):
-                if len(row) == 3:
-                    meaning, ans, ans2 = row
-                    assert ans == ans2
-                else:
-                    meaning, ans = row
-                senses[ans] = meaning
-            else:
-                other = str(len(senses) - 1)
-                if len(row) == 5:
-                    before, word, after, ans1, ans2 = row
-                    if ans1 == ans2:
-                        ans = ans1
+            try:
+                if line.startswith('\t'):
+                    if len(row) == 3:
+                        meaning, ans, ans2 = row
+                        assert ans == ans2
                     else:
-                        continue
+                        meaning, ans = row
+                    senses[ans] = meaning
                 else:
-                    before, word, after, ans = row
-                if ans != '0' and ans != other:
-                    w_d.append(((before, word, after), ans))
+                    other = str(len(senses) - 1)
+                    if len(row) == 5:
+                        before, word, after, ans1, ans2 = row
+                        if ans1 == ans2:
+                            ans = ans1
+                        else:
+                            continue
+                    else:
+                        before, word, after, ans = row
+                    if ans != '0' and ans != other:
+                        w_d.append(((before, word, after), ans))
+            except ValueError:
+                print 'error on line', i
+                raise
     return senses, w_d
 
 
