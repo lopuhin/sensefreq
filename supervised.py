@@ -45,16 +45,24 @@ def get_labeled_ctx(filename):
         for line in f:
             row = filter(None, line.decode('utf-8').strip().split('\t'))
             if line.startswith('\t'):
-                meaning, ans, ans2 = row
-                assert ans == ans2
+                if len(row) == 3:
+                    meaning, ans, ans2 = row
+                    assert ans == ans2
+                else:
+                    meaning, ans = row
                 senses[ans] = meaning
             else:
                 other = str(len(senses) - 1)
-                before, word, after, ans1, ans2 = row
-                if ans1 == ans2:
-                    ans = ans1
-                    if ans != '0' and ans != other:
-                        w_d.append(((before, word, after), ans))
+                if len(row) == 5:
+                    before, word, after, ans1, ans2 = row
+                    if ans1 == ans2:
+                        ans = ans1
+                    else:
+                        continue
+                else:
+                    before, word, after, ans = row
+                if ans != '0' and ans != other:
+                    w_d.append(((before, word, after), ans))
     return senses, w_d
 
 
@@ -174,7 +182,7 @@ def main(path, n_train=80):
             correct_ratio, errors = evaluate(test_data, train_data, model_class)
             baseline = get_baseline(train_data)
             r = (baseline, correct_ratio)
-            write_errors(errors, i, filename, senses)
+           #write_errors(errors, i, filename, senses)
             word_results.append(r)
             results.append(r)
         print 'baseline: %.2f' % avg(word_results, 0)
