@@ -13,8 +13,10 @@ from supervised import get_labeled_ctx, evaluate
 
 def evaluate_word(word):
     word = word.decode('utf-8')
-    senses, test_data = get_labeled_ctx(os.path.join('train', word + '.txt'))
-    ad_word_data = parse_word(os.path.join('ad', word + '.json'))
+    senses, test_data = get_labeled_ctx(
+        os.path.join('ann', 'dialog7', word + '.txt'))
+    ad_word_data = parse_word(
+        os.path.join('ann', 'ad-dialog7', word + '.json'))
     train_data = get_ad_train_data(word, ad_word_data)
     correct_ratio, errors = evaluate(test_data, train_data)
     ad_senses = {m['id']: m['meaning'] for m in ad_word_data['meanings']}
