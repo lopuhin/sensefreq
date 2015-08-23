@@ -80,9 +80,33 @@ def _get_metrics(word, classifier, labeled_filename):
     vectors = [context_vector(word, ctx) for ctx in contexts]
     true_labels = [int(ans) for __, ans in w_d]
     pred_labels = classifier.predict(vectors)
-    ari = adjusted_rand_score(true_labels, pred_labels)
-    vm = v_measure_score(true_labels, pred_labels)
-    return dict(ARI=ari, VM=vm)
+    return dict(
+        ARI=adjusted_rand_score(true_labels, pred_labels),
+        VM=v_measure_score(true_labels, pred_labels),
+        accuracy=_oracle_accuracy(true_labels, pred_labels),
+    )
+
+
+def _oracle_accuracy(true_labels, pred_labels):
+    ''' Accuracy assuming best possible mapping of clusters to senses.
+    Note that this method will always get at least baseline performance,
+    and is "cheating" by looking into true_labels to recover optimal mapping.
+    '''
+    true_labels_by_pred_label = defaultdict(lambda: defaultdict(int))
+    for t, p in zip(true_labels, pred_labels):
+        true_labels_by_pred_label[p][t] += 1
+    n_errors = 0
+    used_labels = set()
+    for true_label_counts in true_labels_by_pred_label.itervalues():
+        max_label, max_label_count = max(
+            true_label_counts.iteritems(), key=itemgetter(1))
+        n_errors += sum(true_label_counts.itervalues()) - max_label_count
+        used_labels.add(max_label)
+    print 'used %d labels out of %d' % (len(used_labels), len(set(true_labels)))
+    if len(used_labels) == 1:
+        print 'FOO! Baseline detected!'
+    n = len(true_labels)
+    return (n - n_errors) / n
 
 
 def build_context_vectors(contexts_filename, word, out_filename, **_):
