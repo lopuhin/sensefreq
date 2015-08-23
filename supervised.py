@@ -170,12 +170,14 @@ def main(path, n_train=80):
         filenames = [path]
     filenames.sort()
 
+    baselines = []
     results = []
     model_class = Model
     for filename in filenames:
         print
         word = filename.split('/')[-1].split('.')[0]
         word_results = []
+        baseline = get_baseline(get_labeled_ctx(filename)[1])
         for i in xrange(4):
             senses, test_data, train_data = \
                 get_ans_test_train(filename, n_train=n_train)
@@ -184,19 +186,18 @@ def main(path, n_train=80):
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
             correct_ratio, errors = evaluate(test_data, train_data, model_class)
-            baseline = get_baseline(train_data)
-            r = (baseline, correct_ratio)
            #write_errors(errors, i, filename, senses)
-            word_results.append(r)
-            results.append(r)
-        print 'baseline: %.2f' % avg(word_results, 0)
+            word_results.append(correct_ratio)
+            results.append(correct_ratio)
+        baselines.append(baseline)
+        print 'baseline: %.2f' % baseline
         print '     avg: %.2f ± %.2f' % (
-            avg(word_results, 1),
-            1.96 * std_dev(map(itemgetter(1), word_results)))
+            avg(word_results),
+            1.96 * std_dev(word_results))
     print
     print '---------'
-    print 'baseline: %.2f' % avg(results, 0)
-    print '     avg: %.2f' % avg(results, 1)
+    print 'baseline: %.2f' % avg(baselines)
+    print '     avg: %.2f' % avg(results)
 
 
 if __name__ == '__main__':

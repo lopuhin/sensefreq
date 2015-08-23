@@ -94,9 +94,7 @@ def lemmatize_s(s):
     return [w for w in mystem.lemmatize(s) if w != ' ' and w != '\n']
 
 
-def avg(v, idx=None):
-    if idx is not None:
-        v = [x[idx] for x in v]
+def avg(v):
     return float(sum(v)) / len(v)
 
 
