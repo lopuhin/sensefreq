@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
-import re
 import sys
 import os.path
+from operator import itemgetter
+from collections import defaultdict
 
-from utils import lemmatize_s
+from utils import word_re, lemmatize_s
 from active_dict import parse_word
 from supervised import get_labeled_ctx, evaluate
 
@@ -16,11 +17,16 @@ def evaluate_word(word):
     train_data = get_ad_train_data(word, os.path.join('ad', word + '.json'))
     correct_ratio, errors = evaluate(test_data, train_data)
     print 'correct: %.2f' % correct_ratio
+    error_kinds = defaultdict(int)
+    for _, ans, model_ans in errors:
+        error_kinds[(ans, model_ans)] += 1
+    print 'errors'
+    for k, v in sorted(error_kinds.iteritems(), key=itemgetter(1), reverse=True):
+        print k, v
 
 
 def get_ad_train_data(word, word_filename):
     ad_word = parse_word(word_filename)
-    word_re = re.compile(r'\w+', re.U)
     train_data = []
     for i, m in enumerate(ad_word['meanings']):
         ans = str(i + 1)

@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import re
 import time
 import math
 import traceback
@@ -12,6 +13,9 @@ import msgpackrpc
 import numpy
 
 from conf import WORD2VEC_PORT
+
+
+word_re = re.compile(r'\w+', re.U)
 
 
 mystem = Mystem()

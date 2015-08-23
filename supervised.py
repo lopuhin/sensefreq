@@ -11,7 +11,7 @@ from operator import itemgetter
 import numpy as np
 from sklearn.mixture import GMM
 
-from utils import w2v_vecs_counts, memoize, lemmatize_s, \
+from utils import word_re, w2v_vecs_counts, memoize, lemmatize_s, \
     avg, std_dev, unitvec, STOPWORDS
 
 
@@ -97,7 +97,9 @@ class GMMModel(Model):
 
 def context_vector((before, _, after), cutoff=None, excl_stopwords=True):
     vector = None
-    words = tuple(itertools.chain(*map(lemmatize_s, [before, after])))
+    words = tuple(
+        w for w in itertools.chain(*map(lemmatize_s, [before, after]))
+        if word_re.match(w))
     for w, (v, c) in zip(words, w2v_vecs_counts(words)):
         if v is not None:
             v = np.array(v)
