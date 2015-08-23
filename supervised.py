@@ -190,7 +190,7 @@ def main(path, n_train=80):
             word_results.append(correct_ratio)
             results.append(correct_ratio)
         baselines.append(baseline)
-        print 'baseline: %.2f' % baseline
+        print 'baseline: %.3f' % baseline
         print '     avg: %.2f ± %.2f' % (
             avg(word_results),
             1.96 * std_dev(word_results))
