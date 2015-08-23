@@ -12,7 +12,7 @@ def parse_word(word_filename):
         return {
             'word': data['word'],
             'meanings': [{
-                'id': str(i + 1),
+                'id': m.get('id', str(i + 1)),
                 'name': m['name'],
                 'meaning': m['meaning'],
                 'contexts': _get_contexts(m),
@@ -21,8 +21,8 @@ def parse_word(word_filename):
 
 
 def _get_contexts(m):
-    assert all(
-        k in {'name', 'examples', 'meaning', 'illustrations', 'compatibility'}
+    assert all(k in {
+        'id', 'name', 'examples', 'meaning', 'illustrations', 'compatibility'}
         for k in m), m.keys()
     contexts = []
     contexts.extend(m.get('examples', '').split(';'))

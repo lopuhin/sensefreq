@@ -19,6 +19,7 @@ def evaluate_word(word):
     correct_ratio, errors = evaluate(test_data, train_data)
     ad_senses = {m['id']: m['meaning'] for m in ad_word_data['meanings']}
     for sid, meaning in sorted(senses.iteritems(), key=lambda (k, __): int(k)):
+        print
         print sid, meaning
         if sid in ad_senses:
             print ad_senses[sid]
@@ -43,7 +44,8 @@ def get_ad_train_data(word, ad_word_data):
             try:
                 w_idx = words.index(word)
             except ValueError:
-                print 'word', word
+                print
+                print 'word missing', word
                 print 'context', ' '.join(words)
             else:
                 before = ' '.join(words[:w_idx])
