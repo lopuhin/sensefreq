@@ -14,9 +14,18 @@ from supervised import get_labeled_ctx, evaluate
 def evaluate_word(word):
     word = word.decode('utf-8')
     senses, test_data = get_labeled_ctx(os.path.join('train', word + '.txt'))
-    train_data = get_ad_train_data(word, os.path.join('ad', word + '.json'))
+    ad_word_data = parse_word(os.path.join('ad', word + '.json'))
+    train_data = get_ad_train_data(word, ad_word_data)
     correct_ratio, errors = evaluate(test_data, train_data)
-    print 'correct: %.2f' % correct_ratio
+    ad_senses = {m['id']: m['meaning'] for m in ad_word_data['meanings']}
+    for sid, meaning in sorted(senses.iteritems(), key=lambda (k, __): int(k)):
+        print sid, meaning
+        if sid in ad_senses:
+            print ad_senses[sid]
+        else:
+            print 'Missing in AD!'
+    assert set(ad_senses).issubset(senses)
+    print '\ncorrect: %.2f\n' % correct_ratio
     error_kinds = defaultdict(int)
     for _, ans, model_ans in errors:
         error_kinds[(ans, model_ans)] += 1
@@ -25,11 +34,10 @@ def evaluate_word(word):
         print k, v
 
 
-def get_ad_train_data(word, word_filename):
-    ad_word = parse_word(word_filename)
+def get_ad_train_data(word, ad_word_data):
     train_data = []
-    for i, m in enumerate(ad_word['meanings']):
-        ans = str(i + 1)
+    for i, m in enumerate(ad_word_data['meanings']):
+        ans = m['id']
         for ctx in m['contexts']:
             words = [w for w in lemmatize_s(ctx.lower()) if word_re.match(w)]
             try:
