@@ -141,7 +141,6 @@ def w2v_count(word):
     return _w2v_client().call('count', word)
 
 
-@memoize
 def w2v_vecs_counts(w_list):
     return _w2v_client().call('vecs_counts', w_list)
 

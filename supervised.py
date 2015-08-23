@@ -11,8 +11,11 @@ from operator import itemgetter
 import numpy as np
 from sklearn.mixture import GMM
 
-from utils import w2v_vecs_counts, lemmatize_s, \
+from utils import w2v_vecs_counts, memoize, lemmatize_s, \
     avg, std_dev, unitvec, STOPWORDS
+
+
+w2v_vecs_counts = memoize(w2v_vecs_counts)  # we do several runs in a row
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -53,39 +56,6 @@ def get_labeled_ctx(filename):
                     if ans != '0' and ans != other:
                         w_d.append(((before, word, after), ans))
     return senses, w_d
-
-
-def evaluate(test_data, train_data, i, filename, senses, model_class):
-    sense_freq = defaultdict(int)
-
-    for _, ans in train_data:
-        sense_freq[ans] += 1
-    baseline = float(max(sense_freq.values())) / len(train_data)
-
-    model = model_class(train_data)
-    n_correct = 0
-    errors = []
-    for x, ans in test_data:
-        model_ans = model(x)
-        if ans == model_ans:
-            n_correct += 1
-        else:
-            errors.append((x, ans, model_ans))
-
-    with open(filename[:-4] + ('.errors%d.tsv' % (i + 1)), 'wb') as f:
-        _w = lambda *x: f.write('\t'.join(map(unicode, x)).encode('utf-8') + '\n')
-        _w('ans', 'count', 'meaning')
-        for ans, (sense, count) in sorted(senses.iteritems(), key=itemgetter(0)):
-            _w(ans, count, sense)
-        _w()
-        _w('ans', 'model_ans', 'before', 'word', 'after')
-        for (before, w, after), ans, model_ans in \
-                sorted(errors, key=lambda x: x[-2:]):
-            _w(ans, model_ans, before, w, after)
-
-    correct_ratio = float(n_correct) / len(test_data)
-   #print 'baseline/correct: %.2f / %.2f' % (baseline, correct_ratio)
-    return baseline, correct_ratio
 
 
 class Model(object):
@@ -143,6 +113,40 @@ def closeness(v1, v2):
     return np.dot(unitvec(v1), unitvec(v2))
 
 
+def evaluate(test_data, train_data, model_class=Model):
+    model = model_class(train_data)
+    n_correct = 0
+    errors = []
+    for x, ans in test_data:
+        model_ans = model(x)
+        if ans == model_ans:
+            n_correct += 1
+        else:
+            errors.append((x, ans, model_ans))
+    correct_ratio = float(n_correct) / len(test_data)
+    return correct_ratio, errors
+
+
+def get_baseline(labeled_data):
+    sense_freq = defaultdict(int)
+    for __, ans in labeled_data:
+        sense_freq[ans] += 1
+    return float(max(sense_freq.values())) / len(labeled_data)
+
+
+def write_errors(errors, i, filename, senses):
+    with open(filename[:-4] + ('.errors%d.tsv' % (i + 1)), 'wb') as f:
+        _w = lambda *x: f.write('\t'.join(map(unicode, x)).encode('utf-8') + '\n')
+        _w('ans', 'count', 'meaning')
+        for ans, (sense, count) in sorted(senses.iteritems(), key=itemgetter(0)):
+            _w(ans, count, sense)
+        _w()
+        _w('ans', 'model_ans', 'before', 'word', 'after')
+        for (before, w, after), ans, model_ans in \
+                sorted(errors, key=lambda x: x[-2:]):
+            _w(ans, model_ans, before, w, after)
+
+
 def main(path, n_train=80):
     n_train = int(n_train)
     if os.path.isdir(path):
@@ -165,8 +169,10 @@ def main(path, n_train=80):
                 print '%s: %d senses' % (word, len(senses))
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
-            r = evaluate(test_data, train_data, i, filename, senses,
-                         model_class)
+            correct_ratio, errors = evaluate(test_data, train_data, model_class)
+            baseline = get_baseline(train_data)
+            r = (baseline, correct_ratio)
+            write_errors(errors, i, filename, senses)
             word_results.append(r)
             results.append(r)
         print 'baseline: %.2f' % avg(word_results, 0)
