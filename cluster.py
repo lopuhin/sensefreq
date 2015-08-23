@@ -18,23 +18,22 @@ import cluster_methods
 from cluster_methods import context_vector
 
 
-LABELED_DIR = 'train'
-
-
-def cluster(context_vectors_filename, **kwargs):
+def cluster(context_vectors_filename, labeled_dir, **kwargs):
     if os.path.isdir(context_vectors_filename):
         all_metrics = defaultdict(list)
         for f in os.listdir(context_vectors_filename):
-            mt = _cluster(os.path.join(context_vectors_filename, f), **kwargs)
+            mt = _cluster(
+                os.path.join(context_vectors_filename, f), labeled_dir,
+                **kwargs)
             for k, v in mt.iteritems():
                 all_metrics[k].append(v)
         print 'Avg.\t%s' % '\t'.join(
             '%s\t%.2f' % (k, avg(v)) for k, v in all_metrics.iteritems())
     else:
-        _cluster(context_vectors_filename, **kwargs)
+        _cluster(context_vectors_filename, labeled_dir, **kwargs)
 
 
-def _cluster(context_vectors_filename,
+def _cluster(context_vectors_filename, labeled_dir,
         n_senses, method, print_clusters, **_):
     m = load(context_vectors_filename)
     word = m['word']
@@ -45,7 +44,7 @@ def _cluster(context_vectors_filename,
         print
         print word
         _print_clusters(word, clusters, n_contexts)
-    labeled_filename = os.path.join(LABELED_DIR, word + '.txt')
+    labeled_filename = os.path.join(labeled_dir, word + '.txt')
     mt = {}
     if os.path.isfile(labeled_filename):
         mt = _get_metrics(word, classifier, labeled_filename)
@@ -128,18 +127,18 @@ To build context vectors:
     ./cluster.py contexts_filename word context_vectors.pkl
 or  ./cluster.py contexts_folder/ word_list vectors_folder/
 To cluster context vectors:
-    ./cluster.py context_vectors.pkl
-or  ./cluster.py context_vectors_folder/''')
+    ./cluster.py context_vectors.pkl labeled_folder/
+or  ./cluster.py context_vectors_folder/ labeled_folder/''')
     arg = parser.add_argument
     arg('args', nargs='+')
-    arg('--method', help='clustering method', default='MBKMeans')
+    arg('--method', help='clustering method', default='SKMeans')
     arg('--rebuild', action='store_true', help='force rebuild of clusters')
     arg('--n-senses', type=int, default=12, help='number of senses (clusters)')
     arg('--print-clusters', action='store_true', help='print resulting senses')
     args = parser.parse_args()
     if len(args.args) == 3:
         fn = build_context_vectors
-    elif len(args.args) == 1:
+    elif len(args.args) == 2:
         fn = cluster
     else:
         parser.error('Expected 3 or 1 positional args')
