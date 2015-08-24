@@ -4,9 +4,14 @@
 import re
 import json
 import sys
+import os.path
 
 
-def parse_word(word_filename):
+def get_ad_word(word):
+    return parse_ad_word(os.path.join('ann', 'ad-dialog7', word + '.json'))
+
+
+def parse_ad_word(word_filename):
     with open(word_filename, 'rb') as f:
         data = json.load(f)
         return {

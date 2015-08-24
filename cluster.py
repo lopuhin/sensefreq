@@ -143,15 +143,15 @@ def iter_contexts(contexts_filename):
 
 if __name__ == '__main__':
     n_args = len(sys.argv[1:])
-    parser = argparse.ArgumentParser(
-        description='''
-Usage:
+    description = '''
 To build context vectors:
     ./cluster.py contexts_filename word context_vectors.pkl
 or  ./cluster.py contexts_folder/ word_list vectors_folder/
 To cluster context vectors:
     ./cluster.py context_vectors.pkl labeled_folder/
-or  ./cluster.py context_vectors_folder/ labeled_folder/''')
+or  ./cluster.py context_vectors_folder/ labeled_folder/
+    '''
+    parser = argparse.ArgumentParser(description=description)
     arg = parser.add_argument
     arg('args', nargs='+')
     arg('--method', help='clustering method', default='SKMeans')
@@ -164,5 +164,6 @@ or  ./cluster.py context_vectors_folder/ labeled_folder/''')
     elif len(args.args) == 2:
         fn = cluster
     else:
-        parser.error('Expected 3 or 1 positional args')
+        parser.error(
+            'Expected 3 or 2 positional args.\n{}'.format(description))
     fn(*args.args, **vars(args))

@@ -9,7 +9,8 @@ import numpy as np
 import scipy.cluster.vq
 import sklearn.cluster
 
-from utils import w2v_vecs, unitvec, STOPWORDS
+from utils import w2v_vecs, unitvec, word_re, lemmatize_s, STOPWORDS
+from active_dict import get_ad_word
 import kmeans
 
 
@@ -48,6 +49,8 @@ class Method(object):
 
 
 class SCKMeans(Method):
+    ''' K-means from scipy.
+    '''
     def cluster(self):
         # features = whiten(features)  # FIXME?
         self.centroids, distortion = scipy.cluster.vq.kmeans(
@@ -63,6 +66,8 @@ class SCKMeans(Method):
 
 
 class KMeans(Method):
+    ''' K-means from scikit-learn.
+    '''
     method = sklearn.cluster.KMeans
 
     def cluster(self):
@@ -77,19 +82,52 @@ class KMeans(Method):
 
 
 class MBKMeans(KMeans):
+    ''' Mini-batch K-means - good in practice.
+    '''
     method = partial(sklearn.cluster.MiniBatchKMeans, batch_size=10)
 
 
 class SKMeans(Method):
+    ''' Spherical K-means.
+    '''
     def cluster(self):
         self._c = kmeans.KMeans(self.features, k=self.n_senses,
             metric='cosine', verbose=0)
+        return self._cluster()
+
+    def _cluster(self):
         assignment = self._c.Xtocentre
         distances = self._c.distances
         return self._build_clusters(assignment, distances)
 
     def predict(self, vectors):
         return [np.argmax(np.dot(self._c.centres, v)) for v in vectors]
+
+
+class SKMeansAD(SKMeans):
+    ''' Initialize clusters with Active Dictionary contexts.
+    '''
+    def cluster(self):
+        ad_descr = get_ad_word(self.m['word'])
+        centers = []
+        for meaning in ad_descr['meanings']:
+            center = None
+            for ctx in meaning['contexts']:
+                ctx = [w for w in lemmatize_s(ctx.lower()) if word_re.match(w)]
+                vector = context_vector(self.m['word'], ctx)
+                if vector is not None:
+                    if center is None:
+                        center = vector
+                    else:
+                        center += vector
+            centers.append(unitvec(center))
+        centers = np.array(centers)
+        self._c = kmeans.KMeans(
+            self.features, centres=centers, metric='cosine', verbose=0)
+        return self._cluster()
+
+
+# Methods below are slow, bad for this task, or both
 
 
 class Agglomerative(Method):
