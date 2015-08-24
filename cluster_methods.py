@@ -123,6 +123,7 @@ class SKMeansAD(SKMeans):
                         center += vector
             centers.append(unitvec(center))
             self.mapping[i] = int(meaning['id'])
+            # note that the clusters can drift to quite different positions
         centers = np.array(centers)
         self._c = kmeans.KMeans(
             self.features, centres=centers, metric='cosine', verbose=0)
