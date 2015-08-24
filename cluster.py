@@ -80,11 +80,15 @@ def _get_metrics(word, classifier, labeled_filename):
     vectors = [context_vector(word, ctx) for ctx in contexts]
     true_labels = [int(ans) for __, ans in w_d]
     pred_labels = classifier.predict(vectors)
-    return dict(
+    metrics = dict(
         ARI=adjusted_rand_score(true_labels, pred_labels),
         VM=v_measure_score(true_labels, pred_labels),
-        accuracy=_oracle_accuracy(true_labels, pred_labels),
+        oracle_accuracy=_oracle_accuracy(true_labels, pred_labels),
     )
+    if hasattr(classifier, 'mapping'):
+        metrics['accuracy'] = _mapping_accuracy(
+            true_labels, pred_labels, classifier.mapping)
+    return metrics
 
 
 def _oracle_accuracy(true_labels, pred_labels):
@@ -106,6 +110,13 @@ def _oracle_accuracy(true_labels, pred_labels):
     if len(used_labels) == 1:
         print 'FOO! Baseline detected!'
     return n_true / len(true_labels)
+
+
+def _mapping_accuracy(true_labels, pred_labels, mapping):
+    ''' Accuracy using mapping from pred_labels to true_labels.
+    '''
+    return sum(c1 == mapping[c2] for c1, c2 in zip(true_labels, pred_labels)) / \
+           len(true_labels)
 
 
 def build_context_vectors(contexts_filename, word, out_filename, **_):

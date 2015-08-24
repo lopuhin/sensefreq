@@ -110,7 +110,8 @@ class SKMeansAD(SKMeans):
     def cluster(self):
         ad_descr = get_ad_word(self.m['word'])
         centers = []
-        for meaning in ad_descr['meanings']:
+        self.mapping = {}
+        for i, meaning in enumerate(ad_descr['meanings']):
             center = None
             for ctx in meaning['contexts']:
                 ctx = [w for w in lemmatize_s(ctx.lower()) if word_re.match(w)]
@@ -121,6 +122,7 @@ class SKMeansAD(SKMeans):
                     else:
                         center += vector
             centers.append(unitvec(center))
+            self.mapping[i] = int(meaning['id'])
         centers = np.array(centers)
         self._c = kmeans.KMeans(
             self.features, centres=centers, metric='cosine', verbose=0)
