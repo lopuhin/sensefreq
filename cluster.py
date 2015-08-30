@@ -9,6 +9,7 @@ import codecs
 import argparse
 from collections import defaultdict
 from operator import itemgetter
+import random
 
 from sklearn.metrics import v_measure_score, adjusted_rand_score
 
@@ -19,6 +20,7 @@ from cluster_methods import context_vector
 
 
 def cluster(context_vectors_filename, labeled_dir, **kwargs):
+    random.seed(1)
     if os.path.isdir(context_vectors_filename):
         all_metrics = defaultdict(list)
         for f in os.listdir(context_vectors_filename):
