@@ -32,7 +32,13 @@ def cluster(context_vectors_filename, labeled_dir, **kwargs):
         print 'Avg.\t%s' % '\t'.join(
             '%s\t%.2f' % (k, avg(v)) for k, v in all_metrics.iteritems())
     else:
-        _cluster(context_vectors_filename, labeled_dir, **kwargs)
+        all_mt = defaultdict(list)
+        for __ in xrange(4):
+            mt = _cluster(context_vectors_filename, labeled_dir, **kwargs)
+            for k, v in mt.iteritems():
+                all_mt[k].append(v)
+        print '\t'.join(
+            '%s\t%.2f' % (k, avg(v)) for k, v in all_mt.iteritems())
 
 
 def _cluster(context_vectors_filename, labeled_dir,
