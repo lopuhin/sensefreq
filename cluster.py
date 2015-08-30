@@ -66,7 +66,7 @@ def _print_clusters(word, clusters, n_contexts):
             clusters.iteritems(), key=lambda (__, v): len(v)):
         elements.sort(key=itemgetter(1))
         print
-        print '#%d: %.2f' % (c + 1, len(elements) / n_contexts)
+        print '#%d: %.2f' % (c, len(elements) / n_contexts)
         for w, count in _best_words(elements, word)[:10]:
             print count, w
         for ctx, dist in elements[:7]:
@@ -93,9 +93,12 @@ def _get_metrics(word, classifier, labeled_filename):
         VM=v_measure_score(true_labels, pred_labels),
         oracle_accuracy=_oracle_accuracy(true_labels, pred_labels),
     )
+    mapping = None
     if hasattr(classifier, 'mapping'):
+        mapping = classifier.mapping
+    if mapping:
         metrics['accuracy'] = _mapping_accuracy(
-            true_labels, pred_labels, classifier.mapping)
+            true_labels, pred_labels, mapping)
     return metrics
 
 
