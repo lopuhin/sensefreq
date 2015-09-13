@@ -14,10 +14,7 @@ import numpy as np
 from sklearn.mixture import GMM
 
 from utils import word_re, w2v_vecs_counts, memoize, lemmatize_s, \
-    avg, std_dev, unitvec, STOPWORDS
-
-
-w2v_vecs_counts = memoize(w2v_vecs_counts)  # we do several runs in a row
+    avg, std_dev, unitvec, context_vector as _context_vector
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -133,23 +130,14 @@ class KNearestModel(SupervisedModel):
         return max(ans_counts.iteritems(), key=lambda (_, count): count)[0]
 
 
-def context_vector((before, _, after),
-        cutoff=None, excl_stopwords=True, weights=None):
-    vector = None
+# w2v_vecs_counts = memoize(w2v_vecs_counts)  # we do several runs in a row
+
+def context_vector((before, _, after), excl_stopwords=True, weights=None):
     words = tuple(
         w for w in itertools.chain(*map(lemmatize_s, [before, after]))
         if word_re.match(w))
-    for w, (v, c) in zip(words, w2v_vecs_counts(words)):
-        if v is not None:
-            v = np.array(v)
-            if weights is not None:
-                v *= weights.get(w, 1.)
-            if vector is None:
-                vector = v
-            elif (cutoff is None or c < cutoff) and \
-                 (not excl_stopwords or w not in STOPWORDS):
-                vector += v
-    return unitvec(vector)
+    return _context_vector(
+        words, excl_stopwords=excl_stopwords, weights=weights)
 
 
 def v_closeness(v1, v2):

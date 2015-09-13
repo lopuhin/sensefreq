@@ -9,22 +9,14 @@ import numpy as np
 import scipy.cluster.vq
 import sklearn.cluster
 
-from utils import w2v_vecs, unitvec, word_re, lemmatize_s, STOPWORDS
+from utils import unitvec, word_re, lemmatize_s, \
+        context_vector as _context_vector
 from active_dict import get_ad_word
 import kmeans
 
 
-def context_vector(word, ctx):
-    vector = None
-    w_to_get = [w for w in ctx if w != word and w not in STOPWORDS]
-    for v in w2v_vecs(w_to_get):
-        if v is not None:
-            if vector is None:
-                vector = np.array(v, dtype=np.float32)
-            else:
-                vector += v
-    if vector is not None:
-        return unitvec(vector)
+def context_vector(word, ctx, weights=None):
+    return _context_vector([w for w in ctx if w != word], weights=weights)
 
 
 class Method(object):

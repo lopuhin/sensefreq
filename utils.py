@@ -10,7 +10,7 @@ import codecs
 
 from pymystem3 import Mystem
 import msgpackrpc
-import numpy
+import numpy as np
 
 from conf import WORD2VEC_PORT
 
@@ -104,11 +104,27 @@ def std_dev(v):
 
 
 def unitvec(vec):
-    veclen = numpy.sqrt(numpy.sum(vec ** 2))
+    veclen = np.sqrt(np.sum(vec ** 2))
     if veclen > 0.0:
         return vec / veclen
     else:
         return vec
+
+
+def context_vector(words, excl_stopwords=True, weights=None):
+    vector = None
+    for w, v in zip(words, w2v_vecs(words)):
+        if v is not None:
+            v = np.array(v, dtype=np.float32)
+            if weights is not None:
+                v *= weights.get(w, 1.)
+            if not excl_stopwords or w not in STOPWORDS:
+                if vector is None:
+                    vector = v
+                else:
+                    vector += v
+    if vector is not None:
+        return unitvec(vector)
 
 
 def read_stopwords(filename):

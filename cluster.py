@@ -14,7 +14,7 @@ import random
 from sklearn.metrics import v_measure_score, adjusted_rand_score
 
 from utils import load, save, lemmatize_s, STOPWORDS, avg
-from supervised import get_labeled_ctx
+from supervised import get_labeled_ctx, load_weights
 import cluster_methods
 from cluster_methods import context_vector
 
@@ -85,7 +85,8 @@ def _best_words(elements, word):
 def _get_metrics(word, classifier, labeled_filename):
     __, w_d = get_labeled_ctx(labeled_filename)
     contexts = [lemmatize_s(u' '.join(c)) for c, __ in w_d]
-    vectors = [context_vector(word, ctx) for ctx in contexts]
+    weights = load_weights(word)
+    vectors = [context_vector(word, ctx, weights=weights) for ctx in contexts]
     true_labels = [int(ans) for __, ans in w_d]
     pred_labels = classifier.predict(vectors)
     metrics = dict(
@@ -147,11 +148,12 @@ def build_context_vectors(contexts_filename, word, out_filename, **_):
         vectors = []
         seen = set()
         print word
+        weights = load_weights(word)
         for ctx in iter_contexts(contexts_filename):
             key = ' '.join(ctx)
             if key not in seen:
                 seen.add(key)
-                v = context_vector(word, ctx)
+                v = context_vector(word, ctx, weights=weights)
                 vectors.append((ctx, v))
         print len(vectors), 'contexts'
         save({'word': word, 'context_vectors': vectors}, out_filename)
