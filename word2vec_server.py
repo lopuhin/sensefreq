@@ -11,7 +11,10 @@ from conf import WORD2VEC_PORT
 
 class Word2VecServer(object):
     def __init__(self, filename):
-        self.model = Word2Vec.load(filename)
+        if filename.endswith('.bin'):
+            self.model = Word2Vec.load_word2vec_format(filename, binary=True)
+        else:
+            self.model = Word2Vec.load(filename)
         self._total_count = sum(x.count for x in self.model.vocab.itervalues())
 
     def vec(self, w):
