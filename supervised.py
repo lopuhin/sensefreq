@@ -115,10 +115,10 @@ class GMMModel(SupervisedModel):
         return self.senses[self.classifier.predict(v)[0]]
 
 
-class KClosestModel(SupervisedModel):
+class KNearestModel(SupervisedModel):
     def __init__(self, *args, **kwargs):
-        self.k_closest = kwargs.pop('k_closest', 5)
-        super(KClosestModel, self).__init__(*args, **kwargs)
+        self.k_nearest = kwargs.pop('k_nearest', 5)
+        super(KNearestModel, self).__init__(*args, **kwargs)
 
     def __call__(self, x):
         v = self.cv(x)
@@ -128,7 +128,7 @@ class KClosestModel(SupervisedModel):
             for _v in context_vectors),
             key=lambda (_, cl): cl, reverse=True)
         ans_counts = defaultdict(int)
-        for ans, _ in ans_closeness[:self.k_closest]:
+        for ans, _ in ans_closeness[:self.k_nearest]:
             ans_counts[ans] += 1
         return max(ans_counts.iteritems(), key=lambda (_, count): count)[0]
 
