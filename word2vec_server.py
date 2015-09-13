@@ -12,6 +12,7 @@ from conf import WORD2VEC_PORT
 class Word2VecServer(object):
     def __init__(self, filename):
         self.model = Word2Vec.load(filename)
+        self._total_count = sum(x.count for x in self.model.vocab.itervalues())
 
     def vec(self, w):
         w = w.decode('utf-8')
@@ -32,6 +33,12 @@ class Word2VecServer(object):
 
     def vecs_counts(self, w_list):
         return [(self.vec(w), self.count(w)) for w in w_list]
+
+    def counts(self, w_list):
+        return [self.count(w) for w in w_list]
+
+    def total_count(self):
+        return self._total_count
 
 
 if __name__ == '__main__':

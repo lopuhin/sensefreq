@@ -138,14 +138,17 @@ def _w2v_client():
 def w2v_vec(word):
     return _w2v_client().call('vec', word)
 
-
 def w2v_count(word):
     return _w2v_client().call('count', word)
-
 
 def w2v_vecs_counts(w_list):
     return _w2v_client().call('vecs_counts', w_list)
 
+def w2v_counts(w_list):
+    return _w2v_client().call('counts', w_list)
 
 def w2v_vecs(w_list):
     return _w2v_client().call('vecs', w_list)
+
+def w2v_total_count():
+    return _w2v_client().call('total_count')
