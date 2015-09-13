@@ -192,8 +192,11 @@ def write_errors(errors, i, filename, senses):
 
 def load_weights(word):
     filename = word + '.dict'
-    with codecs.open(filename, 'rb', 'utf-8') as f:
-        return {w: float(weight) for w, weight in (l.split() for l in f)}
+    if os.path.exists(filename):
+        with codecs.open(filename, 'rb', 'utf-8') as f:
+            return {w: float(weight) for w, weight in (l.split() for l in f)}
+    else:
+        print >>sys.stderr, 'Weight file "%s" not found' % filename
 
 
 def main(path, n_train=80):
