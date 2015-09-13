@@ -49,7 +49,8 @@ For all models that use word2vec embeddings, start word2vec server first::
 supervised.py
 -------------
 
-Supervised training (80 is the number of train samples::
+Supervised training (80 is the number of train samples, note that
+these are not the best or latest results)::
 
     $ ./supervised.py ann/dialog7/ 50
 
@@ -92,6 +93,14 @@ Supervised training (80 is the number of train samples::
     baseline: 0.64
         avg: 0.82
 
+
+To get better results, build frequency dictionary of word contexts. First
+run extract_contexts as described in the next section, and then build freq.
+dict with ``./tf_idf.py word-contexts.txt > word.dict`` - note that
+.dict file must be in top level directory (it is picked up by supervised.py
+based on file name matching the word). This slightly improves supervised
+results, and more importantly reduces the number of samples required
+for training.
 
 cluster.py
 ----------
