@@ -4,9 +4,11 @@
 import os
 import sys
 import random
+import codecs
 from collections import defaultdict
 import itertools
 from operator import itemgetter
+from functools import partial
 
 import numpy as np
 from sklearn.mixture import GMM
@@ -71,11 +73,12 @@ def get_labeled_ctx(filename):
 
 
 class Model(object):
-    def __init__(self, train_data):
+    def __init__(self, train_data, weights=None, excl_stopwords=True):
         self.examples = defaultdict(list)
         for x, ans in train_data:
             self.examples[ans].append(x)
-        self.cv = context_vector
+        self.cv = partial(
+            context_vector, weights=weights, excl_stopwords=excl_stopwords)
         self.context_vectors = {ans: np.array(map(self.cv, xs))
             for ans, xs in self.examples.iteritems()}
         self.sense_vectors = {ans: cvs.mean(axis=0)
@@ -107,7 +110,8 @@ class GMMModel(Model):
         return self.senses[self.classifier.predict(v)[0]]
 
 
-def context_vector((before, _, after), cutoff=None, excl_stopwords=True):
+def context_vector((before, _, after),
+        cutoff=None, excl_stopwords=True, weights=None):
     vector = None
     words = tuple(
         w for w in itertools.chain(*map(lemmatize_s, [before, after]))
@@ -115,11 +119,14 @@ def context_vector((before, _, after), cutoff=None, excl_stopwords=True):
     for w, (v, c) in zip(words, w2v_vecs_counts(words)):
         if v is not None:
             v = np.array(v)
+            weight = 1.
+            if weights is not None:
+                weight = weights.get(w, 1.)
             if vector is None:
                 vector = v
             elif (cutoff is None or c < cutoff) and \
                  (not excl_stopwords or w not in STOPWORDS):
-                vector += v
+                vector += weight * v
     return unitvec(vector)
 
 
@@ -127,8 +134,8 @@ def closeness(v1, v2):
     return np.dot(unitvec(v1), unitvec(v2))
 
 
-def evaluate(test_data, train_data, model_class=Model):
-    model = model_class(train_data)
+def evaluate(test_data, train_data, model_class=Model, **kwargs):
+    model = model_class(train_data, **kwargs)
     n_correct = 0
     errors = []
     for x, ans in test_data:
@@ -161,6 +168,12 @@ def write_errors(errors, i, filename, senses):
             _w(ans, model_ans, before, w, after)
 
 
+def load_weights(word):
+    filename = word + '.dict'
+    with codecs.open(filename, 'rb', 'utf-8') as f:
+        return {w: float(weight) for w, weight in (l.split() for l in f)}
+
+
 def main(path, n_train=80):
     n_train = int(n_train)
     if os.path.isdir(path):
@@ -176,6 +189,7 @@ def main(path, n_train=80):
     for filename in filenames:
         print
         word = filename.split('/')[-1].split('.')[0]
+        weights = load_weights(word)
         word_results = []
         baseline = get_baseline(get_labeled_ctx(filename)[1])
         for i in xrange(4):
@@ -185,7 +199,8 @@ def main(path, n_train=80):
                 print '%s: %d senses' % (word, len(senses) - 2)  # "n/a" and "other"
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
-            correct_ratio, errors = evaluate(test_data, train_data, model_class)
+            correct_ratio, errors = evaluate(
+                test_data, train_data, model_class, weights=weights)
            #write_errors(errors, i, filename, senses)
             word_results.append(correct_ratio)
             results.append(correct_ratio)
