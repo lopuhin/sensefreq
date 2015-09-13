@@ -142,14 +142,13 @@ def context_vector((before, _, after),
     for w, (v, c) in zip(words, w2v_vecs_counts(words)):
         if v is not None:
             v = np.array(v)
-            weight = 1.
             if weights is not None:
-                weight = weights.get(w, 1.)
+                v *= weights.get(w, 1.)
             if vector is None:
                 vector = v
             elif (cutoff is None or c < cutoff) and \
                  (not excl_stopwords or w not in STOPWORDS):
-                vector += weight * v
+                vector += v
     return unitvec(vector)
 
 
