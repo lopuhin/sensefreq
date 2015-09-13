@@ -72,7 +72,7 @@ def get_labeled_ctx(filename):
     return senses, w_d
 
 
-class Model(object):
+class SupervisedModel(object):
     def __init__(self, train_data, weights=None, excl_stopwords=True):
         self.examples = defaultdict(list)
         for x, ans in train_data:
@@ -81,20 +81,25 @@ class Model(object):
             context_vector, weights=weights, excl_stopwords=excl_stopwords)
         self.context_vectors = {ans: np.array(map(self.cv, xs))
             for ans, xs in self.examples.iteritems()}
+
+
+class SphericalModel(SupervisedModel):
+    def __init__(self, *args, **kwargs):
+        super(SphericalModel, self).__init__(*args, **kwargs)
         self.sense_vectors = {ans: cvs.mean(axis=0)
             for ans, cvs in self.context_vectors.iteritems()}
 
     def __call__(self, x):
         v = self.cv(x)
         return max(
-            ((ans, closeness(v, sense_v))
+            ((ans, v_closeness(v, sense_v))
                 for ans, sense_v in self.sense_vectors.iteritems()),
             key=itemgetter(1))[0]
 
 
-class GMMModel(Model):
-    def __init__(self, train_data):
-        super(GMMModel, self).__init__(train_data)
+class GMMModel(SupervisedModel):
+    def __init__(self, *args, **kwargs):
+        super(GMMModel, self).__init__(*args, **kwargs)
         self.senses = np.array(self.context_vectors.keys())
         self.classifier = GMM(
             n_components=len(self.context_vectors),
@@ -108,6 +113,24 @@ class GMMModel(Model):
     def __call__(self, x):
         v = self.cv(x)
         return self.senses[self.classifier.predict(v)[0]]
+
+
+class KClosestModel(SupervisedModel):
+    def __init__(self, *args, **kwargs):
+        self.k_closest = kwargs.pop('k_closest', 5)
+        super(KClosestModel, self).__init__(*args, **kwargs)
+
+    def __call__(self, x):
+        v = self.cv(x)
+        ans_closeness = sorted(
+            ((ans, (v_closeness(v, _v)))
+            for ans, context_vectors in self.context_vectors.iteritems()
+            for _v in context_vectors),
+            key=lambda (_, cl): cl, reverse=True)
+        ans_counts = defaultdict(int)
+        for ans, _ in ans_closeness[:self.k_closest]:
+            ans_counts[ans] += 1
+        return max(ans_counts.iteritems(), key=lambda (_, count): count)[0]
 
 
 def context_vector((before, _, after),
@@ -130,11 +153,11 @@ def context_vector((before, _, after),
     return unitvec(vector)
 
 
-def closeness(v1, v2):
+def v_closeness(v1, v2):
     return np.dot(unitvec(v1), unitvec(v2))
 
 
-def evaluate(test_data, train_data, model_class=Model, **kwargs):
+def evaluate(test_data, train_data, model_class=SphericalModel, **kwargs):
     model = model_class(train_data, **kwargs)
     n_correct = 0
     errors = []
@@ -185,7 +208,7 @@ def main(path, n_train=80):
 
     baselines = []
     results = []
-    model_class = Model
+    model_class = SphericalModel
     for filename in filenames:
         print
         word = filename.split('/')[-1].split('.')[0]
