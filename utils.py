@@ -112,19 +112,22 @@ def unitvec(vec):
 
 
 def context_vector(words, excl_stopwords=True, weights=None):
-    vector = None
+    v_weights = []
     for w, v in zip(words, w2v_vecs(words)):
         if v is not None:
             v = np.array(v, dtype=np.float32)
+            weight = 1.
             if weights is not None:
-                v *= weights.get(w, 1.)
+                try: weight = weights[w]
+                except KeyError: pass
             if not excl_stopwords or w not in STOPWORDS:
-                if vector is None:
-                    vector = v
-                else:
-                    vector += v
-    if vector is not None:
-        return unitvec(vector)
+                v_weights.append((v, weight))
+    if v_weights:
+       #if all(weight <= 1.0 for _, weight in v_w_lst):
+       #    vectors = [v for v, _ in v_w_lst]
+       #else:
+        vectors = [v * weight for v, weight in v_weights]
+        return unitvec(np.mean(vectors, axis=0))
 
 
 def read_stopwords(filename):
