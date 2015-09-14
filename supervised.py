@@ -89,7 +89,7 @@ class SphericalModel(SupervisedModel):
         self.sense_vectors = {ans: cvs.mean(axis=0)
             for ans, cvs in self.context_vectors.iteritems()}
 
-    def __call__(self, x):
+    def __call__(self, x, c_ans):
         v = self.cv(x)
         return max(
             ((ans, v_closeness(v, sense_v))
@@ -149,7 +149,7 @@ def evaluate(test_data, train_data,
         model_class=SphericalModel, perplexity=False, **kwargs):
     model = model_class(train_data, **kwargs)
     test_on = test_data if not perplexity else train_data
-    answers = [(x, ans, model(x)) for x, ans in test_on]
+    answers = [(x, ans, model(x, ans)) for x, ans in test_on]
     n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
     return n_correct / len(answers), answers
 
