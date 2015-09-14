@@ -133,10 +133,11 @@ class KNearestModel(SupervisedModel):
         return max(ans_counts.iteritems(), key=lambda (_, count): count)[0]
 
 
-def context_vector((before, _, after), excl_stopwords=True, weights=None):
+def context_vector((before, word, after), excl_stopwords=True, weights=None):
+    word, = lemmatize_s(word)
     words = tuple(
         w for w in itertools.chain(*map(lemmatize_s, [before, after]))
-        if word_re.match(w))
+        if word_re.match(w) and w != word)
     return _context_vector(
         words, excl_stopwords=excl_stopwords, weights=weights)
 
