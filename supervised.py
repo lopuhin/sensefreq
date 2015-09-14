@@ -244,8 +244,10 @@ def main():
             1.96 * std_dev(word_results))
     print
     print '---------'
-    print 'baseline: %.2f' % avg(baselines)
-    print '     avg: %.2f' % avg(results)
+    print 'baseline: %.3f' % avg(baselines)
+    print '     avg: %.3f' % avg(results)
+    print '\n'.join('%s: %s' % (ans, s)
+                    for ans, (s, _) in sorted(senses.iteritems()))
 
 
 if __name__ == '__main__':
