@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from utils import word_re, lemmatize_s
 from active_dict import get_ad_word
-from supervised import get_labeled_ctx, evaluate, load_weights
+from supervised import get_labeled_ctx, evaluate, load_weights, get_errors
 
 
 def evaluate_word(word):
@@ -18,7 +18,8 @@ def evaluate_word(word):
     ad_word_data = get_ad_word(word)
     weights = load_weights(word)
     train_data = get_ad_train_data(word, ad_word_data)
-    correct_ratio, errors = evaluate(test_data, train_data, weights=weights)
+    correct_ratio, answers = evaluate(test_data, train_data, weights=weights)
+    errors = get_errors(answers)
     ad_senses = {m['id']: m['meaning'] for m in ad_word_data['meanings']}
     for sid, meaning in sorted(senses.iteritems(), key=lambda (k, __): int(k)):
         print

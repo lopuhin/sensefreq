@@ -5,7 +5,7 @@ import os
 import sys
 import random
 import codecs
-from collections import defaultdict
+from collections import defaultdict, Counter
 import itertools
 from operator import itemgetter
 from functools import partial
@@ -144,16 +144,10 @@ def v_closeness(v1, v2):
 
 def evaluate(test_data, train_data, model_class=SphericalModel, **kwargs):
     model = model_class(train_data, **kwargs)
-    n_correct = 0
-    errors = []
-    for x, ans in test_data:
-        model_ans = model(x)
-        if ans == model_ans:
-            n_correct += 1
-        else:
-            errors.append((x, ans, model_ans))
+    answers = [(x, ans, model(x)) for x, ans in test_data]
+    n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
     correct_ratio = float(n_correct) / len(test_data)
-    return correct_ratio, errors
+    return correct_ratio, answers
 
 
 def get_baseline(labeled_data):
@@ -163,17 +157,25 @@ def get_baseline(labeled_data):
     return float(max(sense_freq.values())) / len(labeled_data)
 
 
-def write_errors(errors, i, filename, senses):
-    with open(filename[:-4] + ('.errors%d.tsv' % (i + 1)), 'wb') as f:
-        _w = lambda *x: f.write('\t'.join(map(unicode, x)).encode('utf-8') + '\n')
-        _w('ans', 'count', 'meaning')
-        for ans, (sense, count) in sorted(senses.iteritems(), key=itemgetter(0)):
-            _w(ans, count, sense)
+def write_errors(answers, i, filename, senses):
+    errors = get_errors(answers)
+    model_counts = Counter(model_ans for _, _, model_ans in answers)
+    err_filename = filename[:-4] + ('.errors%d.tsv' % (i + 1))
+    with codecs.open(err_filename, 'wb', 'utf-8') as f:
+        _w = lambda *x: f.write('\t'.join(map(unicode, x)) + '\n')
+        _w('ans', 'count', 'model_count', 'meaning')
+        for ans, (sense, count) in \
+                sorted(senses.iteritems(), key=itemgetter(0))[1:-1]:
+            _w(ans, count, model_counts[ans], sense)
         _w()
         _w('ans', 'model_ans', 'before', 'word', 'after')
         for (before, w, after), ans, model_ans in \
                 sorted(errors, key=lambda x: x[-2:]):
             _w(ans, model_ans, before, w, after)
+
+
+def get_errors(answers):
+    return filter(lambda (_, ans, model_ans): ans != model_ans, answers)
 
 
 def load_weights(word):
@@ -210,9 +212,9 @@ def main(path, n_train=80):
                 print '%s: %d senses' % (word, len(senses) - 2)  # "n/a" and "other"
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
-            correct_ratio, errors = evaluate(
+            correct_ratio, answers = evaluate(
                 test_data, train_data, model_class, weights=weights)
-           #write_errors(errors, i, filename, senses)
+            write_errors(answers, i, filename, senses)
             word_results.append(correct_ratio)
             results.append(correct_ratio)
         baselines.append(baseline)
