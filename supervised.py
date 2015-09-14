@@ -13,8 +13,8 @@ from functools import partial
 import numpy as np
 from sklearn.mixture import GMM
 
-from utils import word_re, w2v_vecs_counts, memoize, lemmatize_s, \
-    avg, std_dev, unitvec, context_vector as _context_vector
+from utils import word_re, lemmatize_s, avg, std_dev, unitvec, \
+    context_vector as _context_vector
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -129,8 +129,6 @@ class KNearestModel(SupervisedModel):
             ans_counts[ans] += 1
         return max(ans_counts.iteritems(), key=lambda (_, count): count)[0]
 
-
-# w2v_vecs_counts = memoize(w2v_vecs_counts)  # we do several runs in a row
 
 def context_vector((before, _, after), excl_stopwords=True, weights=None):
     words = tuple(
