@@ -7,6 +7,7 @@ import random
 import codecs
 from collections import defaultdict, Counter
 import itertools
+import argparse
 from operator import itemgetter
 from functools import partial
 
@@ -193,13 +194,19 @@ def load_weights(word):
         print >>sys.stderr, 'Weight file "%s" not found' % filename
 
 
-def main(path, n_train=80):
-    n_train = int(n_train)
-    if os.path.isdir(path):
-        filenames = [os.path.join(path, f) for f in os.listdir(path)
+def main():
+    parser = argparse.ArgumentParser()
+    arg = parser.add_argument
+    arg('path')
+    arg('--write-errors', action='store_true')
+    arg('--n-train', type=int, default=50)
+    args = parser.parse_args()
+
+    if os.path.isdir(args.path):
+        filenames = [os.path.join(args.path, f) for f in os.listdir(args.path)
                      if f.endswith('.txt')]
     else:
-        filenames = [path]
+        filenames = [args.path]
     filenames.sort()
 
     baselines = []
@@ -213,14 +220,15 @@ def main(path, n_train=80):
         baseline = get_baseline(get_labeled_ctx(filename)[1])
         for i in xrange(4):
             senses, test_data, train_data = \
-                get_ans_test_train(filename, n_train=n_train)
+                get_ans_test_train(filename, n_train=args.n_train)
             if not i:
                 print '%s: %d senses' % (word, len(senses) - 2)  # "n/a" and "other"
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
             correct_ratio, answers = evaluate(
                 test_data, train_data, model_class, weights=weights)
-            write_errors(answers, i, filename, senses)
+            if args.write_errors:
+                write_errors(answers, i, filename, senses)
             word_results.append(correct_ratio)
             results.append(correct_ratio)
         baselines.append(baseline)
@@ -236,4 +244,4 @@ def main(path, n_train=80):
 
 if __name__ == '__main__':
     random.seed(1)
-    main(*sys.argv[1:])
+    main()
