@@ -160,6 +160,7 @@ def get_baseline(labeled_data):
 def write_errors(answers, i, filename, senses):
     errors = get_errors(answers)
     model_counts = Counter(model_ans for _, _, model_ans in answers)
+    error_counts = Counter((ans, model_ans) for _, ans, model_ans in errors)
     err_filename = filename[:-4] + ('.errors%d.tsv' % (i + 1))
     with codecs.open(err_filename, 'wb', 'utf-8') as f:
         _w = lambda *x: f.write('\t'.join(map(unicode, x)) + '\n')
@@ -167,6 +168,11 @@ def write_errors(answers, i, filename, senses):
         for ans, (sense, count) in \
                 sorted(senses.iteritems(), key=itemgetter(0))[1:-1]:
             _w(ans, count, model_counts[ans], sense)
+        _w()
+        _w('ans', 'model_ans', 'n_errors')
+        for (ans, model_ans), n_errors in sorted(
+                error_counts.iteritems(), key=itemgetter(1), reverse=True):
+            _w(ans, model_ans, n_errors)
         _w()
         _w('ans', 'model_ans', 'before', 'word', 'after')
         for (before, w, after), ans, model_ans in \
