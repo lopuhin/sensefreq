@@ -167,7 +167,7 @@ def write_errors(answers, i, filename, senses):
         _w = lambda *x: f.write('\t'.join(map(unicode, x)) + '\n')
         _w('ans', 'count', 'model_count', 'meaning')
         for ans, (sense, count) in \
-                sorted(senses.iteritems(), key=itemgetter(0))[1:-1]:
+                sorted(senses.iteritems(), key=lambda (ans, _): int(ans))[1:-1]:
             _w(ans, count, model_counts[ans], sense)
         _w()
         _w('ans', 'model_ans', 'n_errors')
