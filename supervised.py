@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
+from __future__ import division
+
 import os
 import sys
 import random
@@ -143,12 +145,13 @@ def v_closeness(v1, v2):
     return np.dot(unitvec(v1), unitvec(v2))
 
 
-def evaluate(test_data, train_data, model_class=SphericalModel, **kwargs):
+def evaluate(test_data, train_data,
+        model_class=SphericalModel, perplexity=False, **kwargs):
     model = model_class(train_data, **kwargs)
-    answers = [(x, ans, model(x)) for x, ans in test_data]
+    test_on = test_data if not perplexity else train_data
+    answers = [(x, ans, model(x)) for x, ans in test_on]
     n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
-    correct_ratio = float(n_correct) / len(test_data)
-    return correct_ratio, answers
+    return n_correct / len(answers), answers
 
 
 def get_baseline(labeled_data):
@@ -200,6 +203,7 @@ def main():
     arg('path')
     arg('--write-errors', action='store_true')
     arg('--n-train', type=int, default=50)
+    arg('--perplexity', action='store_true', help='test in train data')
     args = parser.parse_args()
 
     if os.path.isdir(args.path):
@@ -225,12 +229,13 @@ def main():
                 print '%s: %d senses' % (word, len(senses) - 2)  # "n/a" and "other"
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
-            correct_ratio, answers = evaluate(
-                test_data, train_data, model_class, weights=weights)
+            accuracy, answers = evaluate(
+                test_data, train_data, model_class,
+                weights=weights, perplexity=args.perplexity)
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
-            word_results.append(correct_ratio)
-            results.append(correct_ratio)
+            word_results.append(accuracy)
+            results.append(accuracy)
         baselines.append(baseline)
         print 'baseline: %.3f' % baseline
         print '     avg: %.2f ± %.2f' % (
