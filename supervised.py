@@ -17,7 +17,7 @@ import numpy as np
 from sklearn.mixture import GMM
 
 from utils import word_re, lemmatize_s, avg, std_dev, unitvec, \
-    context_vector as _context_vector
+    context_vector as _context_vector, bool_color, blue, bold_if
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -100,9 +100,11 @@ class SphericalModel(SupervisedModel):
         m_ans = max(ans_closeness, key=itemgetter(1))[0]
         if self.verbose:
             print ' '.join(x)
-            print ' '.join('%s: %.3f' % (ans, cl) for ans, cl in sorted(
-                ans_closeness, key=itemgetter(0)))
-            print 'correct: %s, model: %s, %s' % (c_ans, m_ans, c_ans == m_ans)
+            print ' '.join(
+                '%s: %s' % (ans, bold_if('%.3f' % cl, ans == m_ans))
+                for ans, cl in sorted(ans_closeness, key=itemgetter(0)))
+            print 'correct: %s, model: %s, %s' % (
+                    c_ans, m_ans, bool_color(c_ans == m_ans))
         return m_ans
 
 
@@ -150,7 +152,8 @@ def context_vector((before, word, after),
         if word_re.match(w) and w != word]
     if verbose and weights is not None:
         print
-        print ' '.join('%s:%.2f' % (w, weights.get(w, 1.)) for w in words)
+        print ' '.join('%s:%s' % (w, blue('%.2f' % weights.get(w, 1.)))
+                       for w in words)
     return _context_vector(
         words, excl_stopwords=excl_stopwords, weights=weights)
 

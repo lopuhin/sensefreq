@@ -143,6 +143,17 @@ def read_stopwords(filename):
 STOPWORDS = read_stopwords('stopwords.txt')
 
 
+def _cc(code):
+    tpl = ('\x1b[%sm' % code) + '%s\x1b[0m'
+    return lambda x: tpl % x
+red = _cc(31)
+green = _cc(32)
+blue = _cc(34)
+bool_color = lambda x: green(x) if x else red(x)
+bold = _cc(1)
+bold_if = lambda x, cond: bold(x) if cond else x
+
+
 _word2vec_client = None
 
 
