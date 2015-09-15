@@ -73,12 +73,15 @@ def get_labeled_ctx(filename):
 
 
 class SupervisedModel(object):
-    def __init__(self, train_data, weights=None, excl_stopwords=True):
+    def __init__(self, train_data,
+            weights=None, excl_stopwords=True, verbose=False):
         self.examples = defaultdict(list)
         for x, ans in train_data:
             self.examples[ans].append(x)
+        self.verbose = verbose
         self.cv = partial(
-            context_vector, weights=weights, excl_stopwords=excl_stopwords)
+            context_vector, weights=weights, excl_stopwords=excl_stopwords,
+            verbose=verbose)
         self.context_vectors = {ans: np.array(map(self.cv, xs))
             for ans, xs in self.examples.iteritems()}
 
@@ -91,10 +94,16 @@ class SphericalModel(SupervisedModel):
 
     def __call__(self, x, c_ans):
         v = self.cv(x)
-        return max(
-            ((ans, v_closeness(v, sense_v))
-                for ans, sense_v in self.sense_vectors.iteritems()),
-            key=itemgetter(1))[0]
+        ans_closeness = [
+            (ans, v_closeness(v, sense_v))
+            for ans, sense_v in self.sense_vectors.iteritems()]
+        m_ans = max(ans_closeness, key=itemgetter(1))[0]
+        if self.verbose:
+            print ' '.join(x)
+            print ' '.join('%s: %.3f' % (ans, cl) for ans, cl in sorted(
+                ans_closeness, key=itemgetter(0)))
+            print 'correct: %s, model: %s, %s' % (c_ans, m_ans, c_ans == m_ans)
+        return m_ans
 
 
 class GMMModel(SupervisedModel):
@@ -133,11 +142,15 @@ class KNearestModel(SupervisedModel):
         return max(ans_counts.iteritems(), key=lambda (_, count): count)[0]
 
 
-def context_vector((before, word, after), excl_stopwords=True, weights=None):
+def context_vector((before, word, after),
+        excl_stopwords=True, weights=None, verbose=False):
     word, = lemmatize_s(word)
-    words = tuple(
+    words = [
         w for w in itertools.chain(*map(lemmatize_s, [before, after]))
-        if word_re.match(w) and w != word)
+        if word_re.match(w) and w != word]
+    if verbose and weights is not None:
+        print
+        print ' '.join('%s:%.2f' % (w, weights.get(w, 1.)) for w in words)
     return _context_vector(
         words, excl_stopwords=excl_stopwords, weights=weights)
 
@@ -205,6 +218,8 @@ def main():
     arg('--write-errors', action='store_true')
     arg('--n-train', type=int, default=50)
     arg('--perplexity', action='store_true', help='test in train data')
+    arg('--verbose', action='store_true')
+    arg('--n-runs', type=int, default=4)
     args = parser.parse_args()
 
     if os.path.isdir(args.path):
@@ -223,7 +238,7 @@ def main():
         weights = load_weights(word)
         word_results = []
         baseline = get_baseline(get_labeled_ctx(filename)[1])
-        for i in xrange(4):
+        for i in xrange(args.n_runs):
             senses, test_data, train_data = \
                 get_ans_test_train(filename, n_train=args.n_train)
             if not i:
@@ -231,8 +246,8 @@ def main():
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
             accuracy, answers = evaluate(
-                test_data, train_data, model_class,
-                weights=weights, perplexity=args.perplexity)
+                test_data, train_data, model_class, perplexity=args.perplexity,
+                weights=weights, verbose=args.verbose)
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
             word_results.append(accuracy)
