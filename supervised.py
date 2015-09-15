@@ -152,8 +152,9 @@ def context_vector((before, word, after),
         if word_re.match(w) and w != word]
     if verbose and weights is not None:
         print
-        print ' '.join('%s:%s' % (w, blue('%.2f' % weights.get(w, 1.)))
-                       for w in words)
+        print ' '.join(
+            bold_if('%s:%s' % (w, blue('%.2f' % weight)), weight > 1.)
+            for w, weight in ((w, weights.get(w, 1.)) for w in words))
     return _context_vector(
         words, excl_stopwords=excl_stopwords, weights=weights)
 
