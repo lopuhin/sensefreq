@@ -105,7 +105,7 @@ class SphericalModel(SupervisedModel):
             print ' '.join(x)
             print ' '.join(
                 '%s: %s' % (ans, bold_if('%.3f' % cl, ans == m_ans))
-                for ans, cl in sorted(ans_closeness, key=itemgetter(0)))
+                for ans, cl in sorted(ans_closeness, key=sense_sort_key))
             print 'correct: %s, model: %s, %s' % (
                     c_ans, m_ans, bool_color(c_ans == m_ans))
         return m_ans
@@ -188,8 +188,7 @@ def write_errors(answers, i, filename, senses):
     with codecs.open(err_filename, 'wb', 'utf-8') as f:
         _w = lambda *x: f.write('\t'.join(map(unicode, x)) + '\n')
         _w('ans', 'count', 'model_count', 'meaning')
-        for ans, (sense, count) in \
-                sorted(senses.iteritems(), key=lambda (ans, _): int(ans))[1:-1]:
+        for ans, (sense, count) in sorted_senses(senses)[1:-1]:
             _w(ans, count, model_counts[ans], sense)
         _w()
         _w('ans', 'model_ans', 'n_errors')
@@ -201,6 +200,12 @@ def write_errors(answers, i, filename, senses):
         for (before, w, after), ans, model_ans in \
                 sorted(errors, key=lambda x: x[-2:]):
             _w(ans, model_ans, before, w, after)
+
+
+def sorted_senses(senses):
+    return sorted(senses.iteritems(), key=sense_sort_key)
+
+sense_sort_key = lambda (ans, _): int(ans)
 
 
 def get_errors(answers):
@@ -238,7 +243,7 @@ def show_tsne(model, data, senses, word):
     plt.legend(handles=legend)
     plt.title(word)
     filename = word + '.pdf'
-    print 'saving', filename
+    print 'saving tSNE clustering to', filename
     plt.savefig(filename)
 
 
@@ -297,7 +302,7 @@ def main():
     print 'baseline: %.3f' % avg(baselines)
     print '     avg: %.3f' % avg(results)
     print '\n'.join('%s: %s' % (ans, s)
-                    for ans, (s, _) in sorted(senses.iteritems()))
+                    for ans, (s, _) in sorted_senses(senses))
 
 
 if __name__ == '__main__':
