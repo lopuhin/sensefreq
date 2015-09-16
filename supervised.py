@@ -15,6 +15,9 @@ from functools import partial
 
 import numpy as np
 from sklearn.mixture import GMM
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 from utils import word_re, lemmatize_s, avg, std_dev, unitvec, \
     context_vector as _context_vector, bool_color, blue, bold_if
@@ -163,9 +166,7 @@ def v_closeness(v1, v2):
     return np.dot(unitvec(v1), unitvec(v2))
 
 
-def evaluate(test_data, train_data,
-        model_class=SphericalModel, perplexity=False, **kwargs):
-    model = model_class(train_data, **kwargs)
+def evaluate(model, test_data, train_data, perplexity=False):
     test_on = test_data if not perplexity else train_data
     answers = [(x, ans, model(x, ans)) for x, ans in test_on]
     n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
@@ -215,15 +216,40 @@ def load_weights(word):
         print >>sys.stderr, 'Weight file "%s" not found' % filename
 
 
+def show_tsne(model, data, senses, word):
+    ts = TSNE(2)
+    vectors = [model.cv(x) for x, _ in data]
+    reduced_vecs = ts.fit_transform(vectors)
+    colors = list('rgbcmyk') + ['orange', 'purple', 'gray']
+    ans_colors = {ans: colors[int(ans) - 1] for ans in senses}
+    seen_answers = set()
+    plt.clf()
+    plt.rc('legend', fontsize=9)
+    font = {'family': 'Verdana', 'weight': 'normal'}
+    plt.rc('font', **font)
+    for (_, ans), rv in zip(data, reduced_vecs):
+        color = ans_colors[ans]
+        seen_answers.add(ans)
+        plt.plot(rv[0], rv[1], marker='o', color=color, markersize=8)
+    legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
+        for ans, (label, _) in senses.iteritems() if ans in seen_answers]
+    plt.legend(handles=legend)
+    plt.title(word)
+    filename = word + '.pdf'
+    print 'saving', filename
+    plt.savefig(filename)
+
+
 def main():
     parser = argparse.ArgumentParser()
     arg = parser.add_argument
     arg('path')
     arg('--write-errors', action='store_true')
     arg('--n-train', type=int, default=50)
-    arg('--perplexity', action='store_true', help='test in train data')
+    arg('--perplexity', action='store_true', help='test on train data')
     arg('--verbose', action='store_true')
     arg('--n-runs', type=int, default=4)
+    arg('--tsne', action='store_true')
     args = parser.parse_args()
 
     if os.path.isdir(args.path):
@@ -238,7 +264,7 @@ def main():
     model_class = SphericalModel
     for filename in filenames:
         print
-        word = filename.split('/')[-1].split('.')[0]
+        word = filename.split('/')[-1].split('.')[0].decode('utf-8')
         weights = load_weights(word)
         word_results = []
         baseline = get_baseline(get_labeled_ctx(filename)[1])
@@ -249,9 +275,12 @@ def main():
                 print '%s: %d senses' % (word, len(senses) - 2)  # "n/a" and "other"
                 print '%d test samples, %d train samples' % (
                     len(test_data), len(train_data))
+            model = model_class(
+                train_data, weights=weights, verbose=args.verbose)
             accuracy, answers = evaluate(
-                test_data, train_data, model_class, perplexity=args.perplexity,
-                weights=weights, verbose=args.verbose)
+                model, test_data, train_data, perplexity=args.perplexity)
+            if args.tsne:
+                show_tsne(model, test_data, senses, word)
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
             word_results.append(accuracy)
