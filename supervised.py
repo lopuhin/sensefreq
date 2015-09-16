@@ -217,7 +217,7 @@ def load_weights(word):
 
 
 def show_tsne(model, data, senses, word):
-    ts = TSNE(2)
+    ts = TSNE(2, metric='cosine')
     vectors = [model.cv(x) for x, _ in data]
     reduced_vecs = ts.fit_transform(vectors)
     colors = list('rgbcmyk') + ['orange', 'purple', 'gray']
@@ -231,6 +231,8 @@ def show_tsne(model, data, senses, word):
         color = ans_colors[ans]
         seen_answers.add(ans)
         plt.plot(rv[0], rv[1], marker='o', color=color, markersize=8)
+    plt.axes().get_xaxis().set_visible(False)
+    plt.axes().get_yaxis().set_visible(False)
     legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
         for ans, (label, _) in senses.iteritems() if ans in seen_answers]
     plt.legend(handles=legend)
