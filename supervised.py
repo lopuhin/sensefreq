@@ -158,10 +158,18 @@ def context_vector((before, word, after),
         sv = lambda _: ''
         if sense_vectors is not None:
             word_vectors = dict(zip(words, w2v_vecs(words)))
-            sv = lambda w: ':(%s)' % green('|'.join(
-                ('%.2f' % v_closeness(np.array(word_vectors[w]), sense_v))
-                if word_vectors[w] else '-'
-                for _, sense_v in sorted_senses(sense_vectors)))
+            def sv(w):
+                closeness = [
+                    v_closeness(np.array(word_vectors[w]), sense_v)
+                    if word_vectors[w] else None
+                    for _, sense_v in sorted_senses(sense_vectors)]
+                defined_closeness = filter(None, closeness)
+                max_closeness = \
+                    max(defined_closeness) if defined_closeness else None
+                return ':(%s)' % '|'.join(
+                    bold_if(cl == max_closeness,
+                            green(('%.2f' % cl) if cl is not None else '-'))
+                    for cl in closeness)
         print
         print ' '.join(
             bold_if(weight > 1., '%s:%s%s' % (w, blue('%.2f' % weight), sv(w)))
