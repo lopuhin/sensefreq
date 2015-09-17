@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 from utils import word_re, lemmatize_s, avg, std_dev, unitvec, \
-    context_vector as _context_vector, bool_color, blue, green, bold_if, \
+    context_vector as _context_vector, bool_color, blue, magenta, bold_if, \
     w2v_vecs
 
 
@@ -164,12 +164,13 @@ def context_vector((before, word, after),
                     if word_vectors[w] else None
                     for _, sense_v in sorted_senses(sense_vectors)]
                 defined_closeness = filter(None, closeness)
-                max_closeness = \
-                    max(defined_closeness) if defined_closeness else None
-                return ':(%s)' % '|'.join(
-                    bold_if(cl == max_closeness,
-                            green(('%.2f' % cl) if cl is not None else '-'))
-                    for cl in closeness)
+                if defined_closeness:
+                    max_closeness = max(defined_closeness)
+                    return ':(%s)' % ('|'.join(
+                        bold_if(cl == max_closeness, magenta('%.2f' % cl))
+                        for cl in closeness))
+                else:
+                    return ':(-)'
         print
         print ' '.join(
             bold_if(weight > 1., '%s:%s%s' % (w, blue('%.2f' % weight), sv(w)))

@@ -149,6 +149,7 @@ def _cc(code):
 red = _cc(31)
 green = _cc(32)
 blue = _cc(34)
+magenta = _cc(35)
 bool_color = lambda x: green(x) if x else red(x)
 bold = _cc(1)
 bold_if = lambda cond, x: bold(x) if cond else x
