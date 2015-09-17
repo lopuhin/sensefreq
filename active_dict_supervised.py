@@ -4,12 +4,12 @@
 import sys
 import os.path
 from operator import itemgetter
-from collections import defaultdict
+from collections import Counter
 
 from utils import word_re, lemmatize_s
 from active_dict import get_ad_word
 from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
-    SphericalModel
+    SphericalModel, sorted_senses
 
 
 def evaluate_word(word):
@@ -23,7 +23,7 @@ def evaluate_word(word):
     correct_ratio, answers = evaluate(model, test_data, train_data)
     errors = get_errors(answers)
     ad_senses = {m['id']: m['meaning'] for m in ad_word_data['meanings']}
-    for sid, meaning in sorted(senses.iteritems(), key=lambda (k, __): int(k)):
+    for sid, meaning in sorted_senses(senses):
         print
         print sid, meaning
         if sid in ad_senses:
@@ -32,12 +32,12 @@ def evaluate_word(word):
             print 'Missing in AD!'
     assert set(ad_senses).issubset(senses)
     print '\ncorrect: %.2f\n' % correct_ratio
-    error_kinds = defaultdict(int)
-    for _, ans, model_ans in errors:
-        error_kinds[(ans, model_ans)] += 1
-    print 'errors'
-    for k, v in sorted(error_kinds.iteritems(), key=itemgetter(1), reverse=True):
-        print k, v
+    error_kinds = Counter((ans, model_ans)
+                          for _, ans, model_ans in errors)
+    print 'ans\tmodel\terrors'
+    for (ans, model_ans), count in \
+            sorted(error_kinds.iteritems(), key=itemgetter(1), reverse=True):
+        print '%s\t%s\t%s' % (ans, model_ans, count)
 
 
 def get_ad_train_data(word, ad_word_data):
