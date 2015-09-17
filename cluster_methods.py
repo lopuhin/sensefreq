@@ -10,13 +10,13 @@ import scipy.cluster.vq
 import sklearn.cluster
 
 from utils import unitvec, word_re, lemmatize_s, \
-        context_vector as _context_vector
+    context_vector as _context_vector
 from active_dict import get_ad_word
 import kmeans
 
 
 def context_vector(word, ctx, weights=None):
-    return _context_vector([w for w in ctx if w != word], weights=weights)
+    return _context_vector([w for w in ctx if w != word], weights=weights)[0]
 
 
 class Method(object):

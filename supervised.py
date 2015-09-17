@@ -154,29 +154,37 @@ def context_vector((before, word, after),
     words = [
         w for w in itertools.chain(*map(lemmatize_s, [before, after]))
         if word_re.match(w) and w != word]
-    if verbose and weights is not None:
-        sv = lambda _: ''
-        if sense_vectors is not None:
-            word_vectors = dict(zip(words, w2v_vecs(words)))
-            def sv(w):
-                closeness = [
-                    v_closeness(np.array(word_vectors[w]), sense_v)
-                    if word_vectors[w] else None
-                    for _, sense_v in sorted_senses(sense_vectors)]
-                defined_closeness = filter(None, closeness)
-                if defined_closeness:
-                    max_closeness = max(defined_closeness)
-                    return ':(%s)' % ('|'.join(
-                        bold_if(cl == max_closeness, magenta('%.2f' % cl))
-                        for cl in closeness))
-                else:
-                    return ':(-)'
-        print
-        print ' '.join(
-            bold_if(weight > 1., '%s:%s%s' % (w, blue('%.2f' % weight), sv(w)))
-            for w, weight in ((w, weights.get(w, 1.)) for w in words))
-    return _context_vector(
+    cv, w_vectors, w_weights = _context_vector(
         words, excl_stopwords=excl_stopwords, weights=weights)
+    if verbose and weights is not None:
+        print_verbose_repr(
+            words, w_vectors, w_weights,
+            sense_vectors=sense_vectors)
+    return cv
+
+
+def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
+    w_vectors = dict(zip(words, w_vectors))
+    if sense_vectors is not None:
+        def sv(w):
+            closeness = [
+                v_closeness(w_vectors[w], sense_v)
+                if w_vectors[w] is not None else None
+                for _, sense_v in sorted_senses(sense_vectors)]
+            defined_closeness = filter(None, closeness)
+            if defined_closeness:
+                max_closeness = max(defined_closeness)
+                return ':(%s)' % ('|'.join(
+                    bold_if(cl == max_closeness, magenta('%.2f' % cl))
+                    for cl in closeness))
+            else:
+                return ':(-)'
+    else:
+        sv = lambda _: ''
+    print
+    print ' '.join(
+        bold_if(weight > 1., '%s:%s%s' % (w, blue('%.2f' % weight), sv(w)))
+        for w, weight in zip(words, w_weights))
 
 
 def v_closeness(v1, v2):
@@ -310,6 +318,7 @@ def main():
             word_results.append(accuracy)
             results.append(accuracy)
         baselines.append(baseline)
+        print
         print 'baseline: %.3f' % baseline
         print '     avg: %.2f ± %.2f' % (
             avg(word_results),
