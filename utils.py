@@ -151,7 +151,7 @@ green = _cc(32)
 blue = _cc(34)
 bool_color = lambda x: green(x) if x else red(x)
 bold = _cc(1)
-bold_if = lambda x, cond: bold(x) if cond else x
+bold_if = lambda cond, x: bold(x) if cond else x
 
 
 _word2vec_client = None

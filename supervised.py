@@ -20,7 +20,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 from utils import word_re, lemmatize_s, avg, std_dev, unitvec, \
-    context_vector as _context_vector, bool_color, blue, bold_if
+    context_vector as _context_vector, bool_color, blue, green, bold_if, \
+    w2v_vecs
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -96,7 +97,7 @@ class SphericalModel(SupervisedModel):
             for ans, cvs in self.context_vectors.iteritems()}
 
     def __call__(self, x, c_ans):
-        v = self.cv(x)
+        v = self.cv(x, sense_vectors=self.sense_vectors)
         ans_closeness = [
             (ans, v_closeness(v, sense_v))
             for ans, sense_v in self.sense_vectors.iteritems()]
@@ -104,7 +105,7 @@ class SphericalModel(SupervisedModel):
         if self.verbose:
             print ' '.join(x)
             print ' '.join(
-                '%s: %s' % (ans, bold_if('%.3f' % cl, ans == m_ans))
+                '%s: %s' % (ans, bold_if(ans == m_ans, '%.3f' % cl))
                 for ans, cl in sorted(ans_closeness, key=sense_sort_key))
             print 'correct: %s, model: %s, %s' % (
                     c_ans, m_ans, bool_color(c_ans == m_ans))
@@ -148,15 +149,22 @@ class KNearestModel(SupervisedModel):
 
 
 def context_vector((before, word, after),
-        excl_stopwords=True, weights=None, verbose=False):
+        excl_stopwords=True, weights=None, verbose=False, sense_vectors=None):
     word, = lemmatize_s(word)
     words = [
         w for w in itertools.chain(*map(lemmatize_s, [before, after]))
         if word_re.match(w) and w != word]
     if verbose and weights is not None:
+        sv = lambda _: ''
+        if sense_vectors is not None:
+            word_vectors = dict(zip(words, w2v_vecs(words)))
+            sv = lambda w: ':(%s)' % green('|'.join(
+                ('%.2f' % v_closeness(np.array(word_vectors[w]), sense_v))
+                if word_vectors[w] else '-'
+                for _, sense_v in sorted_senses(sense_vectors)))
         print
         print ' '.join(
-            bold_if('%s:%s' % (w, blue('%.2f' % weight)), weight > 1.)
+            bold_if(weight > 1., '%s:%s%s' % (w, blue('%.2f' % weight), sv(w)))
             for w, weight in ((w, weights.get(w, 1.)) for w in words))
     return _context_vector(
         words, excl_stopwords=excl_stopwords, weights=weights)
