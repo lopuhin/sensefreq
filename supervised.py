@@ -86,7 +86,8 @@ class SupervisedModel(object):
         self.cv = partial(
             context_vector, weights=weights, excl_stopwords=excl_stopwords,
             verbose=verbose)
-        self.context_vectors = {ans: np.array(map(self.cv, xs))
+        self.context_vectors = {
+            ans: np.array([cv for cv in map(self.cv, xs) if cv is not None])
             for ans, xs in self.examples.iteritems()}
 
 
@@ -94,7 +95,8 @@ class SphericalModel(SupervisedModel):
     def __init__(self, *args, **kwargs):
         super(SphericalModel, self).__init__(*args, **kwargs)
         self.sense_vectors = {ans: cvs.mean(axis=0)
-            for ans, cvs in self.context_vectors.iteritems()}
+            for ans, cvs in self.context_vectors.iteritems()
+            if cvs.any()}
 
     def __call__(self, x, c_ans):
         v = self.cv(x, sense_vectors=self.sense_vectors)
