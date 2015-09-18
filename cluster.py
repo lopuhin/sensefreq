@@ -19,7 +19,7 @@ import cluster_methods
 from cluster_methods import context_vector
 
 
-def cluster(context_vectors_filename, labeled_dir, **kwargs):
+def cluster(context_vectors_filename, labeled_dir, n_runs=4, **kwargs):
     random.seed(1)
     if os.path.isdir(context_vectors_filename):
         all_metrics = defaultdict(list)
@@ -33,7 +33,7 @@ def cluster(context_vectors_filename, labeled_dir, **kwargs):
             '%s\t%.2f' % (k, avg(v)) for k, v in all_metrics.iteritems())
     else:
         all_mt = defaultdict(list)
-        for __ in xrange(4):
+        for __ in xrange(n_runs):
             mt = _cluster(context_vectors_filename, labeled_dir, **kwargs)
             for k, v in mt.iteritems():
                 all_mt[k].append(v)
@@ -182,6 +182,7 @@ or  ./cluster.py context_vectors_folder/ labeled_folder/
     arg('--rebuild', action='store_true', help='force rebuild of clusters')
     arg('--n-senses', type=int, default=12, help='number of senses (clusters)')
     arg('--print-clusters', action='store_true', help='print resulting senses')
+    arg('--n-runs', type=int, default=4, help='average given number of runs')
     args = parser.parse_args()
     if len(args.args) == 3:
         fn = build_context_vectors

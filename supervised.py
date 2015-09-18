@@ -240,7 +240,7 @@ def get_errors(answers):
 
 
 def load_weights(word):
-    filename = word + '.dict'
+    filename = os.path.join('cdict', word + '.dict')
     if os.path.exists(filename):
         with codecs.open(filename, 'rb', 'utf-8') as f:
             return {w: float(weight) for w, weight in (l.split() for l in f)}

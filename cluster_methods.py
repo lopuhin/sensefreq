@@ -39,6 +39,19 @@ class Method(object):
             clusters[c].append((ctx, dist))
         return clusters
 
+    def _predict_knn(self, vectors, nn=10):
+        vectors = np.array(vectors)
+        similarity_matrix = np.dot(vectors, np.transpose(self.features))
+        predictions = []
+        for v in similarity_matrix:
+            av = zip(self.assignment, v)
+            av.sort(key=itemgetter(1), reverse=True)
+            weighted_sims = defaultdict(float)
+            for c, s in av[:nn]:
+                weighted_sims[c] += s
+            predictions.append(
+                max(weighted_sims.items(), key=itemgetter(1))[0])
+        return np.array(predictions)
 
 class SCKMeans(Method):
     ''' K-means from scipy.
@@ -161,15 +174,16 @@ class Spectral(Method):
         return self._build_clusters(self.assignment, distances)
 
     def predict(self, vectors):
-        vectors = np.array(vectors)
-        similarity_matrix = np.dot(vectors, np.transpose(self.features))
-        predictions = []
-        for v in similarity_matrix:
-            av = zip(self.assignment, v)
-            av.sort(key=itemgetter(1), reverse=True)
-            weighted_sims = defaultdict(float)
-            for c, s in av[:10]:
-                weighted_sims[c] += s
-            predictions.append(
-                max(weighted_sims.items(), key=itemgetter(1))[0])
-        return np.array(predictions)
+        return self._predict_knn(vectors, 10)
+
+
+class DBSCAN(Method):
+    def cluster(self):
+        self._c = sklearn.cluster.DBSCAN(
+            metric='cosine', algorithm='brute', eps=0.3)
+        self.assignment = self._c.fit_predict(self.features)
+        distances = [0.0] * len(self.assignment)  # FIXME
+        return self._build_clusters(self.assignment, distances)
+
+    def predict(self, vectors):
+        return self._predict_knn(vectors, 5)
