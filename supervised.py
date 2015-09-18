@@ -262,8 +262,8 @@ def show_tsne(model, answers, senses, word):
     for (_, ans, model_ans), rv in zip(answers, reduced_vecs):
         color = ans_colors[ans]
         seen_answers.add(ans)
-        size = 4 if ans == model_ans else 8
-        plt.plot(rv[0], rv[1], marker='o', color=color, markersize=size)
+        marker = 'o' if ans == model_ans else 'x'
+        plt.plot(rv[0], rv[1], marker=marker, color=color, markersize=8)
     plt.axes().get_xaxis().set_visible(False)
     plt.axes().get_yaxis().set_visible(False)
     legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
