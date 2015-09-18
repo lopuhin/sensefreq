@@ -108,3 +108,11 @@ cluster.py
 First prepare contexts using ``./extract_contexts.py corpus word > word-contexts.txt``.
 Then build context vectors using ``./cluster.py`` (see help), and
 then use this vectors for clustering using again ``./cluster.py``.
+
+
+active_dict_supervised.py
+-------------------------
+
+This script assumes that labelled words are in ``ann/dialog7/``,
+and dictionary words in ``ann/ad-dialog7/``. It uses dictionary examples
+as training data. Run with ``./active_dict_supervised.py word``.
