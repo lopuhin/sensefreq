@@ -18,10 +18,10 @@ from sklearn.mixture import GMM
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.colors import ColorConverter, rgb_to_hsv, hsv_to_rgb
 
 from utils import word_re, lemmatize_s, avg, std_dev, unitvec, \
-    context_vector as _context_vector, bool_color, blue, magenta, bold_if, \
-    w2v_vecs
+    context_vector as _context_vector, bool_color, blue, magenta, bold_if
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -240,7 +240,7 @@ def get_errors(answers):
 
 
 def load_weights(word):
-    filename = word + '.dict'
+    filename = os.path.join('cdict', word + '.dict')
     if os.path.exists(filename):
         with codecs.open(filename, 'rb', 'utf-8') as f:
             return {w: float(weight) for w, weight in (l.split() for l in f)}
@@ -252,27 +252,40 @@ def show_tsne(model, answers, senses, word):
     ts = TSNE(2, metric='cosine')
     vectors = [model.cv(x) for x, _, _ in answers]
     reduced_vecs = ts.fit_transform(vectors)
+    color_converter = ColorConverter()
     colors = list('rgbcmyk') + ['orange', 'purple', 'gray']
-    ans_colors = {ans: colors[int(ans) - 1] for ans in senses}
+    light_colors = [lighter_color(color_converter.to_rgb(c)) for c in colors]
+    ans_colors = {ans: (colors[idx], light_colors[idx])
+                  for ans, idx in ((ans, int(ans) - 1) for ans in senses)}
     seen_answers = set()
     plt.clf()
     plt.rc('legend', fontsize=9)
     font = {'family': 'Verdana', 'weight': 'normal'}
     plt.rc('font', **font)
     for (_, ans, model_ans), rv in zip(answers, reduced_vecs):
-        color = ans_colors[ans]
+        color, light_color = ans_colors[ans]
         seen_answers.add(ans)
-        size = 4 if ans == model_ans else 8
-        plt.plot(rv[0], rv[1], marker='o', color=color, markersize=size)
+        if ans == model_ans:
+            color = light_color
+            marker = 'o'
+        else:
+            marker = '^'
+        plt.plot(rv[0], rv[1], marker=marker, color=color, markersize=8)
     plt.axes().get_xaxis().set_visible(False)
     plt.axes().get_yaxis().set_visible(False)
-    legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
+    legend = [mpatches.Patch(color=ans_colors[ans][0], label=label[:25])
         for ans, (label, _) in senses.iteritems() if ans in seen_answers]
     plt.legend(handles=legend)
     plt.title(word)
     filename = word + '.pdf'
     print 'saving tSNE clustering to', filename
     plt.savefig(filename)
+
+
+def lighter_color(color):
+    hsv = rgb_to_hsv(color)
+    hsv[1] *= 0.5
+    return hsv_to_rgb(hsv)
 
 
 def main():
