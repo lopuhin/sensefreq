@@ -248,9 +248,9 @@ def load_weights(word):
         print >>sys.stderr, 'Weight file "%s" not found' % filename
 
 
-def show_tsne(model, data, senses, word):
+def show_tsne(model, answers, senses, word):
     ts = TSNE(2, metric='cosine')
-    vectors = [model.cv(x) for x, _ in data]
+    vectors = [model.cv(x) for x, _, _ in answers]
     reduced_vecs = ts.fit_transform(vectors)
     colors = list('rgbcmyk') + ['orange', 'purple', 'gray']
     ans_colors = {ans: colors[int(ans) - 1] for ans in senses}
@@ -259,10 +259,11 @@ def show_tsne(model, data, senses, word):
     plt.rc('legend', fontsize=9)
     font = {'family': 'Verdana', 'weight': 'normal'}
     plt.rc('font', **font)
-    for (_, ans), rv in zip(data, reduced_vecs):
+    for (_, ans, model_ans), rv in zip(answers, reduced_vecs):
         color = ans_colors[ans]
         seen_answers.add(ans)
-        plt.plot(rv[0], rv[1], marker='o', color=color, markersize=8)
+        size = 4 if ans == model_ans else 8
+        plt.plot(rv[0], rv[1], marker='o', color=color, markersize=size)
     plt.axes().get_xaxis().set_visible(False)
     plt.axes().get_yaxis().set_visible(False)
     legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
@@ -314,7 +315,7 @@ def main():
             accuracy, answers = evaluate(
                 model, test_data, train_data, perplexity=args.perplexity)
             if args.tsne:
-                show_tsne(model, test_data, senses, word)
+                show_tsne(model, answers, senses, word)
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
             word_results.append(accuracy)
