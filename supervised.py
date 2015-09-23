@@ -19,7 +19,7 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from utils import word_re, lemmatize_s, avg, std_dev, v_closeness, \
+from utils import word_re, lemmatize_s, avg, avg_w_bounds, v_closeness, \
     context_vector as _context_vector, bool_color, blue, magenta, bold_if
 
 
@@ -318,9 +318,7 @@ def main():
         baselines.append(baseline)
         print
         print 'baseline: %.3f' % baseline
-        print '     avg: %.2f ± %.2f' % (
-            avg(word_results),
-            1.96 * std_dev(word_results))
+        print '     avg: %s' % avg_w_bounds(word_results)
     print
     print '---------'
     print 'baseline: %.3f' % avg(baselines)

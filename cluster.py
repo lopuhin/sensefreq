@@ -3,7 +3,6 @@
 
 from __future__ import division
 
-import sys
 import os.path
 import codecs
 import argparse
@@ -13,7 +12,7 @@ import random
 
 from sklearn.metrics import v_measure_score, adjusted_rand_score
 
-from utils import load, save, lemmatize_s, STOPWORDS, avg
+from utils import load, save, lemmatize_s, STOPWORDS, avg_w_bounds
 from supervised import get_labeled_ctx, load_weights
 import cluster_methods
 from cluster_methods import context_vector
@@ -24,21 +23,25 @@ def cluster(context_vectors_filename, labeled_dir, n_runs=4, **kwargs):
     if os.path.isdir(context_vectors_filename):
         all_metrics = defaultdict(list)
         for f in os.listdir(context_vectors_filename):
-            mt = _cluster(
-                os.path.join(context_vectors_filename, f), labeled_dir,
-                **kwargs)
-            for k, v in mt.iteritems():
-                all_metrics[k].append(v)
-        print 'Avg.\t%s' % '\t'.join(
-            '%s\t%.2f' % (k, avg(v)) for k, v in all_metrics.iteritems())
+            w_metrics = defaultdict(list)
+            for __ in xrange(n_runs):
+                mt = _cluster(
+                    os.path.join(context_vectors_filename, f), labeled_dir,
+                    **kwargs)
+                for k, v in mt.iteritems():
+                    w_metrics[k].append(v)
+            print_metrics(f.split('.')[0], w_metrics)
+            for k, vs in w_metrics.iteritems():
+                all_metrics[k].extend(vs)
+        print_metrics('Avg.', all_metrics)
     else:
         all_mt = defaultdict(list)
         for __ in xrange(n_runs):
             mt = _cluster(context_vectors_filename, labeled_dir, **kwargs)
             for k, v in mt.iteritems():
                 all_mt[k].append(v)
-        print '\t'.join(
-            '%s\t%.2f' % (k, avg(v)) for k, v in all_mt.iteritems())
+            print_metrics('#', mt)
+        print_metrics('Avg.', all_mt)
 
 
 def _cluster(context_vectors_filename, labeled_dir,
@@ -56,9 +59,13 @@ def _cluster(context_vectors_filename, labeled_dir,
     mt = {}
     if os.path.isfile(labeled_filename):
         mt = _get_metrics(word, classifier, labeled_filename)
-        print '%s\t%s' % (
-            word, '\t'.join('%s\t%.2f' % it for it in mt.iteritems()))
     return mt
+
+
+def print_metrics(prefix, mt):
+    print '%s\t%s' % (
+        prefix, '\t'.join('%s\t%s' % (k, avg_w_bounds(v))
+                          for k, v in sorted(mt.iteritems())))
 
 
 def _print_clusters(word, clusters, n_contexts):
@@ -118,7 +125,7 @@ def _oracle_accuracy(true_labels, pred_labels):
             true_label_counts.iteritems(), key=itemgetter(1))
         n_true += max_label_count
         used_labels.add(max_label)
-    print 'used %d labels out of %d' % (len(used_labels), len(set(true_labels)))
+   #print 'used %d labels out of %d' % (len(used_labels), len(set(true_labels)))
     if len(used_labels) == 1:
         print 'FOO! Baseline detected!'
     return n_true / len(true_labels)
@@ -165,8 +172,7 @@ def iter_contexts(contexts_filename):
             yield line.decode('utf-8').split()
 
 
-if __name__ == '__main__':
-    n_args = len(sys.argv[1:])
+def main():
     description = '''
 To build context vectors:
     ./cluster.py contexts_filename word context_vectors.pkl
@@ -192,3 +198,7 @@ or  ./cluster.py context_vectors_folder/ labeled_folder/
         parser.error(
             'Expected 3 or 2 positional args.\n{}'.format(description))
     fn(*args.args, **vars(args))
+
+
+if __name__ == '__main__':
+    main()

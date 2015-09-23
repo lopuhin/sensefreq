@@ -103,6 +103,12 @@ def std_dev(v):
     return math.sqrt(avg([(x - m)**2 for x in v]))
 
 
+def avg_w_bounds(x):
+    if not isinstance(x, list):
+        return '%.2f' % x
+    return '%.2f ± %.2f' % (avg(x), 1.96 * std_dev(x))
+
+
 def unitvec(vec):
     veclen = np.sqrt(np.sum(vec ** 2))
     if veclen > 0.0:
