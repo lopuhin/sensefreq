@@ -3,17 +3,17 @@
 
 import sys
 import os.path
+import codecs
 from operator import itemgetter
 from collections import Counter
 
-from utils import word_re, lemmatize_s
+from utils import word_re, lemmatize_s, avg
 from active_dict import get_ad_word
 from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
     SphericalModel, sorted_senses
 
 
-def evaluate_word(word):
-    word = word.decode('utf-8')
+def evaluate_word(word, print_errors=False):
     senses, test_data = get_labeled_ctx(
         os.path.join('ann', 'dialog7', word + '.txt'))
     ad_word_data = get_ad_word(word)
@@ -21,6 +21,12 @@ def evaluate_word(word):
     train_data = get_ad_train_data(word, ad_word_data)
     model = SphericalModel(train_data, weights=weights)
     correct_ratio, answers = evaluate(model, test_data, train_data)
+    if print_errors:
+        _print_errors(correct_ratio, answers, ad_word_data, senses)
+    return correct_ratio
+
+
+def _print_errors(correct_ratio, answers, ad_word_data, senses):
     errors = get_errors(answers)
     ad_senses = {m['id']: m['meaning'] for m in ad_word_data['meanings']}
     for sid, meaning in sorted_senses(senses):
@@ -42,16 +48,17 @@ def evaluate_word(word):
 
 def get_ad_train_data(word, ad_word_data):
     train_data = []
-    for i, m in enumerate(ad_word_data['meanings']):
+    for m in ad_word_data['meanings']:
         ans = m['id']
         for ctx in m['contexts']:
             words = [w for w in lemmatize_s(ctx.lower()) if word_re.match(w)]
             try:
                 w_idx = words.index(word)
             except ValueError:
-                print
-                print 'word missing', word
-                print 'context', ' '.join(words)
+                pass
+               #print
+               #print 'word missing', word
+               #print 'context', ' '.join(words)
             else:
                 before = ' '.join(words[:w_idx])
                 after = ' '.join(w for w in words[w_idx+1:] if w != word)
@@ -60,6 +67,21 @@ def get_ad_train_data(word, ad_word_data):
     return train_data
 
 
+def main():
+    word_or_filename = sys.argv[1]
+    if os.path.exists(word_or_filename):
+        with codecs.open(word_or_filename, 'rb', 'utf-8') as f:
+            words = [l.strip() for l in f]
+        results = []
+        for word in words:
+            correct_ratio = evaluate_word(word)
+            results.append(correct_ratio)
+            print u'%s\t%.2f' % (word, correct_ratio)
+        print u'Avg.\t%.2f' % avg(results)
+    else:
+        evaluate_word(word_or_filename.decode('utf-8'), print_errors=True)
+
+
 if __name__ == '__main__':
-    evaluate_word(sys.argv[1])
+    main()
 

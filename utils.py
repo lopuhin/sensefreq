@@ -105,8 +105,8 @@ def std_dev(v):
 
 def avg_w_bounds(x):
     if not isinstance(x, list):
-        return '%.2f' % x
-    return '%.2f ± %.2f' % (avg(x), 1.96 * std_dev(x))
+        return u'%.2f' % x
+    return u'%.2f ± %.2f' % (avg(x), 1.96 * std_dev(x))
 
 
 def unitvec(vec):

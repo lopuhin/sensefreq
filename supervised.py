@@ -293,18 +293,18 @@ def main():
     results = []
     model_class = SphericalModel
     for filename in filenames:
-        print
         word = filename.split('/')[-1].split('.')[0].decode('utf-8')
         weights = load_weights(word)
         word_results = []
         baseline = get_baseline(get_labeled_ctx(filename)[1])
+        random.seed(1)
         for i in xrange(args.n_runs):
             senses, test_data, train_data = \
                 get_ans_test_train(filename, n_train=args.n_train)
-            if not i:
-                print '%s: %d senses' % (word, len(senses) - 2)  # "n/a" and "other"
-                print '%d test samples, %d train samples' % (
-                    len(test_data), len(train_data))
+           #if i == 0:
+           #    print '%s: %d senses' % (word, len(senses) - 2)  # "n/a" and "other"
+           #    print '%d test samples, %d train samples' % (
+           #        len(test_data), len(train_data))
             model = model_class(
                 train_data, weights=weights, verbose=args.verbose)
             accuracy, answers = evaluate(
@@ -316,17 +316,14 @@ def main():
             word_results.append(accuracy)
             results.append(accuracy)
         baselines.append(baseline)
-        print
-        print 'baseline: %.3f' % baseline
-        print '     avg: %s' % avg_w_bounds(word_results)
+        print u'%s\t%.2f\t%s' % (word, baseline, avg_w_bounds(word_results))
     print
-    print '---------'
     print 'baseline: %.3f' % avg(baselines)
     print '     avg: %.3f' % avg(results)
-    print '\n'.join('%s: %s' % (ans, s)
-                    for ans, (s, _) in sorted_senses(senses))
+    if len(filenames) == 1:
+        print '\n'.join('%s: %s' % (ans, s)
+                        for ans, (s, _) in sorted_senses(senses))
 
 
 if __name__ == '__main__':
-    random.seed(1)
     main()

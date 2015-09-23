@@ -19,10 +19,10 @@ from cluster_methods import context_vector
 
 
 def cluster(context_vectors_filename, labeled_dir, n_runs=4, **kwargs):
-    random.seed(1)
     if os.path.isdir(context_vectors_filename):
         all_metrics = defaultdict(list)
         for f in os.listdir(context_vectors_filename):
+            random.seed(1)
             w_metrics = defaultdict(list)
             for __ in xrange(n_runs):
                 mt = _cluster(
@@ -35,6 +35,7 @@ def cluster(context_vectors_filename, labeled_dir, n_runs=4, **kwargs):
                 all_metrics[k].extend(vs)
         print_metrics('Avg.', all_metrics)
     else:
+        random.seed(1)
         all_mt = defaultdict(list)
         for __ in xrange(n_runs):
             mt = _cluster(context_vectors_filename, labeled_dir, **kwargs)
