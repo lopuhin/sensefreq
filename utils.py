@@ -111,6 +111,10 @@ def unitvec(vec):
         return vec
 
 
+def v_closeness(v1, v2):
+    return np.dot(unitvec(v1), unitvec(v2))
+
+
 def context_vector(words, excl_stopwords=True, weights=None):
     w_vectors = [np.array(v, dtype=np.float32) if v else None
                  for v in w2v_vecs(words)]

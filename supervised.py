@@ -19,9 +19,8 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from utils import word_re, lemmatize_s, avg, std_dev, unitvec, \
-    context_vector as _context_vector, bool_color, blue, magenta, bold_if, \
-    w2v_vecs
+from utils import word_re, lemmatize_s, avg, std_dev, v_closeness, \
+    context_vector as _context_vector, bool_color, blue, magenta, bold_if
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -187,10 +186,6 @@ def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
     print ' '.join(
         bold_if(weight > 1., '%s:%s%s' % (w, blue('%.2f' % weight), sv(w)))
         for w, weight in zip(words, w_weights))
-
-
-def v_closeness(v1, v2):
-    return np.dot(unitvec(v1), unitvec(v2))
 
 
 def evaluate(model, test_data, train_data, perplexity=False):
