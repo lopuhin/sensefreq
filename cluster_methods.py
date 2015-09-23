@@ -9,9 +9,10 @@ import numpy as np
 import scipy.cluster.vq
 import sklearn.cluster
 
-from utils import unitvec, word_re, lemmatize_s, \
+from utils import unitvec, word_re, lemmatize_s, v_closeness, \
     context_vector as _context_vector
 from active_dict import get_ad_word
+from supervised import load_weights
 import kmeans
 
 
@@ -52,6 +53,7 @@ class Method(object):
             predictions.append(
                 max(weighted_sims.items(), key=itemgetter(1))[0])
         return np.array(predictions)
+
 
 class SCKMeans(Method):
     ''' K-means from scipy.
@@ -109,30 +111,56 @@ class SKMeans(Method):
         return [np.argmax(np.dot(self._c.centres, v)) for v in vectors]
 
 
-class SKMeansAD(SKMeans):
+class SKMeansADInit(SKMeans):
     ''' Initialize clusters with Active Dictionary contexts.
     '''
     def cluster(self):
-        ad_descr = get_ad_word(self.m['word'])
-        centers = []
-        self.mapping = {}
-        for i, meaning in enumerate(ad_descr['meanings']):
-            center = None
-            for ctx in meaning['contexts']:
-                ctx = [w for w in lemmatize_s(ctx.lower()) if word_re.match(w)]
-                vector = context_vector(self.m['word'], ctx)
-                if vector is not None:
-                    if center is None:
-                        center = vector
-                    else:
-                        center += vector
-            centers.append(unitvec(center))
-            self.mapping[i] = int(meaning['id'])
-            # note that the clusters can drift to quite different positions
-        centers = np.array(centers)
+        word = self.m['word']
+        ad_descr = get_ad_word(word)
+        ad_centers = get_ad_centers(word, ad_descr)
+        self.mapping = {
+            i: int(meaning['id'])
+            for i, meaning in enumerate(ad_descr['meanings'])}
+        # note that the clusters can drift to quite different positions
+        centers = np.array([ad_centers[m['id']] for m in ad_descr['meanings']])
         self._c = kmeans.KMeans(
             self.features, centres=centers, metric='cosine', verbose=0)
         return self._cluster()
+
+
+def get_ad_centers(word, ad_descr):
+    centers = {}
+    weights = load_weights(word)
+    for meaning in ad_descr['meanings']:
+        center = None
+        for ctx in meaning['contexts']:
+            ctx = [w for w in lemmatize_s(ctx.lower()) if word_re.match(w)]
+            vector = context_vector(word, ctx, weights=weights)
+            if vector is not None:
+                if center is None:
+                    center = vector
+                else:
+                    center += vector
+        if center is not None:
+            centers[meaning['id']] = unitvec(center)
+    return centers
+
+
+class SKMeansADMapping(SKMeans):
+    ''' Do cluster mapping using Active Dictionary contexts.
+    '''
+    def cluster(self):
+        clusters = super(SKMeansADMapping, self).cluster()
+        word = self.m['word']
+        ad_descr = get_ad_word(word)
+        ad_centers = get_ad_centers(word, ad_descr)
+        self.mapping = {}
+        for ci, center in enumerate(self._c.centres):
+            self.mapping[ci] = max(
+                ((int(mid), v_closeness(center, m_center))
+                    for mid, m_center in ad_centers.iteritems()),
+                key=itemgetter(1))[0]
+        return clusters
 
 
 # Methods below are slow, bad for this task, or both
