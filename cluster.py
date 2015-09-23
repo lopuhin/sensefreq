@@ -30,7 +30,8 @@ def cluster(context_vectors_filename, labeled_dir, n_runs=4, **kwargs):
                     **kwargs)
                 for k, v in mt.iteritems():
                     w_metrics[k].append(v)
-            print_metrics(f.split('.')[0], w_metrics)
+            word = f.split('.')[0].decode('utf-8')
+            print_metrics(word, w_metrics)
             for k, vs in w_metrics.iteritems():
                 all_metrics[k].extend(vs)
         print_metrics('Avg.', all_metrics)
@@ -64,8 +65,8 @@ def _cluster(context_vectors_filename, labeled_dir,
 
 
 def print_metrics(prefix, mt):
-    print '%s\t%s' % (
-        prefix, '\t'.join('%s\t%s' % (k, avg_w_bounds(v))
+    print u'%s\t%s' % (
+        prefix, '\t'.join(u'%s\t%s' % (k, avg_w_bounds(v))
                           for k, v in sorted(mt.iteritems())))
 
 

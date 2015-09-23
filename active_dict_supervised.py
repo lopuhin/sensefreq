@@ -73,7 +73,7 @@ def main():
         with codecs.open(word_or_filename, 'rb', 'utf-8') as f:
             words = [l.strip() for l in f]
         results = []
-        for word in words:
+        for word in sorted(words):
             correct_ratio = evaluate_word(word)
             results.append(correct_ratio)
             print u'%s\t%.2f' % (word, correct_ratio)
