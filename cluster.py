@@ -10,6 +10,8 @@ from collections import defaultdict, Counter
 from operator import itemgetter
 import random
 
+import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.metrics import v_measure_score, adjusted_rand_score
 
 from utils import load, save, lemmatize_s, STOPWORDS, avg_w_bounds
@@ -83,6 +85,13 @@ def _print_clusters(word, clusters, n_contexts):
         print '...'
         for ctx, dist in elements[-3:]:
             print u'%.2f: %s' % (dist, u' '.join(ctx))
+        distances = [d for _, d in elements]
+        hist, bins = np.histogram(distances)
+        center = (bins[:-1] + bins[1:]) / 2
+        width = 0.8 * (bins[1] - bins[0])
+        plt.clf()
+        plt.bar(center, hist, width=width)
+        plt.show()
 
 
 def _best_words(elements, word):
