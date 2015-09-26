@@ -57,7 +57,7 @@ def _cluster(context_vectors_filename, labeled_dir,
         print
         print word
         _print_clusters(word, clusters, n_contexts)
-    labeled_filename = os.path.join(labeled_dir, word + '.txt')
+    labeled_filename = os.path.join(labeled_dir, word.encode('utf-8') + '.txt')
     mt = {}
     if os.path.isfile(labeled_filename):
         mt = _get_metrics(word, classifier, labeled_filename)
@@ -75,10 +75,13 @@ def _print_clusters(word, clusters, n_contexts):
             clusters.iteritems(), key=lambda (__, v): len(v)):
         elements.sort(key=itemgetter(1))
         print
-        print '#%d: %.2f' % (c, len(elements) / n_contexts)
+        print '#%d: %.2f (%d)' % (c, len(elements) / n_contexts, len(elements))
         for w, count in _best_words(elements, word)[:10]:
             print count, w
         for ctx, dist in elements[:7]:
+            print u'%.2f: %s' % (dist, u' '.join(ctx))
+        print '...'
+        for ctx, dist in elements[-3:]:
             print u'%.2f: %s' % (dist, u' '.join(ctx))
 
 
