@@ -32,6 +32,7 @@ def _get_contexts(m):
     contexts = []
     contexts.extend(m.get('examples', '').split(';'))
     contexts.extend(m.get('compatibility', '').split(';'))
+    contexts.append(m['meaning'])
     # TODO - split sentenses with mystem?
     illustrations = _remove_brackets(m.get('illustrations', ''))
     contexts.extend(illustrations.split('.'))
