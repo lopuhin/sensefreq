@@ -101,7 +101,15 @@ def cdist_sparse( X, Y, **kwargs ):
     # todense row at a time, v slow if both v sparse
     sxy = 2*issparse(X) + issparse(Y)
     if sxy == 0:
-        return cdist( X, Y, **kwargs )
+        if kwargs.get('metric') == 'cosine':
+            # otherwise, there are some NaNs (???)
+            from sklearn.metrics.pairwise import cosine_similarity
+            z = cosine_similarity(X, Y)
+            z *= -1
+            z += 1
+            return z
+        else:
+            return cdist( X, Y, **kwargs )
     d = np.empty( (X.shape[0], Y.shape[0]), np.float64 )
     if sxy == 2:
         for j, x in enumerate(X):

@@ -99,7 +99,7 @@ class SKMeans(Method):
     '''
     def cluster(self):
         self._c = kmeans.KMeans(self.features, k=self.n_senses,
-            metric='cosine', verbose=0)
+            metric='cosine', verbose=2)
         return self._cluster()
 
     def _cluster(self):
