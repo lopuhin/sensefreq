@@ -6,7 +6,7 @@ from __future__ import division
 import os.path
 import codecs
 import argparse
-from collections import defaultdict
+from collections import defaultdict, Counter
 from operator import itemgetter
 import random
 
@@ -109,6 +109,8 @@ def _get_metrics(word, classifier, labeled_filename):
     if mapping:
         metrics['accuracy'] = _mapping_accuracy(
             true_labels, pred_labels, mapping)
+        metrics['max_freq_error'] = _max_freq_error(
+            true_labels, pred_labels, mapping)
     return metrics
 
 
@@ -137,6 +139,13 @@ def _mapping_accuracy(true_labels, pred_labels, mapping):
     ''' Accuracy using mapping from pred_labels to true_labels.
     '''
     return sum(c1 == mapping[c2] for c1, c2 in zip(true_labels, pred_labels)) / \
+           len(true_labels)
+
+
+def _max_freq_error(true_labels, pred_labels, mapping):
+    counts = Counter(true_labels)
+    model_counts = Counter(mapping[c] for c in pred_labels)
+    return max(abs(counts[s] - model_counts[s]) for s in counts) / \
            len(true_labels)
 
 

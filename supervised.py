@@ -192,7 +192,10 @@ def evaluate(model, test_data, train_data, perplexity=False):
     test_on = test_data if not perplexity else train_data
     answers = [(x, ans, model(x, ans)) for x, ans in test_on]
     n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
-    return n_correct / len(answers), answers
+    counts = Counter(ans for _, ans, _ in answers)
+    model_counts = Counter(model_ans for _, _, model_ans in answers)
+    max_count_error = max(abs(counts[s] - model_counts[s]) for s in counts)
+    return n_correct / len(answers), max_count_error / len(answers), answers
 
 
 def get_baseline(labeled_data):
@@ -290,12 +293,14 @@ def main():
     filenames.sort()
 
     baselines = []
-    results = []
+    accuracies = []
+    freq_errors = []
     model_class = SphericalModel
+    print u'\t'.join(['word', 'b-line', 'acc.', 'max_freq_error'])
     for filename in filenames:
         word = filename.split('/')[-1].split('.')[0].decode('utf-8')
         weights = load_weights(word)
-        word_results = []
+        word_accuracy, word_freq_errors = [], []
         baseline = get_baseline(get_labeled_ctx(filename)[1])
         random.seed(1)
         for i in xrange(args.n_runs):
@@ -307,19 +312,24 @@ def main():
            #        len(test_data), len(train_data))
             model = model_class(
                 train_data, weights=weights, verbose=args.verbose)
-            accuracy, answers = evaluate(
+            accuracy, max_freq_error, answers = evaluate(
                 model, test_data, train_data, perplexity=args.perplexity)
             if args.tsne:
                 show_tsne(model, answers, senses, word)
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
-            word_results.append(accuracy)
-            results.append(accuracy)
+            word_accuracy.append(accuracy)
+            word_freq_errors.append(max_freq_error)
+        accuracies.extend(word_accuracy)
+        freq_errors.extend(word_freq_errors)
         baselines.append(baseline)
-        print u'%s\t%.2f\t%s' % (word, baseline, avg_w_bounds(word_results))
+        print u'%s\t%.2f\t%s\t%s' % (
+            word, baseline, avg_w_bounds(word_accuracy),
+            avg_w_bounds(word_freq_errors))
     print
     print 'baseline: %.3f' % avg(baselines)
-    print '     avg: %.3f' % avg(results)
+    print '     avg: %.3f' % avg(accuracies)
+    print 'freq err: %.3f' % avg(freq_errors)
     if len(filenames) == 1:
         print '\n'.join('%s: %s' % (ans, s)
                         for ans, (s, _) in sorted_senses(senses))

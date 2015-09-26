@@ -18,12 +18,14 @@ def evaluate_word(word, print_errors=False):
         os.path.join('ann', 'dialog7', word + '.txt'))
     ad_word_data = get_ad_word(word)
     weights = load_weights(word)
-    train_data = get_ad_train_data(word, ad_word_data)
+    train_data = get_ad_train_data(
+        word, ad_word_data, print_errors=print_errors)
     model = SphericalModel(train_data, weights=weights)
-    correct_ratio, answers = evaluate(model, test_data, train_data)
+    correct_ratio, max_freq_error, answers = \
+        evaluate(model, test_data, train_data)
     if print_errors:
         _print_errors(correct_ratio, answers, ad_word_data, senses)
-    return correct_ratio
+    return correct_ratio, max_freq_error
 
 
 def _print_errors(correct_ratio, answers, ad_word_data, senses):
@@ -46,7 +48,7 @@ def _print_errors(correct_ratio, answers, ad_word_data, senses):
         print '%s\t%s\t%s' % (ans, model_ans, count)
 
 
-def get_ad_train_data(word, ad_word_data):
+def get_ad_train_data(word, ad_word_data, print_errors=False):
     train_data = []
     for m in ad_word_data['meanings']:
         ans = m['id']
@@ -55,10 +57,10 @@ def get_ad_train_data(word, ad_word_data):
             try:
                 w_idx = words.index(word)
             except ValueError:
-                pass
-               #print
-               #print 'word missing', word
-               #print 'context', ' '.join(words)
+                if print_errors:
+                    print
+                    print 'word missing', word
+                    print 'context', ' '.join(words)
             else:
                 before = ' '.join(words[:w_idx])
                 after = ' '.join(w for w in words[w_idx+1:] if w != word)
@@ -72,12 +74,14 @@ def main():
     if os.path.exists(word_or_filename):
         with codecs.open(word_or_filename, 'rb', 'utf-8') as f:
             words = [l.strip() for l in f]
-        results = []
+        accuracies, freq_errors = [], []
+        print u'\t'.join(['word', 'acc.', 'max_freq_error'])
         for word in sorted(words):
-            correct_ratio = evaluate_word(word)
-            results.append(correct_ratio)
-            print u'%s\t%.2f' % (word, correct_ratio)
-        print u'Avg.\t%.2f' % avg(results)
+            correct_ratio, max_freq_error = evaluate_word(word)
+            accuracies.append(correct_ratio)
+            freq_errors.append(max_freq_error)
+            print u'%s\t%.2f\t%.2f' % (word, correct_ratio, max_freq_error)
+        print u'Avg.\t%.2f\t%.2f' % (avg(accuracies), avg(freq_errors))
     else:
         evaluate_word(word_or_filename.decode('utf-8'), print_errors=True)
 
