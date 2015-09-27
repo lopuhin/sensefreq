@@ -10,3 +10,4 @@ numpy/
 train/
 *.txt
 *.dict
+*.pdf
