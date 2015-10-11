@@ -313,7 +313,7 @@ def main():
     freq_errors = []
     model_class = SphericalModel
     print u'\t'.join(
-        ['word', 'b-line', 'test acc.', 'train acc.', 'max_freq_error'])
+        ['word', 'b-line', 'train acc.', 'test acc.', 'max_freq_error'])
     for filename in filenames:
         word = filename.split('/')[-1].split('.')[0].decode('utf-8')
         weights = load_weights(word)
@@ -344,8 +344,8 @@ def main():
         baselines.append(baseline)
         print u'%s\t%.2f\t%s\t%s\t%s' % (
             word, baseline,
-            avg_w_bounds(test_accuracy),
             avg_w_bounds(train_accuracy),
+            avg_w_bounds(test_accuracy),
             avg_w_bounds(word_freq_errors))
     print
     print 'baseline: %.3f' % avg(baselines)

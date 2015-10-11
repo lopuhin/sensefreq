@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
-import sys
 import os.path
 import codecs
+import argparse
 from operator import itemgetter
 from collections import Counter
 
@@ -21,14 +21,14 @@ def evaluate_word(word, print_errors=False):
     train_data = get_ad_train_data(
         word, ad_word_data, print_errors=print_errors)
     model = SphericalModel(train_data, weights=weights)
-    correct_ratio, max_freq_error, answers = \
+    test_accuracy, max_freq_error, answers = \
         evaluate(model, test_data, train_data)
     if print_errors:
-        _print_errors(correct_ratio, answers, ad_word_data, senses)
-    return correct_ratio, max_freq_error
+        _print_errors(test_accuracy, answers, ad_word_data, senses)
+    return test_accuracy, max_freq_error, model.get_train_accuracy()
 
 
-def _print_errors(correct_ratio, answers, ad_word_data, senses):
+def _print_errors(test_accuracy, answers, ad_word_data, senses):
     errors = get_errors(answers)
     ad_senses = {m['id']: m['meaning'] for m in ad_word_data['meanings']}
     for sid, meaning in sorted_senses(senses):
@@ -39,7 +39,7 @@ def _print_errors(correct_ratio, answers, ad_word_data, senses):
         else:
             print 'Missing in AD!'
     assert set(ad_senses).issubset(senses)
-    print '\ncorrect: %.2f\n' % correct_ratio
+    print '\ncorrect: %.2f\n' % test_accuracy
     error_kinds = Counter((ans, model_ans)
                           for _, ans, model_ans in errors)
     print 'ans\tmodel\terrors'
@@ -70,20 +70,25 @@ def get_ad_train_data(word, ad_word_data, print_errors=False):
 
 
 def main():
-    word_or_filename = sys.argv[1]
-    if os.path.exists(word_or_filename):
-        with codecs.open(word_or_filename, 'rb', 'utf-8') as f:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('word_or_filename')
+    args = parser.parse_args()
+    if os.path.exists(args.word_or_filename):
+        with codecs.open(args.word_or_filename, 'rb', 'utf-8') as f:
             words = [l.strip() for l in f]
-        accuracies, freq_errors = [], []
-        print u'\t'.join(['word', 'acc.', 'max_freq_error'])
+        test_accuracies, train_accuracies, freq_errors = [], [], []
+        print u'\t'.join(['word', 'train', 'test', 'max_freq_error'])
         for word in sorted(words):
-            correct_ratio, max_freq_error = evaluate_word(word)
-            accuracies.append(correct_ratio)
+            test_accuracy, max_freq_error, train_accuracy = evaluate_word(word)
+            test_accuracies.append(test_accuracy)
+            train_accuracies.append(train_accuracy)
             freq_errors.append(max_freq_error)
-            print u'%s\t%.2f\t%.2f' % (word, correct_ratio, max_freq_error)
-        print u'Avg.\t%.2f\t%.2f' % (avg(accuracies), avg(freq_errors))
+            print u'%s\t%.2f\t%.2f\t%.2f' % (
+                word, train_accuracy, test_accuracy, max_freq_error)
+        print u'Avg.\t%.2f\t%.2f\t%.2f' % (
+            avg(train_accuracies), avg(test_accuracies), avg(freq_errors))
     else:
-        evaluate_word(word_or_filename.decode('utf-8'), print_errors=True)
+        evaluate_word(args.word_or_filename.decode('utf-8'), print_errors=True)
 
 
 if __name__ == '__main__':
