@@ -78,8 +78,9 @@ def get_labeled_ctx(filename):
 class SupervisedModel(object):
     def __init__(self, train_data,
             weights=None, excl_stopwords=True, verbose=False, window=None):
+        self.train_data = train_data
         self.examples = defaultdict(list)
-        for x, ans in train_data:
+        for x, ans in self.train_data:
             self.examples[ans].append(x)
         self.verbose = verbose
         self.cv = partial(
@@ -92,6 +93,10 @@ class SupervisedModel(object):
             ((ans, len(ex)) for ans, ex in self.examples.iteritems()),
             key=itemgetter(1))[0]
 
+    def get_train_accuracy(self):
+        n_correct = sum(ans == self(x) for x, ans in self.train_data)
+        return n_correct / len(self.train_data)
+
 
 class SphericalModel(SupervisedModel):
     def __init__(self, *args, **kwargs):
@@ -100,7 +105,7 @@ class SphericalModel(SupervisedModel):
             for ans, cvs in self.context_vectors.iteritems()
             if cvs.any()}
 
-    def __call__(self, x, c_ans):
+    def __call__(self, x, c_ans=None):
         v = self.cv(x, sense_vectors=self.sense_vectors)
         if v is None:
             print >>sys.stderr, 'context vector is None:', ' '.join(x)
@@ -109,7 +114,7 @@ class SphericalModel(SupervisedModel):
             (ans, v_closeness(v, sense_v))
             for ans, sense_v in self.sense_vectors.iteritems()]
         m_ans = max(ans_closeness, key=itemgetter(1))[0]
-        if self.verbose:
+        if self.verbose and c_ans is not None:
             print ' '.join(x)
             print ' '.join(
                 '%s: %s' % (ans, bold_if(ans == m_ans, '%.3f' % cl))
@@ -307,11 +312,12 @@ def main():
     accuracies = []
     freq_errors = []
     model_class = SphericalModel
-    print u'\t'.join(['word', 'b-line', 'acc.', 'max_freq_error'])
+    print u'\t'.join(
+        ['word', 'b-line', 'test acc.', 'train acc.', 'max_freq_error'])
     for filename in filenames:
         word = filename.split('/')[-1].split('.')[0].decode('utf-8')
         weights = load_weights(word)
-        word_accuracy, word_freq_errors = [], []
+        test_accuracy, train_accuracy, word_freq_errors = [], [], []
         baseline = get_baseline(get_labeled_ctx(filename)[1])
         random.seed(1)
         for i in xrange(args.n_runs):
@@ -330,13 +336,16 @@ def main():
                 show_tsne(model, answers, senses, word)
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
-            word_accuracy.append(accuracy)
+            test_accuracy.append(accuracy)
+            train_accuracy.append(model.get_train_accuracy())
             word_freq_errors.append(max_freq_error)
-        accuracies.extend(word_accuracy)
+        accuracies.extend(test_accuracy)
         freq_errors.extend(word_freq_errors)
         baselines.append(baseline)
-        print u'%s\t%.2f\t%s\t%s' % (
-            word, baseline, avg_w_bounds(word_accuracy),
+        print u'%s\t%.2f\t%s\t%s\t%s' % (
+            word, baseline,
+            avg_w_bounds(test_accuracy),
+            avg_w_bounds(train_accuracy),
             avg_w_bounds(word_freq_errors))
     print
     print 'baseline: %.3f' % avg(baselines)
