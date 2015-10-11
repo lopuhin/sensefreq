@@ -77,14 +77,14 @@ def get_labeled_ctx(filename):
 
 class SupervisedModel(object):
     def __init__(self, train_data,
-            weights=None, excl_stopwords=True, verbose=False):
+            weights=None, excl_stopwords=True, verbose=False, window=None):
         self.examples = defaultdict(list)
         for x, ans in train_data:
             self.examples[ans].append(x)
         self.verbose = verbose
         self.cv = partial(
             context_vector, weights=weights, excl_stopwords=excl_stopwords,
-            verbose=verbose)
+            verbose=verbose, window=window)
         self.context_vectors = {
             ans: np.array([cv for cv in map(self.cv, xs) if cv is not None])
             for ans, xs in self.examples.iteritems()}
@@ -103,7 +103,7 @@ class SphericalModel(SupervisedModel):
     def __call__(self, x, c_ans):
         v = self.cv(x, sense_vectors=self.sense_vectors)
         if v is None:
-            print ' '.join(x)
+            print >>sys.stderr, 'context vector is None:', ' '.join(x)
             return self.dominant_sense
         ans_closeness = [
             (ans, v_closeness(v, sense_v))
@@ -156,11 +156,15 @@ class KNearestModel(SupervisedModel):
 
 
 def context_vector((before, word, after),
-        excl_stopwords=True, weights=None, verbose=False, sense_vectors=None):
+        excl_stopwords=True, weights=None, verbose=False, sense_vectors=None,
+        window=None):
     word, = lemmatize_s(word)
-    words = [
-        w for w in itertools.chain(*map(lemmatize_s, [before, after]))
-        if word_re.match(w) and w != word]
+    get_words = lambda s: [
+        w for w in lemmatize_s(s) if word_re.match(w) and w != word]
+    before, after = map(get_words, [before, after])
+    if window:
+        before, after = before[-window:], after[:window]
+    words = before + after
     cv, w_vectors, w_weights = _context_vector(
         words, excl_stopwords=excl_stopwords, weights=weights)
     if verbose and weights is not None:
@@ -289,6 +293,7 @@ def main():
     arg('--verbose', action='store_true')
     arg('--n-runs', type=int, default=4)
     arg('--tsne', action='store_true')
+    arg('--window', type=int, default=10)
     args = parser.parse_args()
 
     if os.path.isdir(args.path):
@@ -317,7 +322,8 @@ def main():
            #    print '%d test samples, %d train samples' % (
            #        len(test_data), len(train_data))
             model = model_class(
-                train_data, weights=weights, verbose=args.verbose)
+                train_data, weights=weights, verbose=args.verbose,
+                window=args.window)
             accuracy, max_freq_error, answers = evaluate(
                 model, test_data, train_data, perplexity=args.perplexity)
             if args.tsne:
