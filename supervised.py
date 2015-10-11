@@ -88,6 +88,9 @@ class SupervisedModel(object):
         self.context_vectors = {
             ans: np.array([cv for cv in map(self.cv, xs) if cv is not None])
             for ans, xs in self.examples.iteritems()}
+        self.dominant_sense = max(
+            ((ans, len(ex)) for ans, ex in self.examples.iteritems()),
+            key=itemgetter(1))[0]
 
 
 class SphericalModel(SupervisedModel):
@@ -99,6 +102,9 @@ class SphericalModel(SupervisedModel):
 
     def __call__(self, x, c_ans):
         v = self.cv(x, sense_vectors=self.sense_vectors)
+        if v is None:
+            print ' '.join(x)
+            return self.dominant_sense
         ans_closeness = [
             (ans, v_closeness(v, sense_v))
             for ans, sense_v in self.sense_vectors.iteritems()]
