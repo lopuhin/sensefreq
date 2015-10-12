@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 from utils import word_re, lemmatize_s, avg, avg_w_bounds, v_closeness, \
-    context_vector as _context_vector, bool_color, blue, magenta, bold_if
+    context_vector, bool_color, blue, magenta, bold_if
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -83,15 +83,32 @@ class SupervisedModel(object):
         for x, ans in self.train_data:
             self.examples[ans].append(x)
         self.verbose = verbose
-        self.cv = partial(
-            context_vector, weights=weights, excl_stopwords=excl_stopwords,
-            verbose=verbose, window=window)
+        self.window = window
+        self.excl_stopwords = excl_stopwords
+        self.weights = weights
+        self.sense_vectors = None
         self.context_vectors = {
             ans: np.array([cv for cv in map(self.cv, xs) if cv is not None])
             for ans, xs in self.examples.iteritems()}
         self.dominant_sense = max(
             ((ans, len(ex)) for ans, ex in self.examples.iteritems()),
             key=itemgetter(1))[0]
+
+    def cv(self, (before, word, after)):
+        word, = lemmatize_s(word)
+        get_words = lambda s: [
+            w for w in lemmatize_s(s) if word_re.match(w) and w != word]
+        before, after = map(get_words, [before, after])
+        if self.window:
+            before, after = before[-self.window:], after[:self.window]
+        words = before + after
+        cv, w_vectors, w_weights = context_vector(
+            words, excl_stopwords=self.excl_stopwords, weights=self.weights)
+        if self.verbose and self.weights is not None and self.sense_vectors:
+            print_verbose_repr(
+                words, w_vectors, w_weights,
+                sense_vectors=self.sense_vectors)
+        return cv
 
     def get_train_accuracy(self):
         n_correct = sum(ans == self(x) for x, ans in self.train_data)
@@ -106,7 +123,7 @@ class SphericalModel(SupervisedModel):
             if cvs.any()}
 
     def __call__(self, x, c_ans=None):
-        v = self.cv(x, sense_vectors=self.sense_vectors)
+        v = self.cv(x)
         if v is None:
             print >>sys.stderr, 'context vector is None:', ' '.join(x)
             return self.dominant_sense
@@ -114,13 +131,14 @@ class SphericalModel(SupervisedModel):
             (ans, v_closeness(v, sense_v))
             for ans, sense_v in self.sense_vectors.iteritems()]
         m_ans = max(ans_closeness, key=itemgetter(1))[0]
-        if self.verbose and c_ans is not None:
+        if self.verbose:
             print ' '.join(x)
             print ' '.join(
                 '%s: %s' % (ans, bold_if(ans == m_ans, '%.3f' % cl))
                 for ans, cl in sorted(ans_closeness, key=sense_sort_key))
-            print 'correct: %s, model: %s, %s' % (
-                    c_ans, m_ans, bool_color(c_ans == m_ans))
+            if c_ans is not None:
+                print 'correct: %s, model: %s, %s' % (
+                        c_ans, m_ans, bool_color(c_ans == m_ans))
         return m_ans
 
 
@@ -158,25 +176,6 @@ class KNearestModel(SupervisedModel):
         for ans, _ in ans_closeness[:self.k_nearest]:
             ans_counts[ans] += 1
         return max(ans_counts.iteritems(), key=lambda (_, count): count)[0]
-
-
-def context_vector((before, word, after),
-        excl_stopwords=True, weights=None, verbose=False, sense_vectors=None,
-        window=None):
-    word, = lemmatize_s(word)
-    get_words = lambda s: [
-        w for w in lemmatize_s(s) if word_re.match(w) and w != word]
-    before, after = map(get_words, [before, after])
-    if window:
-        before, after = before[-window:], after[:window]
-    words = before + after
-    cv, w_vectors, w_weights = _context_vector(
-        words, excl_stopwords=excl_stopwords, weights=weights)
-    if verbose and weights is not None:
-        print_verbose_repr(
-            words, w_vectors, w_weights,
-            sense_vectors=sense_vectors)
-    return cv
 
 
 def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
@@ -337,7 +336,9 @@ def main():
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
             test_accuracy.append(accuracy)
+            model.verbose = False
             train_accuracy.append(model.get_train_accuracy())
+            model.verbose = args.verbose
             word_freq_errors.append(max_freq_error)
         accuracies.extend(test_accuracy)
         freq_errors.extend(word_freq_errors)
