@@ -16,6 +16,7 @@ from conf import WORD2VEC_PORT
 
 
 word_re = re.compile(r'\w+', re.U)
+digit_re = re.compile(r'\d')
 
 
 mystem = Mystem()
@@ -91,7 +92,12 @@ def lemmatized_sentences(sentences_iter):
 
 @memoize
 def lemmatize_s(s):
-    return [w for w in mystem.lemmatize(s) if w != ' ' and w != '\n']
+    return [normalize(w) for w in mystem.lemmatize(s)
+            if w != ' ' and w != '\n']
+
+
+def normalize(w):
+    return digit_re.sub(u'2', w.lower())
 
 
 def avg(v):
