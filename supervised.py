@@ -339,6 +339,7 @@ def main():
             model.verbose = False
             train_accuracy.append(model.get_train_accuracy())
             model.verbose = args.verbose
+            # TODO - average freq predictions and take freq error afterwards?
             word_freq_errors.append(max_freq_error)
         accuracies.extend(test_accuracy)
         freq_errors.extend(word_freq_errors)
