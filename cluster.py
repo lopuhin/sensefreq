@@ -198,11 +198,12 @@ def iter_contexts(contexts_filename):
 def main():
     description = '''
 To build context vectors:
-    ./cluster.py contexts_filename word context_vectors.pkl
+    ./cluster.py contexts.txt word context_vectors.pkl
 or  ./cluster.py contexts_folder/ word_list vectors_folder/
 To cluster context vectors:
     ./cluster.py context_vectors.pkl labeled_folder/
-or  ./cluster.py context_vectors_folder/ labeled_folder/
+or  ./cluster.py contexts.txt labeled_folder/
+or  ./cluster.py contexts_or_vectors_folder/ labeled_folder/
     '''
     parser = argparse.ArgumentParser(description=description)
     arg = parser.add_argument
