@@ -11,7 +11,6 @@ from collections import defaultdict, Counter
 import itertools
 import argparse
 from operator import itemgetter
-from functools import partial
 
 import numpy as np
 from sklearn.mixture import GMM
