@@ -7,53 +7,58 @@ import sys
 import os.path
 
 
-def get_ad_word(word):
-    return parse_ad_word(os.path.join('ann', 'ad-dialog7', word + '.json'))
+def get_ad_word(word, ad_root):
+    return parse_ad_word(os.path.join(ad_root, 'ad', word + '.json'))
 
 
 def parse_ad_word(word_filename):
     with open(word_filename, 'rb') as f:
         data = json.load(f)
         return {
-            'word': data['word'],
+            'word': data[u'СЛОВО'],
             'meanings': [{
-                'id': m.get('id', str(i + 1)),
-                'name': m['name'],
-                'meaning': m['meaning'],
+                'id': str(i + 1),
+                'name': m[u'НАЗВАНИЕ'],
+                'meaning': m[u'ЗНАЧЕНИЕ'],
                 'contexts': _get_contexts(m),
-                } for i, m in enumerate(data['meanings'])]
+                } for i, m in enumerate(data[u'ЗНАЧЕНИЯ'])]
         }
 
 
 def _get_contexts(m):
-    assert all(k in {
-        'id', 'name', 'examples', 'meaning', 'illustrations', 'compatibility'}
-        for k in m), m.keys()
     contexts = []
-    contexts.extend(m.get('examples', '').split(';'))
-    contexts.extend(m.get('compatibility', '').split(';'))
-    contexts.append(m['meaning'])
-    # TODO - split sentenses with mystem?
-    illustrations = _remove_brackets(m.get('illustrations', ''))
-    contexts.extend(illustrations.split('.'))
-    return filter(None, [_remove_brackets(c).strip() for c in contexts])
+    for key in [u'ПРИМЕРЫ', u'ИЛЛЮСТРАЦИИ', u'ДЕР', u'АНАЛ', u'СИН',
+                u'СОЧЕТАЕМОСТЬ.']:
+        contexts.extend(m.get(key, []))
+    meaning = m[u'ЗНАЧЕНИЕ']
+    control = m.get(u'УПРАВЛЕНИЕ', u'')
+    if '\n' in meaning and not control:
+        meaning, control = meaning.split('\n', 1)
+    meaning = re.sub(ur'\s[А-Я]\d\b', '', # remove "A1" etc
+              # meaning usually has useful examples in []
+              re.sub(r'[\[\]]', '', meaning))
+    contexts.append(meaning)
+    contexts.extend(
+        ex.split(':')[1].strip().rstrip('.')
+        for ex in control.split('\n') if ':' in ex)
+    return filter(None, [_normalize(c).strip() for c in contexts])
 
 
-def _remove_brackets(s):
+def _normalize(s):
     ''' Remove [...] - snips or references, and (...) - authors.
     '''
     r1 = re.compile(r'\([^)]*\)', re.U)
     r2 = re.compile(r'\[[^\]]*\]', re.U)
-    return r1.sub('', r2.sub('', s))
+    return r1.sub('', r2.sub('', s)).replace('\n', ' ').replace('\r', ' ')
 
 
-assert _remove_brackets(
+assert _normalize(
     u'Русская и Мережковского, [...] фотографии хором (А. Чудаков)') == \
     u'Русская и Мережковского,  фотографии хором '
 
 
 def print_word(word_filename):
-    w = parse_word(word_filename)
+    w = parse_ad_word(word_filename)
     print w['word']
     for m in w['meanings']:
         print
