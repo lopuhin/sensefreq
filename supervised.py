@@ -124,7 +124,7 @@ class SphericalModel(SupervisedModel):
     def __call__(self, x, c_ans=None):
         v = self.cv(x)
         if v is None:
-            print >>sys.stderr, 'context vector is None:', ' '.join(x)
+           #print >>sys.stderr, 'context vector is None:', ' '.join(x)
             return self.dominant_sense
         ans_closeness = [
             (ans, v_closeness(v, sense_v))
@@ -250,8 +250,8 @@ def get_errors(answers):
     return filter(lambda (_, ans, model_ans): ans != model_ans, answers)
 
 
-def load_weights(word):
-    filename = os.path.join('cdict', word + '.dict')
+def load_weights(word, root='.'):
+    filename = os.path.join(root, 'cdict', word + '.txt')
     if os.path.exists(filename):
         with codecs.open(filename, 'rb', 'utf-8') as f:
             return {w: float(weight) for w, weight in (l.split() for l in f)}

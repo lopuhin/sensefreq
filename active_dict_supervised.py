@@ -13,11 +13,11 @@ from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
     SphericalModel, sorted_senses
 
 
-def evaluate_word(word, print_errors=False, window=None):
+def evaluate_word(word, ad_root, print_errors=False, window=None):
     senses, test_data = get_labeled_ctx(
         os.path.join('ann', 'dialog7-exp', word + '.txt'))
-    ad_word_data = get_ad_word(word)
-    weights = load_weights(word)
+    ad_word_data = get_ad_word(word, ad_root)
+    weights = load_weights(word, root=ad_root)
     train_data = get_ad_train_data(
         word, ad_word_data, print_errors=print_errors)
     model = SphericalModel(train_data, weights=weights, window=window)
@@ -71,9 +71,11 @@ def get_ad_train_data(word, ad_word_data, print_errors=False):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('ad_root')
     parser.add_argument('word_or_filename')
     parser.add_argument('--window', type=int, default=10)
     args = parser.parse_args()
+    params = dict(ad_root=args.ad_root, window=args.window)
     if os.path.exists(args.word_or_filename):
         with codecs.open(args.word_or_filename, 'rb', 'utf-8') as f:
             words = [l.strip() for l in f]
@@ -81,7 +83,7 @@ def main():
         print u'\t'.join(['word', 'train', 'test', 'max_freq_error'])
         for word in sorted(words):
             test_accuracy, max_freq_error, train_accuracy = \
-                evaluate_word(word, window=args.window)
+                evaluate_word(word, **params)
             test_accuracies.append(test_accuracy)
             train_accuracies.append(train_accuracy)
             freq_errors.append(max_freq_error)
@@ -90,7 +92,8 @@ def main():
         print u'Avg.\t%.2f\t%.2f\t%.2f' % (
             avg(train_accuracies), avg(test_accuracies), avg(freq_errors))
     else:
-        evaluate_word(args.word_or_filename.decode('utf-8'), print_errors=True)
+        evaluate_word(args.word_or_filename.decode('utf-8'),
+                      print_errors=True, **params)
 
 
 if __name__ == '__main__':
