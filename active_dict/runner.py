@@ -8,11 +8,12 @@ import codecs
 import argparse
 import random
 import json
+import sys
 from operator import itemgetter
 from collections import Counter
 
 from utils import word_re, lemmatize_s, avg
-from active_dict import get_ad_word
+from active_dict.loader import get_ad_word
 from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
     SphericalModel, sorted_senses
 
@@ -55,7 +56,7 @@ def run_on_words(ctx_dir, **params):
             continue
         success = run_on_word(ctx_filename, ctx_dir, **params)
         if not success:
-            print 'skip', ctx_filename
+            print >>sys.stderr, 'skip', ctx_filename
 
 
 def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
@@ -90,7 +91,7 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
 def summary(ctx_dir):
     all_freqs = {}
     for filename in os.listdir(ctx_dir):
-        if not filename.endswith('.json'):
+        if not filename.endswith('.json') or filename == 'summary.json':
             continue
         with open(os.path.join(ctx_dir, filename), 'rb') as f:
             result = json.load(f)
