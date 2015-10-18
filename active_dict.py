@@ -8,8 +8,10 @@ import os.path
 
 
 def get_ad_word(word, ad_root):
-    return parse_ad_word(
-        os.path.join(ad_root, 'ad', word.encode('utf-8') + '.json'))
+    word_filename = os.path.join(ad_root, 'ad', word.encode('utf-8') + '.json')
+    if not os.path.exists(word_filename):
+        return None
+    return parse_ad_word(word_filename)
 
 
 def parse_ad_word(word_filename):

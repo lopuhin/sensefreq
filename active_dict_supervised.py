@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
+from __future__ import division
+
 import os.path
 import codecs
 import argparse
+import random
+import json
 from operator import itemgetter
 from collections import Counter
 
@@ -26,6 +30,76 @@ def evaluate_word(word, ad_root, print_errors=False, window=None):
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
     return test_accuracy, max_freq_error, model.get_train_accuracy()
+
+
+def evaluate_words(filename, **params):
+    with codecs.open(filename, 'rb', 'utf-8') as f:
+        words = [l.strip() for l in f]
+    test_accuracies, train_accuracies, freq_errors = [], [], []
+    print u'\t'.join(['word', 'train', 'test', 'max_freq_error'])
+    for word in sorted(words):
+        test_accuracy, max_freq_error, train_accuracy = \
+            evaluate_word(word, **params)
+        test_accuracies.append(test_accuracy)
+        train_accuracies.append(train_accuracy)
+        freq_errors.append(max_freq_error)
+        print u'%s\t%.2f\t%.2f\t%.2f' % (
+            word, train_accuracy, test_accuracy, max_freq_error)
+    print u'Avg.\t%.2f\t%.2f\t%.2f' % (
+        avg(train_accuracies), avg(test_accuracies), avg(freq_errors))
+
+
+def run_on_words(ctx_dir, **params):
+    for ctx_filename in os.listdir(ctx_dir):
+        if not ctx_filename.endswith('.txt'):
+            continue
+        success = run_on_word(ctx_filename, ctx_dir, **params)
+        if not success:
+            print 'skip', ctx_filename
+
+
+def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
+    n_sample = 200
+    word = ctx_filename.split('.')[0].decode('utf-8')
+    if word[-1].isdigit():
+        return
+    result_filename = os.path.join(ctx_dir, word.encode('utf-8') + '.json')
+    if os.path.exists(result_filename):
+        return True
+    with codecs.open(
+            os.path.join(ctx_dir, ctx_filename), 'rb', 'utf-8') as f:
+        contexts = [line.split('\t') for line in f]
+    if len(contexts) > n_sample:
+        contexts = random.sample(contexts, n_sample)
+    elif not contexts:
+        return
+    ad_word_data = get_ad_word(word, ad_root)
+    if ad_word_data is None:
+        return
+    train_data = get_ad_train_data(word, ad_word_data)
+    if not train_data:
+        return
+    weights = load_weights(word, root=ad_root)
+    model = SphericalModel(train_data, weights=weights, **params)
+    result = [(x, model(x)) for x in contexts]
+    with codecs.open(result_filename, 'wb', 'utf-8') as f:
+        json.dump({'word': word, 'contexts': result}, f)
+    return True
+
+
+def summary(ctx_dir):
+    all_freqs = {}
+    for filename in os.listdir(ctx_dir):
+        if not filename.endswith('.json'):
+            continue
+        with open(os.path.join(ctx_dir, filename), 'rb') as f:
+            result = json.load(f)
+            counts = Counter(ans for _, ans in result['contexts'])
+            all_freqs[result['word']] = {
+                ans: cnt / len(result['contexts'])
+                for ans, cnt in counts.iteritems()}
+    with open(os.path.join(ctx_dir, 'summary.json'), 'wb') as f:
+        json.dump(all_freqs, f)
 
 
 def _print_errors(test_accuracy, answers, ad_word_data, senses):
@@ -71,31 +145,25 @@ def get_ad_train_data(word, ad_word_data, print_errors=False):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('action', help='evaluate or run')
     parser.add_argument('ad_root')
     parser.add_argument('word_or_filename')
     parser.add_argument('--window', type=int, default=10)
     args = parser.parse_args()
     params = dict(ad_root=args.ad_root, window=args.window)
-    if os.path.exists(args.word_or_filename):
-        with codecs.open(args.word_or_filename, 'rb', 'utf-8') as f:
-            words = [l.strip() for l in f]
-        test_accuracies, train_accuracies, freq_errors = [], [], []
-        print u'\t'.join(['word', 'train', 'test', 'max_freq_error'])
-        for word in sorted(words):
-            test_accuracy, max_freq_error, train_accuracy = \
-                evaluate_word(word, **params)
-            test_accuracies.append(test_accuracy)
-            train_accuracies.append(train_accuracy)
-            freq_errors.append(max_freq_error)
-            print u'%s\t%.2f\t%.2f\t%.2f' % (
-                word, train_accuracy, test_accuracy, max_freq_error)
-        print u'Avg.\t%.2f\t%.2f\t%.2f' % (
-            avg(train_accuracies), avg(test_accuracies), avg(freq_errors))
+    if args.action == 'evaluate':
+        if os.path.exists(args.word_or_filename):
+            evaluate_words(args.word_or_filename, **params)
+        else:
+            evaluate_word(args.word_or_filename.decode('utf-8'),
+                        print_errors=True, **params)
+    elif args.action == 'run':
+        run_on_words(args.word_or_filename, **params)
+    elif args.action == 'summary':
+        summary(args.word_or_filename)
     else:
-        evaluate_word(args.word_or_filename.decode('utf-8'),
-                      print_errors=True, **params)
+        parser.error('unknown action "{}"'.format(args.action))
 
 
 if __name__ == '__main__':
     main()
-
