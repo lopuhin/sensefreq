@@ -1,0 +1,24 @@
+em.main-word {
+    color: red;
+    font-weight: bold;
+}
+
+/* tablesorter */
+
+th.header {
+    background-image: url(../img/bg.gif);
+    cursor: pointer;
+    font-weight: bold;
+    background-repeat: no-repeat;
+    background-position: center left;
+    padding-left: 20px;
+    margin-left: -1px;
+}
+
+th.headerSortDown {
+    background-image: url(../img/desc.gif);
+}
+
+th.headerSortUp {
+    background-image: url(../img/asc.gif);
+}
