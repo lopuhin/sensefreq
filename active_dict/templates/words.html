@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<table class="table tablesorter">
+<table class="table tablesorter freq-table">
     <thead>
         <tr>
             <th>Word</th>
@@ -15,7 +15,10 @@
         <th>{{ word }}</th>
         <th>{{ n_senses }}</th>
         {% for freq in freqs %}
-        <td>{{ '%.2f' % freq }}</td>
+        <td class="freq">
+            {{ '%.2f' % freq }}
+            <div class="freq" style="height: {{ '%d%%' % int(freq * 100)}}"></div>
+        </td>
         {% end %}
     </tr>
     {% end %}
