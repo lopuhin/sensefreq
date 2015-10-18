@@ -2,6 +2,24 @@
 
 {% block content %}
 
-hi!
+<table class="table tablesorter">
+    <thead>
+        <tr>
+            <th>Word</th>
+            <th>Senses</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for word, n_senses, freqs in words %}
+    <tr>
+        <th>{{ word }}</th>
+        <th>{{ n_senses }}</th>
+        {% for freq in freqs %}
+        <td>{{ '%.2f' % freq }}</td>
+        {% end %}
+    </tr>
+    {% end %}
+    </tbody>
+</table>
 
 {% end %}
