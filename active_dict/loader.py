@@ -14,18 +14,21 @@ def get_ad_word(word, ad_root):
     return parse_ad_word(word_filename)
 
 
-def parse_ad_word(word_filename):
-    with open(word_filename, 'rb') as f:
-        data = json.load(f)
-        return {
-            'word': data[u'СЛОВО'],
-            'meanings': [{
-                'id': str(i + 1),
-                'name': m[u'НАЗВАНИЕ'],
-                'meaning': m[u'ЗНАЧЕНИЕ'],
-                'contexts': _get_contexts(m),
-                } for i, m in enumerate(data[u'ЗНАЧЕНИЯ'])]
-        }
+def parse_ad_word(data_or_word_filename):
+    if not isinstance(data_or_word_filename, dict):
+        with open(data_or_word_filename, 'rb') as f:
+            data = json.load(f)
+    else:
+        data = data_or_word_filename
+    return {
+        'word': data[u'СЛОВО'],
+        'meanings': [{
+            'id': str(i + 1),
+            'name': m[u'НАЗВАНИЕ'],
+            'meaning': m[u'ЗНАЧЕНИЕ'],
+            'contexts': _get_contexts(m),
+            } for i, m in enumerate(data[u'ЗНАЧЕНИЯ'])]
+    }
 
 
 def _get_contexts(m):

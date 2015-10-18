@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>{{ word }}</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+            <th>Meaning</th>
+            <th>Freq</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for id, s, freq in senses %}
+    <tr>
+        <td>{{ id }}</td>
+        <td>{{ s['name'] }}</td>
+        <td>{{ s['meaning'] }}</td>
+        <td>{{ '%.2f' % freq }}</td>
+    </tr>
+    {% end %}
+    <tr>
+    </tbody>
+</table>
+
+<table class="table tablesorter">
+    <thead>
+        <tr>
+            <th>Context</th>
+            <th>Sense id</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for (before, w, after), ans in contexts %}
+    <tr>
+        <td>{{ before }} <em class="main-word">{{ w }}</em> {{ after }}</td>
+        <td>{{ ans }}</td>
+    </tr>
+    {% end %}
+    </tbody>
+</table>
+
+{% end %}

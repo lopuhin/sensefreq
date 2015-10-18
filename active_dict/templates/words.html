@@ -12,7 +12,7 @@
     <tbody>
     {% for word, n_senses, freqs in words %}
     <tr>
-        <th>{{ word }}</th>
+        <th><a href="{{ handler.reverse_url('word', word) }}">{{ word }}</a></th>
         <th>{{ n_senses }}</th>
         {% for freq in freqs %}
         <td class="freq">
