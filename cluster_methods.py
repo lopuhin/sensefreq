@@ -11,7 +11,7 @@ import sklearn.cluster
 
 from utils import unitvec, word_re, lemmatize_s, v_closeness, \
     context_vector as _context_vector
-from active_dict import get_ad_word
+from active_dict.loader import get_ad_word
 from supervised import load_weights
 import kmeans
 
