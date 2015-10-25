@@ -9,6 +9,7 @@ import argparse
 from collections import defaultdict, Counter
 from operator import itemgetter
 import random
+import json
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -179,14 +180,17 @@ def build_context_vectors(contexts_filename, word, out_filename, **_):
         seen = set()
         print word
         weights = load_weights(word)
+        to_json = out_filename.endswith('.json')
+        to_lst = lambda x: map(float, x) if to_json else lambda x: x
         for ctx in iter_contexts(contexts_filename):
             key = ' '.join(ctx)
             if key not in seen:
                 seen.add(key)
                 v = context_vector(word, ctx, weights=weights)
-                vectors.append((ctx, v))
+                vectors.append((ctx, to_lst(v)))
         print len(vectors), 'contexts'
-        save({'word': word, 'context_vectors': vectors}, out_filename)
+        save({'word': word, 'context_vectors': vectors}, out_filename,
+             serializer=json.dump if to_json else None)
 
 
 def iter_contexts(contexts_filename):

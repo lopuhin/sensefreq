@@ -5,7 +5,7 @@ import time
 import math
 import traceback
 import cPickle as pickle
-from functools import wraps
+from functools import wraps, partial
 import codecs
 
 from pymystem3 import Mystem
@@ -75,9 +75,10 @@ def memoize(func):
     return wrapper
 
 
-def save(model, filename):
+def save(model, filename, serializer=None):
+    serializer = serializer or partial(pickle.dump, protocol=-1)
     with open(filename, 'wb') as f:
-        pickle.dump(model, f, protocol=-1)
+        serializer(model, f)
 
 
 def load(filename):
