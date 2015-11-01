@@ -5,6 +5,7 @@ syntax: glob
 .*.swp
 *.egg-info
 *.pkl
+env
 pypy-env/
 numpy/
 train/
