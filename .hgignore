@@ -11,3 +11,6 @@ train/
 *.txt
 *.dict
 *.pdf
+*.bin
+*.json
+*.html
