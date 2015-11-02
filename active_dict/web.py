@@ -7,6 +7,7 @@ import json
 import os.path
 import argparse
 from collections import Counter
+from operator import itemgetter
 
 import tornado.ioloop
 from tornado.web import url, RequestHandler, Application
@@ -26,7 +27,8 @@ class WordsHandler(BaseHandler):
     def get(self):
         summary = self.load('ctx_path', 'summary')
         words = sorted(
-            (word, len(freqs), sorted(freqs.itervalues(), reverse=True))
+            (word, len(freqs),
+                sorted(freqs.iteritems(), key=itemgetter(1), reverse=True))
             for word, freqs in summary.iteritems())
         self.render(
             'templates/words.html',

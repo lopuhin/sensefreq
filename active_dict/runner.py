@@ -88,16 +88,20 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
     return True
 
 
-def summary(ctx_dir):
+def summary(ad_root, ctx_dir):
     all_freqs = {}
     for filename in os.listdir(ctx_dir):
         if not filename.endswith('.json') or filename == 'summary.json':
             continue
         with open(os.path.join(ctx_dir, filename), 'rb') as f:
             result = json.load(f)
+            word = result['word']
+            meaning_by_id = {
+                m['id']: m['meaning']
+                for m in get_ad_word(word, ad_root)['meanings']}
             counts = Counter(ans for _, ans in result['contexts'])
-            all_freqs[result['word']] = {
-                ans: cnt / len(result['contexts'])
+            all_freqs[word] = {
+                meaning_by_id[ans]: cnt / len(result['contexts'])
                 for ans, cnt in counts.iteritems()}
     with open(os.path.join(ctx_dir, 'summary.json'), 'wb') as f:
         json.dump(all_freqs, f)
@@ -161,7 +165,7 @@ def main():
     elif args.action == 'run':
         run_on_words(args.word_or_filename, **params)
     elif args.action == 'summary':
-        summary(args.word_or_filename)
+        summary(args.ad_root, args.word_or_filename)
     else:
         parser.error('unknown action "{}"'.format(args.action))
 

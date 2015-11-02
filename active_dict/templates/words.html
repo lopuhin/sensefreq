@@ -14,8 +14,8 @@
     <tr>
         <th><a href="{{ handler.reverse_url('word', word) }}">{{ word }}</a></th>
         <th>{{ n_senses }}</th>
-        {% for freq in freqs %}
-        <td class="freq">
+        {% for meaning, freq in freqs %}
+        <td class="freq" title="{{ meaning }}">
             {{ '%.2f' % freq }}
             <div class="freq" style="height: {{ '%d%%' % int(freq * 100)}}"></div>
         </td>
