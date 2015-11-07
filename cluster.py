@@ -188,16 +188,14 @@ def build_context_vectors(contexts_filename, word, out_filename, **_):
              serializer=json.dump if to_json else None)
 
 
-from utils import debug_exec
-@debug_exec(profile=True)
 def get_context_vectors(word, contexts_filename, weights):
     contexts = list(iter_contexts(contexts_filename))
     words = list({w for ctx in contexts for w in ctx})
     w2v_cache = dict(zip(words, [
         np.array(v, dtype=np.float32) if v else None
         for v in w2v_vecs(words)]))
-    return [context_vector(word, ctx, weights=weights, w2v_cache=w2v_cache)
-            for ctx in contexts]
+    return [(ctx, context_vector(
+        word, ctx, weights=weights, w2v_cache=w2v_cache)) for ctx in contexts]
 
 
 def iter_contexts(contexts_filename):
@@ -209,6 +207,8 @@ def iter_contexts(contexts_filename):
             if key not in seen:
                 seen.add(key)
                 yield ctx
+            if len(seen) > 1000:
+                break
 
 
 def main():

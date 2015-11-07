@@ -32,11 +32,17 @@ def train_model(word, ad_word_data, ad_root, window=None, print_errors=False):
                 word, os.path.join(
                     ad_root, 'contexts-100k', word.encode('utf-8') + '.txt'),
                 weights)
-            model = method(dict(context_vectors=context_vectors), n_senses=12)
-            model.cluster()
-            return SupervisedWrapper(model, weights=weights, window=window)
+            cluster_model = method(dict(
+                word=word,
+                ad_root=ad_root,
+                context_vectors=context_vectors),
+                n_senses=12)
+            cluster_model.cluster()
+            model = SupervisedWrapper(
+                cluster_model, weights=weights, window=window)
         else:
-            return method(train_data, weights=weights, window=window)
+            model = method(train_data, weights=weights, window=window)
+    return model, train_data
 
 
 def evaluate_word(word, ad_root, print_errors=False, window=None):

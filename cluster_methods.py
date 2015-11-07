@@ -128,9 +128,9 @@ class SKMeansADInit(SKMeans):
         return self._cluster()
 
 
-def get_ad_centers(word, ad_descr):
+def get_ad_centers(word, ad_descr, ad_root='.'):
     centers = {}
-    weights = load_weights(word)
+    weights = load_weights(word, root=ad_root)
     for meaning in ad_descr['meanings']:
         center = None
         for ctx in meaning['contexts']:
@@ -152,8 +152,8 @@ class SKMeansADMapping(SKMeans):
     def cluster(self):
         clusters = super(SKMeansADMapping, self).cluster()
         word = self.m['word']
-        ad_descr = get_ad_word(word)
-        ad_centers = get_ad_centers(word, ad_descr)
+        ad_descr = get_ad_word(word, self.m['ad_root'])
+        ad_centers = get_ad_centers(word, ad_descr, self.m['ad_root'])
         self.mapping = {}
         for ci, center in enumerate(self._c.centres):
             self.mapping[ci] = max(

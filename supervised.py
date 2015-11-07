@@ -89,9 +89,10 @@ class SupervisedModel(object):
         self.context_vectors = {
             ans: np.array([cv for cv in map(self.cv, xs) if cv is not None])
             for ans, xs in self.examples.iteritems()}
-        self.dominant_sense = max(
-            ((ans, len(ex)) for ans, ex in self.examples.iteritems()),
-            key=itemgetter(1))[0]
+        if self.examples:
+            self.dominant_sense = max(
+                ((ans, len(ex)) for ans, ex in self.examples.iteritems()),
+                key=itemgetter(1))[0]
 
     def cv(self, (before, word, after)):
         word, = lemmatize_s(word)
@@ -110,6 +111,8 @@ class SupervisedModel(object):
         return cv
 
     def get_train_accuracy(self):
+        if not self.train_data:
+            return 0
         n_correct = sum(ans == self(x) for x, ans in self.train_data)
         return n_correct / len(self.train_data)
 
@@ -186,7 +189,7 @@ class SupervisedWrapper(SupervisedModel):
 
     def __call__(self, x, ans=None):
         v = self.cv(x)
-        return self.model.mapping.get(self.model.predict(v))
+        return self.model.mapping.get(self.model.predict([v])[0])
 
 
 def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
