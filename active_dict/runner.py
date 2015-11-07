@@ -161,7 +161,7 @@ def main():
             evaluate_words(args.word_or_filename, **params)
         else:
             evaluate_word(args.word_or_filename.decode('utf-8'),
-                        print_errors=True, **params)
+                         print_errors=True, **params)
     elif args.action == 'run':
         run_on_words(args.word_or_filename, **params)
     elif args.action == 'summary':

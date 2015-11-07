@@ -9,12 +9,12 @@ Different methods related to WSD in no particular order.
 Methods overview
 ================
 
-cluster_tsne.py
----------------
+tsne_clustering/cluster_tsne.py
+-------------------------------
 
 A failed attempt to cluster context vectors (word2vec) using tSNE
 (displays results in html format).
-Use build_context_vectors.py to prepare context vectors.
+Use ``tsne_clustering/build_context_vectors.py`` to prepare context vectors.
 
 
 supervised.py
@@ -31,11 +31,10 @@ Different methods of clustering word2vec context vectors - the best so far
 is spherical k-means.
 
 
-active_dict_supervised.py
--------------------------
+active_dict/runner.py
+---------------------
 
-A (currently bad) attempt to use supervised training (as in ``supervised.py``)
-on contexts from Active Dictionary.
+Supervised training (as in ``supervised.py``) on contexts from Active Dictionary.
 
 
 Some results, and how to run
@@ -96,9 +95,9 @@ these are not the best or latest results)::
 
 To get better results, build frequency dictionary of word contexts. First
 run extract_contexts as described in the next section, and then build freq.
-dict with ``./tf_idf.py word-contexts.txt > word.dict`` - note that
-.dict file must be in top level directory (it is picked up by supervised.py
-based on file name matching the word). This slightly improves supervised
+dict with ``./build_weights.py word-contexts.txt > cdict/word.txt`` - note that
+word.txt file must be in cdict directory (it is picked up by supervised.py
+based on file name matching the word). This improves supervised
 results, and more importantly reduces the number of samples required
 for training.
 
@@ -110,8 +109,8 @@ Then build context vectors using ``./cluster.py`` (see help), and
 then use this vectors for clustering using again ``./cluster.py``.
 
 
-active_dict_supervised.py
--------------------------
+active_dict/runner.py
+---------------------
 
 This script assumes that labelled words are in ``ann/dialog7/``,
 and dictionary words in ``ann/ad-dialog7/``. It uses dictionary examples
