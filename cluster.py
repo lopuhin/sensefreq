@@ -207,8 +207,6 @@ def iter_contexts(contexts_filename):
             if key not in seen:
                 seen.add(key)
                 yield ctx
-            if len(seen) > 1000:
-                break
 
 
 def main():

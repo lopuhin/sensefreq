@@ -189,7 +189,8 @@ class SupervisedWrapper(SupervisedModel):
 
     def __call__(self, x, ans=None):
         v = self.cv(x)
-        return self.model.mapping.get(self.model.predict([v])[0])
+        cluster = self.model.predict([v])[0]
+        return str(self.model.mapping.get(cluster))
 
 
 def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
