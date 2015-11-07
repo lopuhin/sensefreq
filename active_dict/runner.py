@@ -18,16 +18,25 @@ from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
     SphericalModel, sorted_senses
 
 
+def train_model(word, ad_word_data, ad_root, window=None, print_errors=False):
+    weights = load_weights(word, root=ad_root)
+    train_data = get_ad_train_data(
+        word, ad_word_data, print_errors=print_errors)
+    if train_data:
+        return SphericalModel(train_data, weights=weights, window=window)
+
+
 def evaluate_word(word, ad_root, print_errors=False, window=None):
     senses, test_data = get_labeled_ctx(
         os.path.join('ann', 'dialog7-exp', word + '.txt'))
     ad_word_data = get_ad_word(word, ad_root)
-    weights = load_weights(word, root=ad_root)
-    train_data = get_ad_train_data(
-        word, ad_word_data, print_errors=print_errors)
-    model = SphericalModel(train_data, weights=weights, window=window)
+    if not ad_word_data: return
+    model = train_model(
+        word, ad_word_data, ad_root,
+        window=window, print_errors=print_errors)
+    if not model: return
     test_accuracy, max_freq_error, answers = \
-        evaluate(model, test_data, train_data)
+        evaluate(model, test_data, model.train_data)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
     return test_accuracy, max_freq_error, model.get_train_accuracy()
@@ -39,13 +48,16 @@ def evaluate_words(filename, **params):
     test_accuracies, train_accuracies, freq_errors = [], [], []
     print u'\t'.join(['word', 'train', 'test', 'max_freq_error'])
     for word in sorted(words):
-        test_accuracy, max_freq_error, train_accuracy = \
-            evaluate_word(word, **params)
-        test_accuracies.append(test_accuracy)
-        train_accuracies.append(train_accuracy)
-        freq_errors.append(max_freq_error)
-        print u'%s\t%.2f\t%.2f\t%.2f' % (
-            word, train_accuracy, test_accuracy, max_freq_error)
+        res = evaluate_word(word, **params)
+        if res is not None:
+            test_accuracy, max_freq_error, train_accuracy = res
+            test_accuracies.append(test_accuracy)
+            train_accuracies.append(train_accuracy)
+            freq_errors.append(max_freq_error)
+            print u'%s\t%.2f\t%.2f\t%.2f' % (
+                word, train_accuracy, test_accuracy, max_freq_error)
+        else:
+            print u'%s\tmissing' % word
     print u'Avg.\t%.2f\t%.2f\t%.2f' % (
         avg(train_accuracies), avg(test_accuracies), avg(freq_errors))
 
@@ -75,13 +87,9 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
     elif not contexts:
         return
     ad_word_data = get_ad_word(word, ad_root)
-    if ad_word_data is None:
-        return
-    train_data = get_ad_train_data(word, ad_word_data)
-    if not train_data:
-        return
-    weights = load_weights(word, root=ad_root)
-    model = SphericalModel(train_data, weights=weights, **params)
+    if ad_word_data is None: return
+    model = train_model(word, ad_word_data, ad_root, **params)
+    if model is None: return
     result = [(x, model(x)) for x in contexts]
     with codecs.open(result_filename, 'wb', 'utf-8') as f:
         json.dump({'word': word, 'contexts': result}, f)
@@ -161,7 +169,7 @@ def main():
             evaluate_words(args.word_or_filename, **params)
         else:
             evaluate_word(args.word_or_filename.decode('utf-8'),
-                         print_errors=True, **params)
+                          print_errors=True, **params)
     elif args.action == 'run':
         run_on_words(args.word_or_filename, **params)
     elif args.action == 'summary':
