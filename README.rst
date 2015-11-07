@@ -114,4 +114,28 @@ active_dict/runner.py
 
 This script assumes that labelled words are in ``ann/dialog7/``,
 and dictionary words in ``ann/ad-dialog7/``. It uses dictionary examples
-as training data. Run with ``./active_dict_supervised.py word``.
+as training data. Run with ``./active_dict/runner.py evaluate ad-nouns words.txt``.
+
+supervised, c5cdf43120cf::
+
+    word	train	test	max_freq_error
+    альбом	0.91	0.83	0.12
+    билет	0.93	0.89	0.09
+    блок	0.92	0.58	0.08
+    вешалка	0.91	0.56	0.20
+    вилка	1.00	0.95	0.03
+    винт	0.96	0.89	0.05
+    горшок	0.93	0.87	0.04
+    Avg.	0.94	0.80	0.09
+
+clustering, 1f296f2c74ad::
+
+    word	train	test	max_freq_error
+    альбом	0.00	0.79	0.13
+    билет	0.00	0.88	0.05
+    блок	0.00	0.56	0.09
+    вешалка	0.00	0.55	0.10
+    вилка	0.00	0.95	0.03
+    винт	0.00	0.87	0.09
+    горшок	0.00	0.89	0.03
+    Avg.	0.00	0.78	0.07
