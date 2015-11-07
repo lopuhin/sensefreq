@@ -6,6 +6,8 @@ import itertools
 import argparse
 import codecs
 
+from utils import normalize
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -36,10 +38,11 @@ def contexts_iter(corpus, words, window_size=12):
             chunk = list(itertools.islice(corpus_iter, 100000))
             if not chunk:
                 break
+            join = lambda chunk: u' '.join(map(normalize, chunk))
             for idx, w in enumerate(chunk):
                 if w in words:
-                    before = u' '.join(chunk[max(0, idx - window_size) : idx])
-                    after = u' '.join(chunk[idx + 1 : idx + window_size + 1])
+                    before = join(chunk[max(0, idx - window_size) : idx])
+                    after = join(chunk[idx + 1 : idx + window_size + 1])
                     yield before, w, after
 
 
