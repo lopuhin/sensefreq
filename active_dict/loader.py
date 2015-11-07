@@ -4,14 +4,30 @@
 import re
 import json
 import sys
+import itertools
 import os.path
 
 
 def get_ad_word(word, ad_root):
-    word_filename = os.path.join(ad_root, 'ad', word.encode('utf-8') + '.json')
-    if not os.path.exists(word_filename):
-        return None
-    return parse_ad_word(word_filename)
+    get_filename = lambda w: \
+        os.path.join(ad_root, 'ad', w.encode('utf-8') + '.json')
+    word_filename = get_filename(word)
+    if os.path.exists(word_filename):
+        return parse_ad_word(word_filename)
+    else:
+        # Maybe homonyms? Stored as "wordN".
+        meanings = []
+        for i in itertools.count(1):
+            filename = get_filename(u'{}{}'.format(word, i))
+            if not os.path.exists(filename):
+                break
+            w = parse_ad_word(filename)
+            for m in w.get('meanings', []):
+                m['id'] = str(len(meanings) + 1)
+                m['name'] = u'{} {}'.format(w['word'], m['name'])
+                meanings.append(m)
+        if meanings:
+            return {'word': word, 'meanings': meanings}
 
 
 def parse_ad_word(data_or_word_filename):
