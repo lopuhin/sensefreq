@@ -15,7 +15,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import v_measure_score, adjusted_rand_score
 
-from utils import load, save, lemmatize_s, STOPWORDS, avg_w_bounds, normalize
+from utils import load, save, lemmatize_s, STOPWORDS, avg_w_bounds, \
+    normalize, w2v_vecs
 from supervised import get_labeled_ctx, load_weights
 import cluster_methods
 from cluster_methods import context_vector
@@ -188,27 +189,26 @@ def build_context_vectors(contexts_filename, word, out_filename, **_):
 
 
 from utils import debug_exec
-@debug_exec
+@debug_exec(profile=True)
 def get_context_vectors(word, contexts_filename, weights):
-    vectors = []
-    seen = set()
-    import time
-    t0 = time.time()
-    for i, ctx in enumerate(iter_contexts(contexts_filename), 1):
-        key = ' '.join(ctx)
-        if key not in seen:
-            seen.add(key)
-            v = context_vector(word, ctx, weights=weights)
-            vectors.append((ctx, v))
-        if i % 1000 == 0:
-            print len(vectors) / (time.time() - t0)
-    return vectors
+    contexts = list(iter_contexts(contexts_filename))
+    words = list({w for ctx in contexts for w in ctx})
+    w2v_cache = dict(zip(words, [
+        np.array(v, dtype=np.float32) if v else None
+        for v in w2v_vecs(words)]))
+    return [context_vector(word, ctx, weights=weights, w2v_cache=w2v_cache)
+            for ctx in contexts]
 
 
 def iter_contexts(contexts_filename):
     with open(contexts_filename, 'rb') as f:
+        seen = set()
         for line in f:
-            yield map(normalize, line.decode('utf-8').split())
+            ctx = map(normalize, line.decode('utf-8').split())
+            key = ' '.join(ctx)
+            if key not in seen:
+                seen.add(key)
+                yield ctx
 
 
 def main():

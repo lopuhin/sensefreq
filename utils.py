@@ -128,9 +128,12 @@ def v_closeness(v1, v2):
     return np.dot(unitvec(v1), unitvec(v2))
 
 
-def context_vector(words, excl_stopwords=True, weights=None):
-    w_vectors = [np.array(v, dtype=np.float32) if v else None
-                 for v in w2v_vecs(words)]
+def context_vector(words, excl_stopwords=True, weights=None, w2v_cache=None):
+    if w2v_cache:
+        w_vectors = [w2v_cache[w] for w in words]
+    else:
+        w_vectors = [np.array(v, dtype=np.float32) if v else None
+                    for v in w2v_vecs(words)]
     w_weights = [1.0] * len(words)
     if weights is not None:
         w_weights = [weights.get(w, 1.) for w in words]
@@ -179,7 +182,8 @@ def _w2v_client():
     global _word2vec_client
     if _word2vec_client is None:
         _word2vec_client = msgpackrpc.Client(
-                msgpackrpc.Address('localhost', WORD2VEC_PORT))
+                msgpackrpc.Address('localhost', WORD2VEC_PORT),
+                timeout=None)
     return _word2vec_client
 
 

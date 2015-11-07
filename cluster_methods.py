@@ -16,8 +16,8 @@ from supervised import load_weights
 import kmeans
 
 
-def context_vector(word, ctx, weights=None):
-    return _context_vector([w for w in ctx if w != word], weights=weights)[0]
+def context_vector(word, ctx, **kwargs):
+    return _context_vector([w for w in ctx if w != word], **kwargs)[0]
 
 
 class Method(object):
