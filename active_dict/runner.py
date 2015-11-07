@@ -15,7 +15,9 @@ from collections import Counter
 from utils import word_re, lemmatize_s, avg
 from active_dict.loader import get_ad_word
 from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
-    SphericalModel, sorted_senses
+    SphericalModel, SupervisedWrapper, sorted_senses
+from cluster import get_context_vectors
+from cluster_methods import SKMeansADMapping, Method as ClusterMethod
 
 
 def train_model(word, ad_word_data, ad_root, window=None, print_errors=False):
@@ -23,7 +25,18 @@ def train_model(word, ad_word_data, ad_root, window=None, print_errors=False):
     train_data = get_ad_train_data(
         word, ad_word_data, print_errors=print_errors)
     if train_data:
-        return SphericalModel(train_data, weights=weights, window=window)
+        method = SphericalModel
+        method = SKMeansADMapping
+        if issubclass(method, ClusterMethod):
+            context_vectors = get_context_vectors(
+                word, os.path.join(
+                    ad_root, 'contexts-100k', word.encode('utf-8') + '.txt'),
+                weights)
+            model = method(dict(context_vectors=context_vectors), n_senses=12)
+            model.cluster()
+            return SupervisedWrapper(model, weights=weights, window=window)
+        else:
+            return method(train_data, weights=weights, window=window)
 
 
 def evaluate_word(word, ad_root, print_errors=False, window=None):
@@ -31,12 +44,12 @@ def evaluate_word(word, ad_root, print_errors=False, window=None):
         os.path.join('ann', 'dialog7-exp', word + '.txt'))
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data: return
-    model = train_model(
+    model, train_data = train_model(
         word, ad_word_data, ad_root,
         window=window, print_errors=print_errors)
     if not model: return
     test_accuracy, max_freq_error, answers = \
-        evaluate(model, test_data, model.train_data)
+        evaluate(model, test_data, train_data)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
     return test_accuracy, max_freq_error, model.get_train_accuracy()

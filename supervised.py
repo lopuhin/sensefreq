@@ -177,6 +177,18 @@ class KNearestModel(SupervisedModel):
         return max(ans_counts.iteritems(), key=lambda (_, count): count)[0]
 
 
+class SupervisedWrapper(SupervisedModel):
+    ''' Supervised wrapper around cluster.Method.
+    '''
+    def __init__(self, model, **kwargs):
+        self.model = model
+        super(SupervisedWrapper, self).__init__(train_data=[], **kwargs)
+
+    def __call__(self, x, ans=None):
+        v = self.cv(x)
+        return self.model.mapping.get(self.model.predict(v))
+
+
 def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
     w_vectors = dict(zip(words, w_vectors))
     if sense_vectors is not None:

@@ -176,21 +176,33 @@ def build_context_vectors(contexts_filename, word, out_filename, **_):
     else:
         if not isinstance(word, unicode):
             word = word.decode('utf-8')
-        vectors = []
-        seen = set()
         print word
         weights = load_weights(word)
+        vectors = get_context_vectors(word, contexts_filename, weights)
         to_json = out_filename.endswith('.json')
         to_lst = lambda x: map(float, x) if to_json else lambda x: x
-        for ctx in iter_contexts(contexts_filename):
-            key = ' '.join(ctx)
-            if key not in seen:
-                seen.add(key)
-                v = context_vector(word, ctx, weights=weights)
-                vectors.append((ctx, to_lst(v)))
+        vectors = [(ctx, to_lst(v)) for ctx, v in vectors]
         print len(vectors), 'contexts'
         save({'word': word, 'context_vectors': vectors}, out_filename,
              serializer=json.dump if to_json else None)
+
+
+from utils import debug_exec
+@debug_exec
+def get_context_vectors(word, contexts_filename, weights):
+    vectors = []
+    seen = set()
+    import time
+    t0 = time.time()
+    for i, ctx in enumerate(iter_contexts(contexts_filename), 1):
+        key = ' '.join(ctx)
+        if key not in seen:
+            seen.add(key)
+            v = context_vector(word, ctx, weights=weights)
+            vectors.append((ctx, v))
+        if i % 1000 == 0:
+            print len(vectors) / (time.time() - t0)
+    return vectors
 
 
 def iter_contexts(contexts_filename):
