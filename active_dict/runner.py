@@ -25,8 +25,8 @@ def train_model(word, ad_word_data, ad_root, window=None, print_errors=False):
     train_data = get_ad_train_data(
         word, ad_word_data, print_errors=print_errors)
     if train_data:
-        method = SphericalModel
         method = SKMeansADMapping
+        method = SphericalModel
         if issubclass(method, ClusterMethod):
             context_vectors = get_context_vectors(
                 word, os.path.join(
