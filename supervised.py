@@ -103,7 +103,7 @@ class SupervisedModel(object):
             before, after = before[-self.window:], after[:self.window]
         words = before + after
         cv, w_vectors, w_weights = context_vector(
-            words, excl_stopwords=self.excl_stopwords, weights=self.weights)
+            word, words, excl_stopwords=self.excl_stopwords, weights=self.weights)
         if self.verbose and self.weights is not None and self.sense_vectors:
             print_verbose_repr(
                 words, w_vectors, w_weights,
