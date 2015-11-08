@@ -7,6 +7,7 @@ import traceback
 import cPickle as pickle
 from functools import wraps, partial
 import codecs
+import json
 
 from pymystem3 import Mystem
 import msgpackrpc
@@ -161,6 +162,11 @@ def read_stopwords(filename):
     return stopwords
 
 STOPWORDS = read_stopwords('stopwords.txt')
+
+
+def pprint_json(x):
+    print json.dumps(x, sort_keys=True, indent=4, separators=(',', ': '),
+                     ensure_ascii=False)
 
 
 def _cc(code):
