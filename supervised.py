@@ -275,7 +275,7 @@ def load_weights(word, root='.'):
         print >>sys.stderr, 'Weight file "%s" not found' % filename
 
 
-def show_tsne(model, answers, senses, word):
+def show_tsne(model, answers, senses, word, i):
     ts = TSNE(2, metric='cosine')
     vectors = [model.cv(x) for x, _, _ in answers]
     reduced_vecs = ts.fit_transform(vectors)
@@ -283,21 +283,22 @@ def show_tsne(model, answers, senses, word):
     ans_colors = {ans: colors[int(ans) - 1] for ans in senses}
     seen_answers = set()
     plt.clf()
-    plt.rc('legend', fontsize=9)
+    plt.rc('legend', fontsize=16)
     font = {'family': 'Verdana', 'weight': 'normal'}
     plt.rc('font', **font)
     for (_, ans, model_ans), rv in zip(answers, reduced_vecs):
         color = ans_colors[ans]
         seen_answers.add(ans)
-        marker = 'o' if ans == model_ans else 'x'
-        plt.plot(rv[0], rv[1], marker=marker, color=color, markersize=8)
+        marker = 'o' # if ans == model_ans else 'x'
+        plt.plot(rv[0], rv[1], marker=marker, color=color, markersize=10)
     plt.axes().get_xaxis().set_visible(False)
     plt.axes().get_yaxis().set_visible(False)
     legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
         for ans, (label, _) in senses.iteritems() if ans in seen_answers]
     plt.legend(handles=legend)
     plt.title(word)
-    filename = word + '.pdf'
+    plt.gca().set_position([0, 0, 1, 1])
+    filename = word + str(i) + '.pdf'
     print 'saving tSNE clustering to', filename
     plt.savefig(filename)
 
@@ -347,7 +348,8 @@ def main():
             accuracy, max_freq_error, answers = evaluate(
                 model, test_data, train_data, perplexity=args.perplexity)
             if args.tsne:
-                show_tsne(model, answers, senses, word)
+                for i in xrange(1, 10):
+                    show_tsne(model, answers, senses, word, i)
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
             test_accuracy.append(accuracy)
