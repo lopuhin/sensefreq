@@ -16,31 +16,46 @@ from active_dict.loader import parse_ad_word
 
 
 class BaseHandler(RequestHandler):
-    def load(self, place, name):
-        with open(os.path.join(
-                self.application.settings[place],
-                name.encode('utf-8') + '.json'), 'rb') as f:
+    def load(self, name, *path):
+        path = [self.application.settings['ad_root']] + list(path) + \
+               [name.encode('utf-8') + '.json']
+        with open(os.path.join(*path), 'rb') as f:
             return json.load(f)
 
 
-class WordsHandler(BaseHandler):
+class IndexHandler(BaseHandler):
     def get(self):
-        summary = self.load('ctx_path', 'summary')
+        root = self.application.settings['ad_root']
+        context_paths = []
+        for ctx_path in os.listdir(root):
+            if ctx_path.startswith('contexts-') and os.path.isfile(
+                    os.path.join(root, ctx_path, 'summary.json')):
+                context_paths.append(ctx_path)
+        self.render(
+            'templates/index.html',
+            context_paths=context_paths,
+            )
+
+
+class WordsHandler(BaseHandler):
+    def get(self, ctx_path):
+        summary = self.load('summary', ctx_path)
         words = sorted(
             (word, len(freqs),
                 sorted(freqs.iteritems(), key=itemgetter(1), reverse=True))
             for word, freqs in summary.iteritems())
         self.render(
             'templates/words.html',
+            ctx_path=ctx_path,
             words=words,
             )
 
 
 class WordHandler(BaseHandler):
-    def get(self, word):
-        ctx = self.load('ctx_path', word)
+    def get(self, ctx_path, word):
+        ctx = self.load(word, ctx_path.encode('utf-8'))
         contexts = ctx['contexts']
-        meta = self.load('ad_path', word)
+        meta = self.load(word, 'ad')
         parsed = parse_ad_word(meta)
         sense_by_id = {m['id']: m for m in parsed['meanings']}
         counts = Counter(ans for _, ans in contexts)
@@ -55,19 +70,19 @@ class WordHandler(BaseHandler):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('ctx_path')
+    parser.add_argument('ad_root')
     parser.add_argument('--port', type=int, default=8000)
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
     application = Application([
-        url(r'/', WordsHandler, name='words'),
-        url(r'/w/(.*)', WordHandler, name='word'),
+        url(r'/', IndexHandler, name='index'),
+        url(r'/w/([^/]+)', WordsHandler, name='words'),
+        url(r'/w/([^/]+)/(.*)', WordHandler, name='word'),
         ],
         static_path='./active_dict/static',
         **vars(args)
     )
-    application.settings['ad_path'] = \
-        os.path.join(os.path.dirname(args.ctx_path.rstrip(os.sep)), 'ad')
+    application.settings['ad_root'] = args.ad_root.rstrip(os.sep)
     application.listen(args.port)
     tornado.ioloop.IOLoop.current().start()
 
