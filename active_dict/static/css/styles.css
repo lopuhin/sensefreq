@@ -3,6 +3,9 @@ em.main-word {
     font-weight: bold;
 }
 
+table.freq-table {
+    width: auto;
+}
 table.freq-table td,
 table.freq-table th {
     line-height: 35px;

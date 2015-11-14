@@ -30,7 +30,7 @@
 <table class="table freq-table">
     <tbody>
     {% for word, senses1, senses2 in differences %}
-    <tr><th colspan="13">{{ word }}</th></tr>
+    <tr><th>{{ word }}</th><td colspan="12"></td></tr>
     <tr>
         <th><a href="{{ handler.reverse_url('word', ctx_path_1, word) }}">
                 {{ ctx_path_1 }}</a></th>
