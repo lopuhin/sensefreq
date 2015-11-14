@@ -8,7 +8,7 @@
     {% for ctx_path in context_paths %}
     <li>
     <a href="{{ handler.reverse_url('words', ctx_path) }}">
-        {{ ctx_path }}</a>
+        {{ ctx_path.upper() }}</a>
     </li>
     {% end %}
 </ul>

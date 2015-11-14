@@ -2,6 +2,34 @@
 
 {% block content %}
 
+<h1>{{ ctx_path.upper() }}</h1>
+
+<h2>Statistics</h2>
+
+<table class="table">
+    <tbody>
+    <tr>
+        <th>First sense frequency</th>
+        <td>{{ '%.2f' % first_sense_freq }}</td>
+    </tr>
+    <tr>
+        <th>Second sense frequency</th>
+        <td>{{ '%.2f' % second_sense_freq }}</td>
+    </tr>
+    <tr>
+        <th>Avg number of senses with frequency &ge; 0.1</th>
+        <td>{{ '%.2f' % n_senses_10 }}</td>
+    </tr>
+    <tr>
+        <th>Avg number of senses with at least one example</th>
+        <td>{{ '%.2f' % n_senses }}</td>
+    </tr>
+    </tbody>
+</table>
+
+
+<h2>Words</h2>
+
 <table class="table tablesorter freq-table">
     <thead>
         <tr>
@@ -10,7 +38,7 @@
         </tr>
     </thead>
     <tbody>
-    {% for word, senses in words %}
+    {% for word, senses in words_senses %}
     <tr>
         <th><a href="{{ handler.reverse_url('word', ctx_path, word) }}">
                 {{ word }}</a></th>

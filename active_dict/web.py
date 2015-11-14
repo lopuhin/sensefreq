@@ -12,6 +12,7 @@ from operator import itemgetter
 import tornado.ioloop
 from tornado.web import url, RequestHandler, Application
 
+from utils import avg
 from active_dict.loader import parse_ad_word
 
 
@@ -41,18 +42,34 @@ class WordsHandler(BaseHandler):
     def get(self, ctx_path):
         summary = self.load('summary', ctx_path)
         colors = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet']
-        words = []
+        words_senses = []
         for word, senses in summary.iteritems():
             for id_, sense in senses.iteritems():
                 sense['color'] = colors[(int(id_) - 1) % len(colors)]
-            words.append((word, sorted(
+            words_senses.append((word, sorted(
                 senses.itervalues(), key=lambda s: s['freq'], reverse=True)))
-        words.sort(key=itemgetter(0))
+        words_senses.sort(key=itemgetter(0))
         self.render(
             'templates/words.html',
             ctx_path=ctx_path,
-            words=words,
+            words_senses=words_senses,
+            **statistics(words_senses)
             )
+
+
+def statistics(words_senses):
+    sense_freq = lambda idx: avg([
+        senses[idx]['freq'] for _, senses in words_senses
+        if len(senses) > idx])
+    sense_n = lambda min_freq: avg([
+        float(sum(s['freq'] >= min_freq for s in senses))
+        for _, senses in words_senses])
+    return dict(
+        first_sense_freq=sense_freq(0),
+        second_sense_freq=sense_freq(1),
+        n_senses_10=sense_n(0.1),
+        n_senses=sense_n(0.0),
+        )
 
 
 class WordHandler(BaseHandler):
