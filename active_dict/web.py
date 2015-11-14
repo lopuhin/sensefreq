@@ -99,6 +99,7 @@ def compare_statistics(summary1, summary2):
                 n_common += 1
             else:
                 differences.append((w, senses1, senses2))
+    differences.sort(key=itemgetter(0))
     return dict(
         first_sense_diff=n_common / len(common_words),
         n_common_words=len(common_words),
