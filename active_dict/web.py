@@ -90,20 +90,35 @@ class CompareHandler(BaseHandler):
 
 def compare_statistics(summary1, summary2):
     common_words = set(summary1).intersection(summary2)
-    n_common = 0
+    n_same = n_almost_same = 0
     differences = []
+    almost_threshold = 0.15
     for w in common_words:
         senses1, senses2 = map(sorted_senses, [summary1[w], summary2[w]])
         if senses1 and senses2:
-            if senses1[0]['id'] == senses2[0]['id']:
-                n_common += 1
+            id1, id2 = senses1[0]['id'], senses2[0]['id']
+            if id1 == id2:
+                n_same += 1
             else:
-                differences.append((w, senses1, senses2))
+                get_f = lambda ss, id_: \
+                    [s for s in ss if s['id'] == id_][0]['freq']
+                try:
+                    values = [get_f(ss, id_) for ss in [senses1, senses2]
+                              for id_ in [id1, id2]]
+                except IndexError:
+                    values = None
+                if values and max(values) - min(values) < almost_threshold:
+                    n_almost_same += 1
+                else:
+                    differences.append((w, senses1, senses2))
     differences.sort(key=itemgetter(0))
+    n = len(common_words)
     return dict(
-        first_sense_diff=n_common / len(common_words),
-        n_common_words=len(common_words),
+        same_first_ratio=n_same / n,
+        almost_same_first_ratio=(n_same + n_almost_same) / n,
+        n_common_words=n,
         differences=differences,
+        almost_threshold=almost_threshold,
         )
 
 

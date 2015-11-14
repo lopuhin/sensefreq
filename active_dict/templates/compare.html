@@ -13,14 +13,19 @@
         <td>{{ n_common_words }}</td>
     </tr>
     <tr>
-        <th>Ratio of common first sense</th>
-        <td>{{ '%.2f' % first_sense_diff }}</td>
+        <th>Ratio of same first sense</th>
+        <td>{{ '%.2f' % same_first_ratio }}</td>
+    </tr>
+    <tr>
+        <th>Ratio of almost same (within {{ int(almost_threshold * 100)}}%)
+            first sense</th>
+        <td>{{ '%.2f' % almost_same_first_ratio }}</td>
     </tr>
     </tbody>
 </table>
 
 
-<h2>Different first sense</h2>
+<h2>Different first sense (difference &ge; {{ almost_threshold }})</h2>
 
 <table class="table freq-table">
     <tbody>
