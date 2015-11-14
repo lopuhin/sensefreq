@@ -24,6 +24,7 @@ def train_model(word, ad_word_data, ad_root, window=None, print_errors=False):
     weights = load_weights(word, root=ad_root)
     train_data = get_ad_train_data(
         word, ad_word_data, print_errors=print_errors)
+    model = None
     if train_data:
         method = SKMeansADMapping
         method = SphericalModel
@@ -107,7 +108,7 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
         return
     ad_word_data = get_ad_word(word, ad_root)
     if ad_word_data is None: return
-    model = train_model(word, ad_word_data, ad_root, **params)
+    model, _ = train_model(word, ad_word_data, ad_root, **params)
     if model is None: return
     result = [(x, model(x)) for x in contexts]
     with codecs.open(result_filename, 'wb', 'utf-8') as f:
