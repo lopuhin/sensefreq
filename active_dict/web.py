@@ -65,14 +65,22 @@ def statistics(words_senses):
     sense_freq = lambda idx: avg([
         senses[idx]['freq'] for _, senses in words_senses
         if len(senses) > idx])
-    sense_n = lambda min_freq: avg([
+    sense_avg = lambda min_freq: avg([
         float(sum(s['freq'] >= min_freq for s in senses))
         for _, senses in words_senses])
+    min_sense_threshold = 0.15
+    max_sense_threshold = 0.8
+    dominant_ratio = sum(
+        senses[0]['freq'] >= max_sense_threshold for _, senses in words_senses
+        if senses) / len(words_senses)
     return dict(
         first_sense_freq=sense_freq(0),
         second_sense_freq=sense_freq(1),
-        n_senses_10=sense_n(0.1),
-        n_senses=sense_n(0.0),
+        avg_senses_th=sense_avg(min_sense_threshold),
+        avg_senses=sense_avg(0.0),
+        min_sense_threshold=min_sense_threshold,
+        max_sense_threshold=max_sense_threshold,
+        dominant_ratio=dominant_ratio,
         )
 
 

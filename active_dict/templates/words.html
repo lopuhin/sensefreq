@@ -17,12 +17,16 @@
         <td>{{ '%.2f' % second_sense_freq }}</td>
     </tr>
     <tr>
-        <th>Avg number of senses with frequency &ge; 0.1</th>
-        <td>{{ '%.2f' % n_senses_10 }}</td>
+        <th>Avg number of senses with frequency &ge; {{ min_sense_threshold}}</th>
+        <td>{{ '%.2f' % avg_senses_th }}</td>
     </tr>
     <tr>
         <th>Avg number of senses with at least one example</th>
-        <td>{{ '%.2f' % n_senses }}</td>
+        <td>{{ '%.2f' % avg_senses }}</td>
+    </tr>
+    <tr>
+        <th>Ratio of words with one dominant (&ge; {{ max_sense_threshold}}) sense</th>
+        <td>{{ '%.2f' % dominant_ratio }}</td>
     </tr>
     </tbody>
 </table>
