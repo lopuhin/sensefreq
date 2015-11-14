@@ -92,7 +92,8 @@ def run_on_words(ctx_dir, **params):
 
 
 def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
-    n_sample = 200
+    max_contexts = params.get('max_contexts')
+    min_contexts = params.get('min_contexts')
     word = ctx_filename.split('.')[0].decode('utf-8')
     if word[-1].isdigit():
         return
@@ -102,9 +103,9 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
     with codecs.open(
             os.path.join(ctx_dir, ctx_filename), 'rb', 'utf-8') as f:
         contexts = [line.split('\t') for line in f]
-    if len(contexts) > n_sample:
-        contexts = random.sample(contexts, n_sample)
-    elif not contexts:
+    if max_contexts and len(contexts) > max_contexts:
+        contexts = random.sample(contexts, max_contexts)
+    elif not contexts or (min_contexts and len(contexts) < min_contexts):
         return
     ad_word_data = get_ad_word(word, ad_root)
     if ad_word_data is None: return
@@ -178,10 +179,15 @@ def get_ad_train_data(word, ad_word_data, print_errors=False):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', help='evaluate or run')
-    parser.add_argument('ad_root')
-    parser.add_argument('word_or_filename')
-    parser.add_argument('--window', type=int, default=10)
+    arg = parser.add_argument
+    arg('action', help='run|summary|evaluate')
+    arg('ad_root')
+    arg('word_or_filename')
+    arg('--window', type=int, default=10)
+    arg('--min-contexts', type=int, default=100,
+        help='(for run) skip files with less contexts')
+    arg('--max-contexts', type=int, default=2000,
+        help='(for run) max number of contexts in sample')
     args = parser.parse_args()
     params = dict(ad_root=args.ad_root, window=args.window)
     if args.action == 'evaluate':
