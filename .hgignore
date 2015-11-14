@@ -10,6 +10,7 @@ pypy-env/
 numpy/
 train/
 ad-nouns/
+conf/.htpasswd
 *.txt
 *.dict
 *.pdf
