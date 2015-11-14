@@ -40,10 +40,14 @@ class IndexHandler(BaseHandler):
 class WordsHandler(BaseHandler):
     def get(self, ctx_path):
         summary = self.load('summary', ctx_path)
-        words = sorted(
-            (word, len(freqs),
-                sorted(freqs.iteritems(), key=itemgetter(1), reverse=True))
-            for word, freqs in summary.iteritems())
+        colors = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet']
+        words = []
+        for word, senses in summary.iteritems():
+            for id_, sense in senses.iteritems():
+                sense['color'] = colors[(int(id_) - 1) % len(colors)]
+            words.append((word, sorted(
+                senses.itervalues(), key=lambda s: s['freq'], reverse=True)))
+        words.sort(key=itemgetter(0))
         self.render(
             'templates/words.html',
             ctx_path=ctx_path,

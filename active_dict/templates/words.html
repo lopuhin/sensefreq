@@ -10,16 +10,22 @@
         </tr>
     </thead>
     <tbody>
-    {% for word, n_senses, freqs in words %}
+    {% for word, senses in words %}
     <tr>
         <th><a href="{{ handler.reverse_url('word', ctx_path, word) }}">
                 {{ word }}</a></th>
-        <th>{{ n_senses }}</th>
-        {% for meaning, freq in freqs %}
-        <td class="freq" title="{{ meaning }}">
-            {{ '%.2f' % freq }}
-            <div class="freq" style="height: {{ '%d%%' % int(freq * 100)}}"></div>
+        <th>{{ len(senses) }}</th>
+        {% for sense in senses %}
+        <td class="freq" title="{{ sense['meaning'] }}">
+            {{ '%.2f' % sense['freq'] }}
+            <div class="freq" style="
+                height: {{ '%d%%' % int(sense['freq'] * 100)}};
+                background-color: {{ sense['color'] }};
+                "></div>
         </td>
+        {% end %}
+        {% for _ in xrange(max(0, 12 - len(senses))) %}
+        <td></td>
         {% end %}
     </tr>
     {% end %}
