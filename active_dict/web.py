@@ -46,8 +46,7 @@ class WordsHandler(BaseHandler):
         for word, senses in summary.iteritems():
             for id_, sense in senses.iteritems():
                 sense['color'] = colors[(int(id_) - 1) % len(colors)]
-            words_senses.append((word, sorted(
-                senses.itervalues(), key=lambda s: s['freq'], reverse=True)))
+            words_senses.append((word, sorted_senses(senses)))
         words_senses.sort(key=itemgetter(0))
         self.render(
             'templates/words.html',
@@ -55,6 +54,12 @@ class WordsHandler(BaseHandler):
             words_senses=words_senses,
             **statistics(words_senses)
             )
+
+
+def sorted_senses(senses):
+    for id_, sense in senses.iteritems():
+        sense['id'] = id_
+    return sorted(senses.itervalues(), key=lambda s: s['freq'], reverse=True)
 
 
 def statistics(words_senses):
@@ -69,6 +74,31 @@ def statistics(words_senses):
         second_sense_freq=sense_freq(1),
         n_senses_10=sense_n(0.1),
         n_senses=sense_n(0.0),
+        )
+
+
+class CompareHandler(BaseHandler):
+    def get(self, ctx_path_1, ctx_path_2):
+        summary1, summary2 = [
+            self.load('summary', path) for path in [ctx_path_1, ctx_path_2]]
+        self.render(
+            'templates/compare.html',
+            ctx_path_1=ctx_path_1,
+            ctx_path_2=ctx_path_2,
+            **compare_statistics(summary1, summary2)
+            )
+
+
+def compare_statistics(summary1, summary2):
+    common_words = set(summary1).intersection(summary2)
+    n_common = 0
+    for w in common_words:
+        senses1, senses2 = map(sorted_senses, [summary1[w], summary2[w]])
+        if senses1 and senses2 and senses1[0]['id'] == senses2[0]['id']:
+            n_common += 1
+    return dict(
+        first_sense_diff=n_common / len(common_words),
+        common_words=len(common_words),
         )
 
 
@@ -97,6 +127,7 @@ def main():
     args = parser.parse_args()
     application = Application([
         url(r'/', IndexHandler, name='index'),
+        url(r'/c/([^/]+)/([^/]+)', CompareHandler, name='compare'),
         url(r'/w/([^/]+)', WordsHandler, name='words'),
         url(r'/w/([^/]+)/(.*)', WordHandler, name='word'),
         ],

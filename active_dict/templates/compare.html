@@ -1,0 +1,23 @@
+{% extends "base.html"%}
+
+{% block content %}
+
+<h1>Compare {{ ctx_path_1.upper() }} with {{ ctx_path_1.upper() }}</h1>
+
+<h2>Statistics</h2>
+
+<table class="table">
+    <tbody>
+    <tr>
+        <th>Words in common</th>
+        <td>{{ common_words }}</td>
+    </tr>
+    <tr>
+        <th>Ratio of common first sense</th>
+        <td>{{ '%.2f' % first_sense_diff }}</td>
+    </tr>
+    </tbody>
+</table>
+
+
+{% end %}

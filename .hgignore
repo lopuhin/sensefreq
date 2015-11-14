@@ -9,9 +9,10 @@ env
 pypy-env/
 numpy/
 train/
+ad-nouns/
 *.txt
 *.dict
 *.pdf
 *.bin
 *.json
-*.html
+*.npy

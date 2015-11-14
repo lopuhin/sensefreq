@@ -4,6 +4,8 @@
 
 <h1>Sense frequencies with Russian Active Dictionary</h1>
 
+<h2>Corpora</h2>
+
 <ul>
     {% for ctx_path in context_paths %}
     <li>
@@ -12,5 +14,21 @@
     </li>
     {% end %}
 </ul>
+
+<h2>Compare corpora</h2>
+
+<ul>
+    {% for ctx_path_1 in context_paths %}
+    {% for ctx_path_2 in context_paths %}
+    {% if ctx_path_1 < ctx_path_2 %}
+    <li>
+    <a href="{{ handler.reverse_url('compare', ctx_path_1, ctx_path_2) }}">
+        {{ ctx_path_1.upper() }} with {{ ctx_path_1.upper() }}</a>
+    </li>
+    {% end %}
+    {% end %}
+    {% end %}
+</ul>
+
 
 {% end %}
