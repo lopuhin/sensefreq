@@ -13,20 +13,23 @@ import tornado.ioloop
 from tornado.web import url, RequestHandler, Application
 
 from utils import avg
-from active_dict.loader import parse_ad_word
+from active_dict.loader import get_ad_word
 
 
 class BaseHandler(RequestHandler):
     def load(self, name, *path):
-        path = [self.application.settings['ad_root']] + list(path) + \
-               [name.encode('utf-8') + '.json']
+        path = [self.ad_root] + list(path) + [name.encode('utf-8') + '.json']
         with open(os.path.join(*path), 'rb') as f:
             return json.load(f)
+
+    @property
+    def ad_root(self):
+        return self.application.settings['ad_root']
 
 
 class IndexHandler(BaseHandler):
     def get(self):
-        root = self.application.settings['ad_root']
+        root = self.ad_root
         context_paths = []
         for ctx_path in os.listdir(root):
             if os.path.isfile(os.path.join(root, ctx_path, 'summary.json')):
@@ -134,8 +137,7 @@ class WordHandler(BaseHandler):
     def get(self, ctx_path, word):
         ctx = self.load(word, ctx_path.encode('utf-8'))
         contexts = ctx['contexts']
-        meta = self.load(word, 'ad')
-        parsed = parse_ad_word(meta)
+        parsed = get_ad_word(word, self.ad_root)
         sense_by_id = {m['id']: m for m in parsed['meanings']}
         counts = Counter(ans for _, ans in contexts)
         self.render(
