@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<h1>Compare {{ ctx_path_1.upper() }} with {{ ctx_path_1.upper() }}</h1>
+<h1>Compare {{ ctx_path_1 }} with {{ ctx_path_2 }}</h1>
 
 <h2>Statistics</h2>
 
@@ -10,12 +10,35 @@
     <tbody>
     <tr>
         <th>Words in common</th>
-        <td>{{ common_words }}</td>
+        <td>{{ n_common_words }}</td>
     </tr>
     <tr>
         <th>Ratio of common first sense</th>
         <td>{{ '%.2f' % first_sense_diff }}</td>
     </tr>
+    </tbody>
+</table>
+
+
+<h2>Different first sense</h2>
+
+<table class="table freq-table">
+    <tbody>
+    {% for word, senses1, senses2 in differences %}
+    <tr><th colspan="13">{{ word }}</th></tr>
+    <tr>
+        <th><a href="{{ handler.reverse_url('word', ctx_path_1, word) }}">
+                {{ ctx_path_1 }}</a></th>
+        {% set senses = senses1 %}
+        {% include "_word_freq.html" %}
+    </tr>
+    <tr>
+        <th><a href="{{ handler.reverse_url('word', ctx_path_2, word) }}">
+                {{ ctx_path_2 }}</a></th>
+        {% set senses = senses2 %}
+        {% include "_word_freq.html" %}
+    </tr>
+    {% end %}
     </tbody>
 </table>
 

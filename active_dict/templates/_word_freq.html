@@ -1,0 +1,12 @@
+{% for sense in senses %}
+<td class="freq" title="{{ sense['meaning'] }}">
+    {{ '%.2f' % sense['freq'] }}
+    <div class="freq" style="
+        height: {{ '%d%%' % int(sense['freq'] * 100)}};
+        background-color: {{ sense['color'] }};
+        "></div>
+</td>
+{% end %}
+{% for _ in xrange(max(0, 12 - len(senses))) %}
+<td></td>
+{% end %}

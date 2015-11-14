@@ -10,7 +10,7 @@
     {% for ctx_path in context_paths %}
     <li>
     <a href="{{ handler.reverse_url('words', ctx_path) }}">
-        {{ ctx_path.upper() }}</a>
+        {{ ctx_path }}</a>
     </li>
     {% end %}
 </ul>
@@ -23,7 +23,7 @@
     {% if ctx_path_1 < ctx_path_2 %}
     <li>
     <a href="{{ handler.reverse_url('compare', ctx_path_1, ctx_path_2) }}">
-        {{ ctx_path_1.upper() }} with {{ ctx_path_1.upper() }}</a>
+        {{ ctx_path_1 }} with {{ ctx_path_2 }}</a>
     </li>
     {% end %}
     {% end %}

@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<h1>{{ ctx_path.upper() }}</h1>
+<h1>{{ ctx_path }}</h1>
 
 <h2>Statistics</h2>
 
@@ -43,18 +43,7 @@
         <th><a href="{{ handler.reverse_url('word', ctx_path, word) }}">
                 {{ word }}</a></th>
         <th>{{ len(senses) }}</th>
-        {% for sense in senses %}
-        <td class="freq" title="{{ sense['meaning'] }}">
-            {{ '%.2f' % sense['freq'] }}
-            <div class="freq" style="
-                height: {{ '%d%%' % int(sense['freq'] * 100)}};
-                background-color: {{ sense['color'] }};
-                "></div>
-        </td>
-        {% end %}
-        {% for _ in xrange(max(0, 12 - len(senses))) %}
-        <td></td>
-        {% end %}
+        {% include "_word_freq.html" %}
     </tr>
     {% end %}
     </tbody>

@@ -29,8 +29,7 @@ class IndexHandler(BaseHandler):
         root = self.application.settings['ad_root']
         context_paths = []
         for ctx_path in os.listdir(root):
-            if ctx_path.startswith('contexts-') and os.path.isfile(
-                    os.path.join(root, ctx_path, 'summary.json')):
+            if os.path.isfile(os.path.join(root, ctx_path, 'summary.json')):
                 context_paths.append(ctx_path)
         self.render(
             'templates/index.html',
@@ -41,11 +40,8 @@ class IndexHandler(BaseHandler):
 class WordsHandler(BaseHandler):
     def get(self, ctx_path):
         summary = self.load('summary', ctx_path)
-        colors = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet']
         words_senses = []
         for word, senses in summary.iteritems():
-            for id_, sense in senses.iteritems():
-                sense['color'] = colors[(int(id_) - 1) % len(colors)]
             words_senses.append((word, sorted_senses(senses)))
         words_senses.sort(key=itemgetter(0))
         self.render(
@@ -55,10 +51,13 @@ class WordsHandler(BaseHandler):
             **statistics(words_senses)
             )
 
+COLORS = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet']
+
 
 def sorted_senses(senses):
     for id_, sense in senses.iteritems():
         sense['id'] = id_
+        sense['color'] = COLORS[(int(id_) - 1) % len(COLORS)]
     return sorted(senses.itervalues(), key=lambda s: s['freq'], reverse=True)
 
 
@@ -92,13 +91,18 @@ class CompareHandler(BaseHandler):
 def compare_statistics(summary1, summary2):
     common_words = set(summary1).intersection(summary2)
     n_common = 0
+    differences = []
     for w in common_words:
         senses1, senses2 = map(sorted_senses, [summary1[w], summary2[w]])
-        if senses1 and senses2 and senses1[0]['id'] == senses2[0]['id']:
-            n_common += 1
+        if senses1 and senses2:
+            if senses1[0]['id'] == senses2[0]['id']:
+                n_common += 1
+            else:
+                differences.append((w, senses1, senses2))
     return dict(
         first_sense_diff=n_common / len(common_words),
-        common_words=len(common_words),
+        n_common_words=len(common_words),
+        differences=differences,
         )
 
 
