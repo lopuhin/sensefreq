@@ -50,7 +50,7 @@ def parse_ad_word(data_or_word_filename):
 def _get_contexts(m):
     contexts = []
     for key in [u'ПРИМЕРЫ', u'ИЛЛЮСТРАЦИИ', u'ДЕР', u'АНАЛ', u'СИН',
-                u'СОЧЕТАЕМОСТЬ.']:
+                u'СОЧЕТАЕМОСТЬ']:
         contexts.extend(m.get(key, []))
     meaning = m[u'ЗНАЧЕНИЕ']
     control = m.get(u'УПРАВЛЕНИЕ', u'')
