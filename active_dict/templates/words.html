@@ -39,14 +39,17 @@
         <tr>
             <th>Word</th>
             <th>Senses</th>
+            <th>Est.precision</th>
         </tr>
     </thead>
     <tbody>
-    {% for word, senses in words_senses %}
+    {% for winfo in words_senses %}
     <tr>
-        <th><a href="{{ handler.reverse_url('word', ctx_path, word) }}">
-                {{ word }}</a></th>
-        <th>{{ len(senses) }}</th>
+        <th><a href="{{ handler.reverse_url('word', ctx_path, winfo['word']) }}">
+                {{ winfo['word'] }}</a></th>
+        <th>{{ len(winfo['senses']) }}</th>
+        <th>{{ ('%.2f' % winfo['estimate']) if winfo.get('estimate') else '-' }}</th>
+        {% set senses=winfo['senses'] %}
         {% include "_word_freq.html" %}
     </tr>
     {% end %}

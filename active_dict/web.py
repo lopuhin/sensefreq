@@ -44,9 +44,13 @@ class WordsHandler(BaseHandler):
     def get(self, ctx_path):
         summary = self.load('summary', ctx_path)
         words_senses = []
-        for word, senses in summary.iteritems():
-            words_senses.append((word, sorted_senses(senses)))
-        words_senses.sort(key=itemgetter(0))
+        for word, winfo in summary.iteritems():
+            words_senses.append(dict(
+                winfo,
+                word=word,
+                senses=sorted_senses(winfo['senses']),
+                ))
+        words_senses.sort(key=itemgetter('word'))
         self.render(
             'templates/words.html',
             ctx_path=ctx_path,
@@ -66,16 +70,16 @@ def sorted_senses(senses):
 
 def statistics(words_senses):
     sense_freq = lambda idx: avg([
-        senses[idx]['freq'] for _, senses in words_senses
-        if len(senses) > idx])
+        winfo['senses'][idx]['freq'] for winfo in words_senses
+        if len(winfo['senses']) > idx])
     sense_avg = lambda min_freq: avg([
-        float(sum(s['freq'] >= min_freq for s in senses))
-        for _, senses in words_senses])
+        float(sum(s['freq'] >= min_freq for s in winfo['senses']))
+        for winfo in words_senses])
     min_sense_threshold = 0.15
     max_sense_threshold = 0.8
     dominant_ratio = sum(
-        senses[0]['freq'] >= max_sense_threshold for _, senses in words_senses
-        if senses) / len(words_senses)
+        winfo['senses'][0]['freq'] >= max_sense_threshold
+        for winfo in words_senses if winfo['senses']) / len(words_senses)
     return dict(
         first_sense_freq=sense_freq(0),
         second_sense_freq=sense_freq(1),
@@ -105,7 +109,8 @@ def compare_statistics(summary1, summary2):
     differences = []
     almost_threshold = 0.15
     for w in common_words:
-        senses1, senses2 = map(sorted_senses, [summary1[w], summary2[w]])
+        senses1, senses2 = [sorted_senses(winfo['senses'])
+                            for winfo in [summary1[w], summary2[w]]]
         if senses1 and senses2:
             id1, id2 = senses1[0]['id'], senses2[0]['id']
             if id1 == id2:

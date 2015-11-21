@@ -138,10 +138,13 @@ def summary(ad_root, ctx_dir):
                 for m in get_ad_word(word, ad_root)['meanings']}
             counts = Counter(ans for _, ans in result['contexts'])
             all_freqs[word] = {
-                ans: dict(
-                    meaning=meaning_by_id[ans],
-                    freq=cnt / len(result['contexts']))
-                for ans, cnt in counts.iteritems()}
+                'senses': {
+                    ans: dict(
+                        meaning=meaning_by_id[ans],
+                        freq=cnt / len(result['contexts']))
+                    for ans, cnt in counts.iteritems()},
+                'estimate': result.get('estimate'),
+            }
     with open(os.path.join(ctx_dir, 'summary.json'), 'wb') as f:
         json.dump(all_freqs, f)
 
