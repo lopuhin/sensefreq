@@ -236,21 +236,12 @@ def evaluate(model, test_data, train_data, perplexity=False):
         answers.append((x, ans, model_ans))
         confidences.append(confidence)
     n = len(answers)
-    confidence = avg(confidences)
-    correct = [ans == model_ans for _, ans, model_ans in answers]
-    right_confidence = avg(c for c, is_correct in zip(confidences, correct)
-                           if is_correct)
-    wrong_confidence = avg(c for c, is_correct in zip(confidences, correct)
-                           if not is_correct)
-    print
-    print 'right/wrong: %.2f %.2f' % (right_confidence, wrong_confidence)
-    print '\t'.join('%.2f' % (sum(c < limit for c in confidences) / n)
-                    for limit in [0.02, 0.05, 0.1, 0.2])
+    estimate = 1.0 - sum(c < 0.05 for c in confidences) / n
     n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
     counts = Counter(ans for _, ans, _ in answers)
     model_counts = Counter(model_ans for _, _, model_ans in answers)
     max_count_error = max(abs(counts[s] - model_counts[s]) for s in counts)
-    return (n_correct / n, max_count_error / n, confidence, answers)
+    return (n_correct / n, max_count_error / n, estimate, answers)
 
 
 def get_baseline(labeled_data):

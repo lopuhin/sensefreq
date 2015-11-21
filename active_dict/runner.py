@@ -65,17 +65,16 @@ def evaluate_words(filename, **params):
     with codecs.open(filename, 'rb', 'utf-8') as f:
         words = [l.strip() for l in f]
     test_accuracies, train_accuracies, freq_errors = [], [], []
-    print u'\t'.join(['word', 'train', 'test', 'max_freq_error'])
+    print u'\t'.join(['word', 'train', 'test', 'freq', 'estimate'])
     for word in sorted(words):
         res = evaluate_word(word, **params)
         if res is not None:
-            test_accuracy, max_freq_error, train_accuracy, confidence = res
+            test_accuracy, max_freq_error, train_accuracy, estimate = res
             test_accuracies.append(test_accuracy)
             train_accuracies.append(train_accuracy)
             freq_errors.append(max_freq_error)
             print u'%s\t%.2f\t%.2f\t%.2f\t%.2f' % (
-                word, train_accuracy, test_accuracy, max_freq_error,
-                confidence)
+                word, train_accuracy, test_accuracy, max_freq_error, estimate)
         else:
             print u'%s\tmissing' % word
     print u'Avg.\t%.2f\t%.2f\t%.2f' % (
