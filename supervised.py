@@ -151,7 +151,8 @@ class SphericalModel(SupervisedModel):
         if with_confidence:
             closeness = map(itemgetter(1), ans_closeness)
             closeness.sort(reverse=True)
-            confidence = closeness[0] - closeness[1]
+            confidence = closeness[0] - closeness[1] if len(closeness) >= 2 \
+                         else 1.0
         return (m_ans, confidence) if with_confidence else m_ans
 
 
