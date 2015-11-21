@@ -343,12 +343,13 @@ def main():
     accuracies = []
     freq_errors = []
     model_class = SphericalModel
-    print u'\t'.join(
-        ['word', 'b-line', 'train acc.', 'test acc.', 'max_freq_error'])
+    print u'\t'.join([
+        'word', 'b-line', 'train acc.', 'test acc.', 'max_freq_err',
+        'estimate'])
     for filename in filenames:
         word = filename.split('/')[-1].split('.')[0].decode('utf-8')
         weights = load_weights(word)
-        test_accuracy, train_accuracy, word_freq_errors = [], [], []
+        test_accuracy, train_accuracy, estimates, word_freq_errors = [], [], [], []
         baseline = get_baseline(get_labeled_ctx(filename)[1])
         random.seed(1)
         for i in xrange(args.n_runs):
@@ -361,24 +362,26 @@ def main():
             model = model_class(
                 train_data, weights=weights, verbose=args.verbose,
                 window=args.window)
-            accuracy, max_freq_error, answers = evaluate(
+            accuracy, max_freq_error, estimate, answers = evaluate(
                 model, test_data, train_data, perplexity=args.perplexity)
             if args.tsne:
                 show_tsne(model, answers, senses, word)
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
             test_accuracy.append(accuracy)
+            estimates.append(estimate)
             train_accuracy.append(model.get_train_accuracy(verbose=False))
             # TODO - average freq predictions and take freq error afterwards?
             word_freq_errors.append(max_freq_error)
         accuracies.extend(test_accuracy)
         freq_errors.extend(word_freq_errors)
         baselines.append(baseline)
-        print u'%s\t%.2f\t%s\t%s\t%s' % (
+        print u'%s\t%.2f\t%s\t%s\t%s\t%s' % (
             word, baseline,
             avg_w_bounds(train_accuracy),
             avg_w_bounds(test_accuracy),
-            avg_w_bounds(word_freq_errors))
+            avg_w_bounds(word_freq_errors),
+            avg_w_bounds(estimates))
     print
     print 'baseline: %.3f' % avg(baselines)
     print '     avg: %.3f' % avg(accuracies)
