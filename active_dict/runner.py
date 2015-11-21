@@ -20,7 +20,7 @@ from cluster import get_context_vectors
 from cluster_methods import SKMeansADMapping, Method as ClusterMethod
 
 
-def train_model(word, ad_word_data, ad_root, window=None):
+def train_model(word, ad_word_data, ad_root, **model_params):
     weights = load_weights(word, root=ad_root)
     train_data = get_ad_train_data(word, ad_word_data)
     model = None
@@ -39,25 +39,26 @@ def train_model(word, ad_word_data, ad_root, window=None):
                 n_senses=12)
             cluster_model.cluster()
             model = SupervisedWrapper(
-                cluster_model, weights=weights, window=window)
+                cluster_model, weights=weights, **model_params)
         else:
-            model = method(train_data, weights=weights, window=window)
+            model = method(train_data, weights=weights, **model_params)
     return model, train_data
 
 
-def evaluate_word(word, ad_root, print_errors=False, window=None):
+def evaluate_word(word, ad_root, print_errors=False, **model_params):
     senses, test_data = get_labeled_ctx(
         os.path.join('ann', 'dialog7-exp', word + '.txt'))
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data: return
     model, train_data = train_model(
-        word, ad_word_data, ad_root, window=window)
+        word, ad_word_data, ad_root, **model_params)
     if not model: return
     test_accuracy, max_freq_error, answers = \
         evaluate(model, test_data, train_data)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
-    return test_accuracy, max_freq_error, model.get_train_accuracy()
+    return test_accuracy, max_freq_error, \
+            model.get_train_accuracy(verbose=False)
 
 
 def evaluate_words(filename, **params):
@@ -186,8 +187,9 @@ def main():
         help='(for run) skip files with less contexts')
     arg('--max-contexts', type=int, default=2000,
         help='(for run) max number of contexts in sample')
+    arg('--verbose', action='store_true')
     args = parser.parse_args()
-    params = dict(ad_root=args.ad_root, window=args.window)
+    params = {k: getattr(args, k) for k in ['ad_root', 'window', 'verbose']}
     if args.action == 'evaluate':
         if os.path.exists(args.word_or_filename):
             evaluate_words(args.word_or_filename, **params)

@@ -110,11 +110,17 @@ class SupervisedModel(object):
                 sense_vectors=self.sense_vectors)
         return cv
 
-    def get_train_accuracy(self):
+    def get_train_accuracy(self, verbose=None):
         if not self.train_data:
             return 0
+        if verbose is not None:
+            is_verbose = self.verbose
+            self.verbose = verbose
         n_correct = sum(ans == self(x) for x, ans in self.train_data)
-        return n_correct / len(self.train_data)
+        accuracy = n_correct / len(self.train_data)
+        if verbose is not None:
+            self.verbose = is_verbose
+        return accuracy
 
 
 class SphericalModel(SupervisedModel):
@@ -351,9 +357,7 @@ def main():
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
             test_accuracy.append(accuracy)
-            model.verbose = False
-            train_accuracy.append(model.get_train_accuracy())
-            model.verbose = args.verbose
+            train_accuracy.append(model.get_train_accuracy(verbose=False))
             # TODO - average freq predictions and take freq error afterwards?
             word_freq_errors.append(max_freq_error)
         accuracies.extend(test_accuracy)
