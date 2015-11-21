@@ -137,7 +137,7 @@ def context_vector(words, excl_stopwords=True, weights=None, w2v_cache=None):
                     for v in w2v_vecs(words)]
     w_weights = [1.0] * len(words)
     if weights is not None:
-        w_weights = [weights.get(w, 1.) for w in words]
+        w_weights = [weights.get(w, 0.2) for w in words]
     v_weights = [(v, weight)
         for w, v, weight in zip(words, w_vectors, w_weights)
         if v is not None and (not excl_stopwords or w not in STOPWORDS)]
