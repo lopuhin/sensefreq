@@ -20,10 +20,9 @@ from cluster import get_context_vectors
 from cluster_methods import SKMeansADMapping, Method as ClusterMethod
 
 
-def train_model(word, ad_word_data, ad_root, window=None, print_errors=False):
+def train_model(word, ad_word_data, ad_root, window=None):
     weights = load_weights(word, root=ad_root)
-    train_data = get_ad_train_data(
-        word, ad_word_data, print_errors=print_errors)
+    train_data = get_ad_train_data(word, ad_word_data)
     model = None
     if train_data:
         method = SKMeansADMapping
@@ -52,8 +51,7 @@ def evaluate_word(word, ad_root, print_errors=False, window=None):
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data: return
     model, train_data = train_model(
-        word, ad_word_data, ad_root,
-        window=window, print_errors=print_errors)
+        word, ad_word_data, ad_root, window=window)
     if not model: return
     test_accuracy, max_freq_error, answers = \
         evaluate(model, test_data, train_data)
@@ -158,7 +156,7 @@ def _print_errors(test_accuracy, answers, ad_word_data, senses):
         print '%s\t%s\t%s' % (ans, model_ans, count)
 
 
-def get_ad_train_data(word, ad_word_data, print_errors=False):
+def get_ad_train_data(word, ad_word_data):
     train_data = []
     for m in ad_word_data['meanings']:
         ans = m['id']
@@ -167,15 +165,13 @@ def get_ad_train_data(word, ad_word_data, print_errors=False):
             try:
                 w_idx = words.index(word)
             except ValueError:
-                if print_errors:
-                    print
-                    print 'word missing', word
-                    print 'context', ' '.join(words)
+                before = u' '.join(words)
+                after = ''
             else:
-                before = ' '.join(words[:w_idx])
-                after = ' '.join(w for w in words[w_idx+1:] if w != word)
-                train_data.append(
-                    ((before, word, after), ans))
+                before = u' '.join(words[:w_idx])
+                after = u' '.join(w for w in words[w_idx+1:] if w != word)
+            train_data.append(
+                ((before, word, after), ans))
     return train_data
 
 
