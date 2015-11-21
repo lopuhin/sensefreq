@@ -53,12 +53,12 @@ def evaluate_word(word, ad_root, print_errors=False, **model_params):
     model, train_data = train_model(
         word, ad_word_data, ad_root, **model_params)
     if not model: return
-    test_accuracy, max_freq_error, answers = \
+    test_accuracy, max_freq_error, confidence, answers = \
         evaluate(model, test_data, train_data)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
     return test_accuracy, max_freq_error, \
-            model.get_train_accuracy(verbose=False)
+            model.get_train_accuracy(verbose=False), confidence
 
 
 def evaluate_words(filename, **params):
@@ -69,12 +69,13 @@ def evaluate_words(filename, **params):
     for word in sorted(words):
         res = evaluate_word(word, **params)
         if res is not None:
-            test_accuracy, max_freq_error, train_accuracy = res
+            test_accuracy, max_freq_error, train_accuracy, confidence = res
             test_accuracies.append(test_accuracy)
             train_accuracies.append(train_accuracy)
             freq_errors.append(max_freq_error)
-            print u'%s\t%.2f\t%.2f\t%.2f' % (
-                word, train_accuracy, test_accuracy, max_freq_error)
+            print u'%s\t%.2f\t%.2f\t%.2f\t%.2f' % (
+                word, train_accuracy, test_accuracy, max_freq_error,
+                confidence)
         else:
             print u'%s\tmissing' % word
     print u'Avg.\t%.2f\t%.2f\t%.2f' % (

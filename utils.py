@@ -103,6 +103,8 @@ def normalize(w):
 
 
 def avg(v):
+    if not isinstance(v, list):
+        v = list(v)
     return float(sum(v)) / len(v)
 
 

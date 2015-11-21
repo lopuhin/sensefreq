@@ -130,7 +130,7 @@ class SphericalModel(SupervisedModel):
             for ans, cvs in self.context_vectors.iteritems()
             if cvs.any()}
 
-    def __call__(self, x, c_ans=None):
+    def __call__(self, x, c_ans=None, with_confidence=False):
         v = self.cv(x)
         if v is None:
            #print >>sys.stderr, 'context vector is None:', ' '.join(x)
@@ -147,7 +147,11 @@ class SphericalModel(SupervisedModel):
             if c_ans is not None:
                 print 'correct: %s, model: %s, %s' % (
                         c_ans, m_ans, bool_color(c_ans == m_ans))
-        return m_ans
+        if with_confidence:
+            closeness = map(itemgetter(1), ans_closeness)
+            closeness.sort(reverse=True)
+            confidence = closeness[0] - closeness[1]
+        return (m_ans, confidence) if with_confidence else m_ans
 
 
 class GMMModel(SupervisedModel):
@@ -225,12 +229,28 @@ def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
 
 def evaluate(model, test_data, train_data, perplexity=False):
     test_on = test_data if not perplexity else train_data
-    answers = [(x, ans, model(x, ans)) for x, ans in test_on]
+    answers = []
+    confidences = []
+    for x, ans in test_on:
+        model_ans, confidence = model(x, ans, with_confidence=True)
+        answers.append((x, ans, model_ans))
+        confidences.append(confidence)
+    n = len(answers)
+    confidence = avg(confidences)
+    correct = [ans == model_ans for _, ans, model_ans in answers]
+    right_confidence = avg(c for c, is_correct in zip(confidences, correct)
+                           if is_correct)
+    wrong_confidence = avg(c for c, is_correct in zip(confidences, correct)
+                           if not is_correct)
+    print
+    print 'right/wrong: %.2f %.2f' % (right_confidence, wrong_confidence)
+    print '\t'.join('%.2f' % (sum(c < limit for c in confidences) / n)
+                    for limit in [0.02, 0.05, 0.1, 0.2])
     n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
     counts = Counter(ans for _, ans, _ in answers)
     model_counts = Counter(model_ans for _, _, model_ans in answers)
     max_count_error = max(abs(counts[s] - model_counts[s]) for s in counts)
-    return n_correct / len(answers), max_count_error / len(answers), answers
+    return (n_correct / n, max_count_error / n, confidence, answers)
 
 
 def get_baseline(labeled_data):
