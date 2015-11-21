@@ -15,7 +15,7 @@ from collections import Counter
 from utils import word_re, lemmatize_s, avg
 from active_dict.loader import get_ad_word
 from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
-    SphericalModel, SupervisedWrapper, sorted_senses
+    SphericalModel, SupervisedWrapper, sorted_senses, get_accuracy_estimate
 from cluster import get_context_vectors
 from cluster_methods import SKMeansADMapping, Method as ClusterMethod
 
@@ -110,9 +110,18 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
     if ad_word_data is None: return
     model, _ = train_model(word, ad_word_data, ad_root, **params)
     if model is None: return
-    result = [(x, model(x)) for x in contexts]
+    result = []
+    confidences = []
+    for x in contexts:
+        model_ans, confidence = model(x, with_confidence=True)
+        result.append((x, model_ans))
+        confidences.append(confidence)
     with codecs.open(result_filename, 'wb', 'utf-8') as f:
-        json.dump({'word': word, 'contexts': result}, f)
+        json.dump({
+            'word': word,
+            'contexts': result,
+            'estimate': get_accuracy_estimate(confidences),
+            }, f)
     return True
 
 

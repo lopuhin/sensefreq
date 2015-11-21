@@ -134,7 +134,8 @@ class SphericalModel(SupervisedModel):
         v = self.cv(x)
         if v is None:
            #print >>sys.stderr, 'context vector is None:', ' '.join(x)
-            return self.dominant_sense
+            m_ans = self.dominant_sense
+            return (m_ans, 0.0) if with_confidence else m_ans
         ans_closeness = [
             (ans, v_closeness(v, sense_v))
             for ans, sense_v in self.sense_vectors.iteritems()]
@@ -236,12 +237,16 @@ def evaluate(model, test_data, train_data, perplexity=False):
         answers.append((x, ans, model_ans))
         confidences.append(confidence)
     n = len(answers)
-    estimate = 1.0 - sum(c < 0.05 for c in confidences) / n
+    estimate = get_accuracy_estimate(confidences)
     n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
     counts = Counter(ans for _, ans, _ in answers)
     model_counts = Counter(model_ans for _, _, model_ans in answers)
     max_count_error = max(abs(counts[s] - model_counts[s]) for s in counts)
     return (n_correct / n, max_count_error / n, estimate, answers)
+
+
+def get_accuracy_estimate(confidences):
+    return 1.0 - sum(c < 0.05 for c in confidences) / len(confidences)
 
 
 def get_baseline(labeled_data):
