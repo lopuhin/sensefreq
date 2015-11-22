@@ -151,17 +151,18 @@ class AutoEncoder(Method):
         import tensorflow as tf
         n_hidden = 20
         batch_size = 50
-        n_epochs = 200
+        n_epochs = 10
         n_features, n_input = self.features.shape
-        weights = tf.Variable(tf.random_normal([n_input, n_hidden]) * 0.01)
+        in_weights = tf.Variable(tf.random_normal([n_input, n_hidden]) * 0.01)
         in_biases = tf.Variable(tf.zeros([n_hidden]))
+        out_weights = tf.Variable(tf.random_normal([n_input, n_hidden]) * 0.01)
         out_biases = tf.Variable(tf.zeros([n_input]))
         l2_penalty = tf.constant(0.1)
         inputs = tf.placeholder(tf.float32, shape=[None, n_input])
         # build graph
-        hidden = tf.tanh(tf.matmul(inputs, weights) + in_biases)
+        hidden = tf.tanh(tf.matmul(inputs, in_weights) + in_biases)
         output = tf.tanh(
-            tf.matmul(hidden, weights, transpose_b=True) + out_biases)
+            tf.matmul(hidden, out_weights, transpose_b=True) + out_biases)
         # TODO - cosine similarity?
         loss_op = tf.nn.l2_loss(inputs - output) + \
                   l2_penalty * tf.nn.l2_loss(hidden)
@@ -176,8 +177,7 @@ class AutoEncoder(Method):
                     _, loss = sess.run(
                         [train, loss_op], feed_dict={inputs: batch})
                 print get_loss()
-            import pdb; pdb.set_trace()
-            print 'foo'
+            exit()
 
     def predict(self, vectors):
         raise NotImplementedError
