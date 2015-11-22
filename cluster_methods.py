@@ -149,14 +149,14 @@ def get_ad_centers(word, ad_descr, ad_root='.'):
 class AutoEncoder(Method):
     def cluster(self):
         import tensorflow as tf
-        n_hidden = 12
+        n_hidden = 20
         batch_size = 50
         n_epochs = 200
-        n_input = self.features.shape[1]
-        weights = tf.Variable(tf.random_normal([n_input, n_hidden]) * 0.1)
+        n_features, n_input = self.features.shape
+        weights = tf.Variable(tf.random_normal([n_input, n_hidden]) * 0.01)
         in_biases = tf.Variable(tf.zeros([n_hidden]))
         out_biases = tf.Variable(tf.zeros([n_input]))
-        l2_penalty = tf.constant(1.0)
+        l2_penalty = tf.constant(0.1)
         inputs = tf.placeholder(tf.float32, shape=[None, n_input])
         # build graph
         hidden = tf.tanh(tf.matmul(inputs, weights) + in_biases)
@@ -168,14 +168,14 @@ class AutoEncoder(Method):
         train = tf.train.AdamOptimizer().minimize(loss_op)
         with tf.Session() as sess:
             sess.run(tf.initialize_all_variables())
+            get_loss = lambda : sess.run(loss_op, feed_dict={
+                inputs: self.features, l2_penalty: 0.0}) / n_features
+            print 'initial loss', get_loss()
             for epoch in range(1, n_epochs):
                 for batch in batches(self.features, batch_size):
                     _, loss = sess.run(
                         [train, loss_op], feed_dict={inputs: batch})
-                    print loss
-                loss = sess.run(loss_op, feed_dict={
-                    inputs: self.features, l2_penalty: 0.0})
-                print 'total loss without l2 penalty', loss
+                print get_loss()
             import pdb; pdb.set_trace()
             print 'foo'
 
