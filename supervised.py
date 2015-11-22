@@ -199,10 +199,11 @@ class SupervisedWrapper(SupervisedModel):
         self.model = model
         super(SupervisedWrapper, self).__init__(train_data=[], **kwargs)
 
-    def __call__(self, x, ans=None):
+    def __call__(self, x, ans=None, with_confidence=False):
         v = self.cv(x)
         cluster = self.model.predict([v])[0]
-        return str(self.model.mapping.get(cluster))
+        m_ans = str(self.model.mapping.get(cluster))
+        return (m_ans, 0.0) if with_confidence else m_ans
 
 
 def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):

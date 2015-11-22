@@ -146,11 +146,11 @@ def get_ad_centers(word, ad_descr, ad_root='.'):
     return centers
 
 
-class SKMeansADMapping(SKMeans):
+class ADMappingMixin(object):
     ''' Do cluster mapping using Active Dictionary contexts.
     '''
     def cluster(self):
-        clusters = super(SKMeansADMapping, self).cluster()
+        clusters = super(ADMappingMixin, self).cluster()
         word = self.m['word']
         ad_descr = get_ad_word(word, self.m['ad_root'])
         ad_centers = get_ad_centers(word, ad_descr, self.m['ad_root'])
@@ -161,6 +161,10 @@ class SKMeansADMapping(SKMeans):
                     for mid, m_center in ad_centers.iteritems()),
                 key=itemgetter(1))[0]
         return clusters
+
+
+class SKMeansADMapping(ADMappingMixin, SKMeans):
+    pass
 
 
 # Methods below are slow, bad for this task, or both
