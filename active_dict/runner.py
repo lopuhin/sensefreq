@@ -17,7 +17,7 @@ from active_dict.loader import get_ad_word
 from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
     SphericalModel, SupervisedWrapper, sorted_senses, get_accuracy_estimate
 from cluster import get_context_vectors
-from cluster_methods import SKMeansADMapping, Method as ClusterMethod
+import cluster_methods
 
 
 def train_model(word, ad_word_data, ad_root, **model_params):
@@ -25,9 +25,10 @@ def train_model(word, ad_word_data, ad_root, **model_params):
     train_data = get_ad_train_data(word, ad_word_data)
     model = None
     if train_data:
-        method = SKMeansADMapping
         method = SphericalModel
-        if issubclass(method, ClusterMethod):
+        method = cluster_methods.SKMeansADMapping
+        method = cluster_methods.AutoEncoderADMapping
+        if issubclass(method, cluster_methods.Method):
             context_vectors = get_context_vectors(
                 word, os.path.join(
                     ad_root, 'contexts-100k', word.encode('utf-8') + '.txt'),

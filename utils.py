@@ -212,3 +212,8 @@ def w2v_vecs(w_list):
 
 def w2v_total_count():
     return _w2v_client().call('total_count')
+
+
+def batches(lst, batch_size):
+    for idx in xrange(0, len(lst), batch_size):
+        yield lst[idx : idx + batch_size]
