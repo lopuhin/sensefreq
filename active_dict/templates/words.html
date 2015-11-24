@@ -39,7 +39,8 @@
         <tr>
             <th>Word</th>
             <th>Senses</th>
-            <th>Est.precision</th>
+            <th>Est. precision</th>
+            <th>1st - 2nd</th>
         </tr>
     </thead>
     <tbody>
@@ -50,6 +51,11 @@
         <th>{{ len(winfo['senses']) }}</th>
         <th>{{ ('%.2f' % winfo['estimate']) if winfo.get('estimate') else '-' }}</th>
         {% set senses=winfo['senses'] %}
+        <th>
+            {% if len(senses) >= 2 %}
+            {{ '%.2f' % (senses[0]['freq'] - senses[1]['freq']) }}
+            {% end %}
+        </th>
         {% include "_word_freq.html" %}
     </tr>
     {% end %}

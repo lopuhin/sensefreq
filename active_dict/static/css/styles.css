@@ -10,6 +10,9 @@ table.freq-table td,
 table.freq-table th {
     line-height: 35px;
 }
+table.freq-table th {
+    white-space: nowrap;
+}
 table.freq-table td.freq {
     position: relative;
 }
