@@ -134,9 +134,9 @@ def summary(ad_root, ctx_dir):
         with open(os.path.join(ctx_dir, filename), 'rb') as f:
             result = json.load(f)
             word = result['word']
+            w_meta = get_ad_word(word, ad_root)
             meaning_by_id = {
-                m['id']: m['meaning']
-                for m in get_ad_word(word, ad_root)['meanings']}
+                m['id']: m['meaning'] for m in w_meta['meanings']}
             counts = Counter(ans for _, ans in result['contexts'])
             all_freqs[word] = {
                 'senses': {
@@ -145,6 +145,7 @@ def summary(ad_root, ctx_dir):
                         freq=cnt / len(result['contexts']))
                     for ans, cnt in counts.iteritems()},
                 'estimate': result.get('estimate'),
+                'is_homonym': w_meta.get('is_homonym', False),
             }
     with open(os.path.join(ctx_dir, 'summary.json'), 'wb') as f:
         json.dump(all_freqs, f)

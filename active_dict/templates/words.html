@@ -4,10 +4,44 @@
 
 <h1>{{ ctx_path }}</h1>
 
+<p>
+Homonyms:
+{% if homonyms is None %}
+<b>all</b>
+{% else %}
+<a href="{{ handler.reverse_url('words', ctx_path) }}">
+    all</a>
+{% end %}
+
+|
+
+{% if homonyms == 'yes' %}
+<b>yes</b>
+{% else %}
+<a href="{{ handler.reverse_url('words', ctx_path) }}?homonyms=yes">
+    yes</a>
+{% end %}
+
+|
+
+{% if homonyms == 'no' %}
+<b>no</b>
+{% else %}
+<a href="{{ handler.reverse_url('words', ctx_path) }}?homonyms=no">
+    no</a>
+{% end %}
+
+</p>
+
+
 <h2>Statistics</h2>
 
 <table class="table">
     <tbody>
+    <tr>
+        <th>Number of words</th>
+        <td>{{ n_words }}</td>
+    </tr>
     <tr>
         <th>First sense frequency</th>
         <td>{{ '%.2f' % first_sense_freq }}</td>

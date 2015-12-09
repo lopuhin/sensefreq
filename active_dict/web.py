@@ -44,7 +44,11 @@ class WordsHandler(BaseHandler):
     def get(self, ctx_path):
         summary = self.load('summary', ctx_path)
         words_senses = []
+        homonyms = self.get_argument('homonyms', None)
         for word, winfo in summary.iteritems():
+            if (homonyms == 'yes' and not winfo['is_homonym']) or \
+               (homonyms == 'no' and winfo['is_homonym']):
+                continue
             words_senses.append(dict(
                 winfo,
                 word=word,
@@ -55,6 +59,7 @@ class WordsHandler(BaseHandler):
             'templates/words.html',
             ctx_path=ctx_path,
             words_senses=words_senses,
+            homonyms=homonyms,
             **statistics(words_senses)
             )
 
@@ -81,6 +86,7 @@ def statistics(words_senses):
         winfo['senses'][0]['freq'] >= max_sense_threshold
         for winfo in words_senses if winfo['senses']) / len(words_senses)
     return dict(
+        n_words=len(words_senses),
         first_sense_freq=sense_freq(0),
         second_sense_freq=sense_freq(1),
         avg_senses_th=sense_avg(min_sense_threshold),

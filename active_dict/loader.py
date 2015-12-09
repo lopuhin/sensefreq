@@ -27,7 +27,7 @@ def get_ad_word(word, ad_root):
                 m['name'] = u'{} {}'.format(w['word'], m['name'])
                 meanings.append(m)
         if meanings:
-            return {'word': word, 'meanings': meanings}
+            return {'word': word, 'meanings': meanings, 'is_homonym': True}
 
 
 def parse_ad_word(data_or_word_filename):
