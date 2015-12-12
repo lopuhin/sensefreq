@@ -71,6 +71,7 @@ Homonyms:
 <table class="table tablesorter freq-table">
     <thead>
         <tr>
+            <th>ipm</th>
             <th>Word</th>
             <th>Senses</th>
             <th>Est. precision</th>
@@ -80,6 +81,7 @@ Homonyms:
     <tbody>
     {% for winfo in words_senses %}
     <tr>
+        <th>{{ winfo['ipm'] }}</th>
         <th><a href="{{ handler.reverse_url('word', ctx_path, winfo['word']) }}">
                 {{ winfo['word'] }}</a></th>
         <th>{{ len(winfo['senses']) }}</th>

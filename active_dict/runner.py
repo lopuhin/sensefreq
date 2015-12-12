@@ -8,6 +8,7 @@ import codecs
 import argparse
 import random
 import json
+import csv
 import sys
 from operator import itemgetter
 from collections import Counter
@@ -128,6 +129,7 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
 
 def summary(ad_root, ctx_dir):
     all_freqs = {}
+    word_ipm = _load_ipm(ad_root)
     for filename in os.listdir(ctx_dir):
         if not filename.endswith('.json') or filename == 'summary.json':
             continue
@@ -146,9 +148,16 @@ def summary(ad_root, ctx_dir):
                     for ans, cnt in counts.iteritems()},
                 'estimate': result.get('estimate'),
                 'is_homonym': w_meta.get('is_homonym', False),
+                'ipm': word_ipm.get(word, 0.0),
             }
     with open(os.path.join(ctx_dir, 'summary.json'), 'wb') as f:
         json.dump(all_freqs, f)
+
+
+def _load_ipm(ad_root):
+    with open(os.path.join(ad_root, 'freqs.csv'), 'rb') as f:
+        return {word.decode('utf-8'): float(ipm)
+                for word, pos, ipm in csv.reader(f) if pos == 's'}
 
 
 def _print_errors(test_accuracy, answers, ad_word_data, senses):
