@@ -19,7 +19,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 from utils import word_re, lemmatize_s, avg, avg_w_bounds, v_closeness, \
-    context_vector, bool_color, blue, magenta, bold_if
+    context_vector, jensen_shannon_divergence, \
+    bool_color, blue, magenta, bold_if
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -244,7 +245,10 @@ def evaluate(model, test_data, train_data, perplexity=False):
     counts = Counter(ans for _, ans, _ in answers)
     model_counts = Counter(model_ans for _, _, model_ans in answers)
     max_count_error = max(abs(counts[s] - model_counts[s]) for s in counts)
-    return (n_correct / n, max_count_error / n, estimate, answers)
+    all_senses = sorted(set(model_counts) | set(counts))
+    js_div = jensen_shannon_divergence(
+        [counts[s] for s in all_senses], [model_counts[s] for s in all_senses])
+    return (n_correct / n, max_count_error / n, js_div, estimate, answers)
 
 
 def get_accuracy_estimate(confidences):
@@ -369,7 +373,7 @@ def main():
             model = model_class(
                 train_data, weights=weights, verbose=args.verbose,
                 window=args.window)
-            accuracy, max_freq_error, estimate, answers = evaluate(
+            accuracy, max_freq_error, js_div, estimate, answers = evaluate(
                 model, test_data, train_data, perplexity=args.perplexity)
             if args.tsne:
                 show_tsne(model, answers, senses, word)

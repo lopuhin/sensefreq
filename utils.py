@@ -12,8 +12,7 @@ import json
 from pymystem3 import Mystem
 import msgpackrpc
 import numpy as np
-from scipy.stats import entropy
-from numpy.linalg import norm
+from scipy.special import xlogy
 
 from conf import WORD2VEC_PORT
 
@@ -221,10 +220,14 @@ def batches(lst, batch_size):
         yield lst[idx : idx + batch_size]
 
 
-def JSD(P, Q):
+def jensen_shannon_divergence(a, b):
     ''' Jensen-Shannon divergence.
     '''
-    _P = P / norm(P, ord=1)
-    _Q = Q / norm(Q, ord=1)
-    _M = 0.5 * (_P + _Q)
-    return 0.5 * (entropy(_P, _M) + entropy(_Q, _M))
+    a = np.asanyarray(a, dtype=float)
+    b = np.asanyarray(b, dtype=float)
+    a = a / a.sum(axis=0)
+    b = b / b.sum(axis=0)
+    m = (a + b)
+    m /= 2.
+    m = np.where(m, m, 1.)
+    return 0.5 * np.sum(xlogy(a, a / m) + xlogy(b, b / m), axis=0)
