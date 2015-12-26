@@ -27,8 +27,8 @@ def train_model(word, ad_word_data, ad_root, **model_params):
     model = None
     if train_data:
         method = SphericalModel
-        method = cluster_methods.SKMeansADMapping
-        method = cluster_methods.AutoEncoderADMapping
+       #method = cluster_methods.SKMeansADMapping
+       #method = cluster_methods.AutoEncoderADMapping
         if issubclass(method, cluster_methods.Method):
             context_vectors = get_context_vectors(
                 word, os.path.join(
