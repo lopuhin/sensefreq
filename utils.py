@@ -12,6 +12,8 @@ import json
 from pymystem3 import Mystem
 import msgpackrpc
 import numpy as np
+from scipy.stats import entropy
+from numpy.linalg import norm
 
 from conf import WORD2VEC_PORT
 
@@ -217,3 +219,12 @@ def w2v_total_count():
 def batches(lst, batch_size):
     for idx in xrange(0, len(lst), batch_size):
         yield lst[idx : idx + batch_size]
+
+
+def JSD(P, Q):
+    ''' Jensen-Shannon divergence.
+    '''
+    _P = P / norm(P, ord=1)
+    _Q = Q / norm(Q, ord=1)
+    _M = 0.5 * (_P + _Q)
+    return 0.5 * (entropy(_P, _M) + entropy(_Q, _M))
