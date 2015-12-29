@@ -3,6 +3,7 @@
     <head>
     <title>Sense frequecies with Russian Active Dictionary</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="IE=10; IE=9; IE=8; IE=7; IE=EDGE" />
         <link rel="icon" href="{{ static_url('img/wsd.png') }}">
         <link href="{{ static_url('bootstrap/css/bootstrap.min.css') }}" rel="stylesheet" media="screen">
         <link href="{{ static_url('bootstrap/css/bootstrap-responsive.css') }}" rel="stylesheet" media="screen">
@@ -15,9 +16,13 @@
         <script src="{{ static_url('js/jquery-1.10.0.min.js') }}"></script>
         <script src="{{ static_url('bootstrap/js/bootstrap.min.js') }}"></script>
         <script src="{{ static_url('js/jquery.tablesorter.min.js') }}"></script>
+        <script src="{{ static_url('js/jquery.floatThead.min.js') }}"></script>
         <script>
         $(document).ready(function() {
             $('table.tablesorter').tablesorter();
+            $('table.fixed-header').floatThead({
+	            position: 'auto'
+            });
         });
         </script>
         {% block extra_body %}{% end %}

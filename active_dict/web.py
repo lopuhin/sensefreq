@@ -60,6 +60,7 @@ class WordsHandler(BaseHandler):
             ctx_path=ctx_path,
             words_senses=words_senses,
             homonyms=homonyms,
+            default_max_senses=12,
             **statistics(words_senses)
             )
 
@@ -114,6 +115,7 @@ class CompareHandler(BaseHandler):
             'templates/compare.html',
             ctx_path_1=ctx_path_1,
             ctx_path_2=ctx_path_2,
+            default_max_senses=12,
             **compare_statistics(summary1, summary2)
             )
 

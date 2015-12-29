@@ -24,6 +24,15 @@ table.freq-table div.freq {
     width: 30px;
 }
 
+table.fixed-header thead {
+    background: white;
+    border-bottom: 1px solid silver;
+}
+table.fixed-header.freq-table {
+    /* fix header for malformed (because of long senses) table */
+    width: auto !important;
+}
+
 /* tablesorter */
 
 th.header {
