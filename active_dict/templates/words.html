@@ -62,6 +62,12 @@ Homonyms:
         <th>Ratio of words with one dominant (&ge; {{ max_sense_threshold}}) sense</th>
         <td>{{ '%.2f' % dominant_ratio }}</td>
     </tr>
+    {% if ad_first_ratio is not None %}
+    <tr>
+        <th>Ratio of words where dictionary sense is the most frequent (excluding homonyms)</th>
+        <td>{{ '%.2f' % ad_first_ratio }}</td>
+    </tr>
+    {% end %}
     </tbody>
 </table>
 

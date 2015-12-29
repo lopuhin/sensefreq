@@ -85,6 +85,14 @@ def statistics(words_senses):
     dominant_ratio = sum(
         winfo['senses'][0]['freq'] >= max_sense_threshold
         for winfo in words_senses if winfo['senses']) / len(words_senses)
+    without_homonyms = [
+        winfo for winfo in words_senses if not winfo['is_homonym']]
+    if without_homonyms:
+        ad_first_ratio = sum(
+            winfo['senses'][0]['id'] == '1' for winfo in without_homonyms) / \
+            len(without_homonyms)
+    else:
+        ad_first_ratio = None
     return dict(
         n_words=len(words_senses),
         first_sense_freq=sense_freq(0),
@@ -94,6 +102,7 @@ def statistics(words_senses):
         min_sense_threshold=min_sense_threshold,
         max_sense_threshold=max_sense_threshold,
         dominant_ratio=dominant_ratio,
+        ad_first_ratio=ad_first_ratio,
         )
 
 
