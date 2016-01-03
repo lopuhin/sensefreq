@@ -78,7 +78,8 @@ def get_labeled_ctx(filename):
 
 class SupervisedModel(object):
     def __init__(self, train_data,
-            weights=None, excl_stopwords=True, verbose=False, window=None):
+            weights=None, excl_stopwords=True, verbose=False, window=None,
+            w2v_weights=None):
         self.train_data = train_data
         self.examples = defaultdict(list)
         for x, ans in self.train_data:
@@ -87,6 +88,7 @@ class SupervisedModel(object):
         self.window = window
         self.excl_stopwords = excl_stopwords
         self.weights = weights
+        self.w2v_weights = w2v_weights
         self.sense_vectors = None
         self.context_vectors = {
             ans: np.array([cv for cv in map(self.cv, xs) if cv is not None])
@@ -105,7 +107,9 @@ class SupervisedModel(object):
             before, after = before[-self.window:], after[:self.window]
         words = before + after
         cv, w_vectors, w_weights = context_vector(
-            words, excl_stopwords=self.excl_stopwords, weights=self.weights)
+            words, excl_stopwords=self.excl_stopwords,
+            weights=self.weights,
+            weight_word=word if self.w2v_weights else None)
         if self.verbose and self.weights is not None and self.sense_vectors:
             print_verbose_repr(
                 words, w_vectors, w_weights,
@@ -344,6 +348,7 @@ def main():
     arg('--window', type=int, default=10)
     arg('--semeval2007', action='store_true')
     arg('--no-weights', action='store_true')
+    arg('--w2v-weights', action='store_true')
     args = parser.parse_args()
 
     if args.semeval2007:
@@ -370,7 +375,8 @@ def main():
             word = filename
         else:
             word = filename.split('/')[-1].split('.')[0].decode('utf-8')
-        weights = None if args.no_weights else load_weights(word)
+        weights = None if (args.no_weights or args.w2v_weights) else \
+                  load_weights(word)
         test_accuracy, train_accuracy, estimates, word_freq_errors = [], [], [], []
         if args.semeval2007:
             senses, test_data, train_data = semeval2007_data[word]
@@ -390,7 +396,7 @@ def main():
            #        len(test_data), len(train_data))
             model = model_class(
                 train_data, weights=weights, verbose=args.verbose,
-                window=args.window)
+                window=args.window, w2v_weights=args.w2v_weights)
             accuracy, max_freq_error, js_div, estimate, answers = evaluate(
                 model, test_data, train_data, perplexity=args.perplexity)
             if args.tsne:

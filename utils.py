@@ -132,15 +132,22 @@ def v_closeness(v1, v2):
     return np.dot(unitvec(v1), unitvec(v2))
 
 
-def context_vector(words, excl_stopwords=True, weights=None, w2v_cache=None):
+def context_vector(words,
+        excl_stopwords=True, weights=None, w2v_cache=None, weight_word=None):
     if w2v_cache:
         w_vectors = [w2v_cache[w] for w in words]
     else:
         w_vectors = [np.array(v, dtype=np.float32) if v else None
                     for v in w2v_vecs(words)]
     w_weights = [1.0] * len(words)
+    missing_weight = 0.2
     if weights is not None:
-        w_weights = [weights.get(w, 0.2) for w in words]
+        w_weights = [weights.get(w, missing_weight) for w in words]
+    elif weight_word is not None:
+        word_vector = np.array(w2v_vec(weight_word), dtype=np.float32)
+        w_weights = [
+            2.0 * max(0.0, v_closeness(w_v, word_vector))
+            if w_v is not None else missing_weight for w_v in w_vectors]
     v_weights = [(v, weight)
         for w, v, weight in zip(words, w_vectors, w_weights)
         if v is not None and (not excl_stopwords or w not in STOPWORDS)]
