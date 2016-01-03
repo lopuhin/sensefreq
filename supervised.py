@@ -21,6 +21,7 @@ import matplotlib.patches as mpatches
 from utils import word_re, lemmatize_s, avg, avg_w_bounds, v_closeness, \
     context_vector, jensen_shannon_divergence, \
     bool_color, blue, magenta, bold_if
+from semeval2007 import load_semeval2007
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -341,31 +342,48 @@ def main():
     arg('--n-runs', type=int, default=4)
     arg('--tsne', action='store_true')
     arg('--window', type=int, default=10)
+    arg('--semeval2007', action='store_true')
+    arg('--no-weights', action='store_true')
     args = parser.parse_args()
 
-    if os.path.isdir(args.path):
-        filenames = [os.path.join(args.path, f) for f in os.listdir(args.path)
-                     if f.endswith('.txt')]
+    if args.semeval2007:
+        semeval2007_data = load_semeval2007(args.path)
+        filenames = list(semeval2007_data)
     else:
-        filenames = [args.path]
-    filenames.sort()
+        if os.path.isdir(args.path):
+            filenames = [os.path.join(args.path, f) for f in os.listdir(args.path)
+                        if f.endswith('.txt')]
+        else:
+            filenames = [args.path]
+        filenames.sort()
 
     baselines = []
     accuracies = []
     freq_errors = []
     model_class = SphericalModel
+    wjust = 20
     print u'\t'.join([
-        'word', 'b-line', 'train acc.', 'test acc.', 'max_freq_err',
-        'estimate'])
+        'word'.ljust(wjust), 'senses', 'b-line',
+        'train', 'test', 'freq', 'estimate'])
     for filename in filenames:
-        word = filename.split('/')[-1].split('.')[0].decode('utf-8')
-        weights = load_weights(word)
+        if args.semeval2007:
+            word = filename
+        else:
+            word = filename.split('/')[-1].split('.')[0].decode('utf-8')
+        weights = None if args.no_weights else load_weights(word)
         test_accuracy, train_accuracy, estimates, word_freq_errors = [], [], [], []
-        baseline = get_baseline(get_labeled_ctx(filename)[1])
+        if args.semeval2007:
+            senses, test_data, train_data = semeval2007_data[word]
+           #print '%s: %d senses, %d test, %d train' % (
+           #    word, len(senses), len(test_data), len(train_data))
+            baseline = get_baseline(test_data + train_data)
+        else:
+            baseline = get_baseline(get_labeled_ctx(filename)[1])
         random.seed(1)
         for i in xrange(args.n_runs):
-            senses, test_data, train_data = \
-                get_ans_test_train(filename, n_train=args.n_train)
+            if not args.semeval2007:
+                senses, test_data, train_data = \
+                    get_ans_test_train(filename, n_train=args.n_train)
            #if i == 0:
            #    print '%s: %d senses' % (word, len(senses) - 2)  # "n/a" and "other"
            #    print '%d test samples, %d train samples' % (
@@ -382,20 +400,21 @@ def main():
             test_accuracy.append(accuracy)
             estimates.append(estimate)
             train_accuracy.append(model.get_train_accuracy(verbose=False))
-            # TODO - average freq predictions and take freq error afterwards?
             word_freq_errors.append(max_freq_error)
         accuracies.extend(test_accuracy)
         freq_errors.extend(word_freq_errors)
         baselines.append(baseline)
-        print u'%s\t%.2f\t%s\t%s\t%s\t%s' % (
-            word, baseline,
-            avg_w_bounds(train_accuracy),
-            avg_w_bounds(test_accuracy),
-            avg_w_bounds(word_freq_errors),
-            avg_w_bounds(estimates))
+        avg_fmt = avg_w_bounds if args.n_runs > 1 else \
+            (lambda x: '%.2f' % avg(x))
+        print u'%s\t%d\t%.2f\t%s\t%s\t%s\t%s' % (
+            word.ljust(wjust), len(senses), baseline,
+            avg_fmt(train_accuracy),
+            avg_fmt(test_accuracy),
+            avg_fmt(word_freq_errors),
+            avg_fmt(estimates))
     print
     print 'baseline: %.3f' % avg(baselines)
-    print '     avg: %.3f' % avg(accuracies)
+    print 'test acc: %.3f' % avg(accuracies)
     print 'freq err: %.3f' % avg(freq_errors)
     if len(filenames) == 1:
         print '\n'.join('%s: %s' % (ans, s)
