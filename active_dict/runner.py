@@ -68,17 +68,19 @@ def evaluate_words(filename, **params):
         words = [l.strip() for l in f]
     all_metrics = []
     metric_names = ['train', 'test', 'freq', 'JSD', 'confidence']
-    print u'\t'.join(['word'] + metric_names)
+    wjust = 20
+    print u'\t'.join(['word'.ljust(wjust)] + metric_names)
     for word in sorted(words):
         metrics = evaluate_word(word, **params)
         if metrics is not None:
             all_metrics.append(metrics)
-            print u'%s\t%s' % (word, '\t'.join('%.2f' % v for v in metrics))
+            print u'%s\t%s' % (
+                word.ljust(wjust), '\t'.join('%.2f' % v for v in metrics))
         else:
             print u'%s\tmissing' % word
-    print u'Avg.\t%s' % '\t'.join(
+    print u'%s\t%s' % ('Avg.'.ljust(wjust), '\t'.join(
         '%.2f' % avg(metrics[i] for metrics in all_metrics)
-        for i, _ in enumerate(metric_names))
+        for i, _ in enumerate(metric_names)))
 
 
 def run_on_words(ctx_dir, **params):
