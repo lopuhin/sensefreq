@@ -110,7 +110,7 @@ class SupervisedModel(object):
             words, excl_stopwords=self.excl_stopwords,
             weights=self.weights,
             weight_word=word if self.w2v_weights else None)
-        if self.verbose and self.weights is not None and self.sense_vectors:
+        if self.verbose and self.sense_vectors:
             print_verbose_repr(
                 words, w_vectors, w_weights,
                 sense_vectors=self.sense_vectors)
