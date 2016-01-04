@@ -346,6 +346,7 @@ def main():
     arg('--n-runs', type=int, default=4)
     arg('--tsne', action='store_true')
     arg('--window', type=int, default=10)
+    arg('--only')
     arg('--semeval2007', action='store_true')
     arg('--no-weights', action='store_true')
     arg('--w2v-weights', action='store_true')
@@ -375,6 +376,8 @@ def main():
             word = filename
         else:
             word = filename.split('/')[-1].split('.')[0].decode('utf-8')
+        if args.only and word != args.only.decode('utf-8'):
+            continue
         weights = None if (args.no_weights or args.w2v_weights) else \
                   load_weights(word)
         test_accuracy, train_accuracy, estimates, word_freq_errors = [], [], [], []
