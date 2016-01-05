@@ -363,13 +363,11 @@ def main():
             filenames = [args.path]
         filenames.sort()
 
-    baselines = []
-    accuracies = []
-    freq_errors = []
+    mfs_baselines, accuracies, freq_errors = [], [], []
     model_class = SphericalModel
     wjust = 20
     print u'\t'.join([
-        'word'.ljust(wjust), 'senses', 'b-line',
+        'word'.ljust(wjust), 'senses', 'MFS',
         'train', 'test', 'freq', 'estimate'])
     for filename in filenames:
         if args.semeval2007:
@@ -385,9 +383,9 @@ def main():
             senses, test_data, train_data = semeval2007_data[word]
            #print '%s: %d senses, %d test, %d train' % (
            #    word, len(senses), len(test_data), len(train_data))
-            baseline = get_mfs_baseline(test_data + train_data)
+            mfs_baseline = get_mfs_baseline(test_data + train_data)
         else:
-            baseline = get_mfs_baseline(get_labeled_ctx(filename)[1])
+            mfs_baseline = get_mfs_baseline(get_labeled_ctx(filename)[1])
         random.seed(1)
         for i in xrange(args.n_runs):
             if not args.semeval2007:
@@ -412,17 +410,17 @@ def main():
             word_freq_errors.append(max_freq_error)
         accuracies.extend(test_accuracy)
         freq_errors.extend(word_freq_errors)
-        baselines.append(baseline)
-        avg_fmt = avg_w_bounds if args.n_runs > 1 else \
-            (lambda x: '%.2f' % avg(x))
+        mfs_baselines.append(mfs_baseline)
+        avg_fmt = lambda x: '%.2f' % avg(x)
+        #if args.n_runs > 1: avg_fmt = avg_w_bounds
         print u'%s\t%d\t%.2f\t%s\t%s\t%s\t%s' % (
-            word.ljust(wjust), len(senses), baseline,
+            word.ljust(wjust), len(senses), mfs_baseline,
             avg_fmt(train_accuracy),
             avg_fmt(test_accuracy),
             avg_fmt(word_freq_errors),
             avg_fmt(estimates))
     print
-    print 'baseline: %.3f' % avg(baselines)
+    print 'MSF     : %.3f' % avg(mfs_baselines)
     print 'test acc: %.3f' % avg(accuracies)
     print 'freq err: %.3f' % avg(freq_errors)
     if len(filenames) == 1:
