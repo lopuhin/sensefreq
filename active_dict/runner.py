@@ -16,7 +16,8 @@ from collections import Counter
 from utils import word_re, lemmatize_s, avg
 from active_dict.loader import get_ad_word
 from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
-    SphericalModel, SupervisedWrapper, sorted_senses, get_accuracy_estimate
+    SphericalModel, SupervisedWrapper, sorted_senses, get_accuracy_estimate, \
+    get_mfs_baseline
 from cluster import get_context_vectors
 import cluster_methods
 
@@ -50,6 +51,7 @@ def train_model(word, ad_word_data, ad_root, **model_params):
 def evaluate_word(word, ad_root, print_errors=False, **model_params):
     senses, test_data = get_labeled_ctx(
         os.path.join('ann', 'dialog7-exp', word + '.txt'))
+    mfs_baseline = get_mfs_baseline(test_data)
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data: return
     model, train_data = train_model(
@@ -59,7 +61,7 @@ def evaluate_word(word, ad_root, print_errors=False, **model_params):
         evaluate(model, test_data, train_data)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
-    return model.get_train_accuracy(verbose=False), \
+    return mfs_baseline, model.get_train_accuracy(verbose=False), \
            test_accuracy, max_freq_error, js_div, confidence
 
 
@@ -67,7 +69,7 @@ def evaluate_words(filename, **params):
     with codecs.open(filename, 'rb', 'utf-8') as f:
         words = [l.strip() for l in f]
     all_metrics = []
-    metric_names = ['train', 'test', 'freq', 'JSD', 'confidence']
+    metric_names = ['MFS', 'train', 'test', 'freq', 'JSD', 'confidence']
     wjust = 20
     print u'\t'.join(['word'.ljust(wjust)] + metric_names)
     for word in sorted(words):

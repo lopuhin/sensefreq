@@ -260,7 +260,7 @@ def get_accuracy_estimate(confidences):
     return 1.0 - sum(c < 0.05 for c in confidences) / len(confidences)
 
 
-def get_baseline(labeled_data):
+def get_mfs_baseline(labeled_data):
     sense_freq = defaultdict(int)
     for __, ans in labeled_data:
         sense_freq[ans] += 1
@@ -385,9 +385,9 @@ def main():
             senses, test_data, train_data = semeval2007_data[word]
            #print '%s: %d senses, %d test, %d train' % (
            #    word, len(senses), len(test_data), len(train_data))
-            baseline = get_baseline(test_data + train_data)
+            baseline = get_mfs_baseline(test_data + train_data)
         else:
-            baseline = get_baseline(get_labeled_ctx(filename)[1])
+            baseline = get_mfs_baseline(get_labeled_ctx(filename)[1])
         random.seed(1)
         for i in xrange(args.n_runs):
             if not args.semeval2007:
