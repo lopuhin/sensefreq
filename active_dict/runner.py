@@ -50,7 +50,7 @@ def train_model(word, ad_word_data, ad_root, **model_params):
 
 def evaluate_word(word, ad_root, print_errors=False, **model_params):
     senses, test_data = get_labeled_ctx(
-        os.path.join('ann', 'dialog7-exp', word + '.txt'))
+        os.path.join('ann', 'ad', word + '.txt'))
     mfs_baseline = get_mfs_baseline(test_data)
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data: return
@@ -81,7 +81,7 @@ def evaluate_words(filename, **params):
         else:
             print u'%s\tmissing' % word
     print u'%s\t%s' % ('Avg.'.ljust(wjust), '\t'.join(
-        '%.2f' % avg(metrics[i] for metrics in all_metrics)
+        '%.3f' % avg(metrics[i] for metrics in all_metrics)
         for i, _ in enumerate(metric_names)))
 
 
