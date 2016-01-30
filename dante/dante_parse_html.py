@@ -60,19 +60,17 @@ class DanteParser(HTMLParser):
         self.curr_ex = ""
         self.curr_word = ""
         self.curr_id = 0
+        self.in_mweblk = False
         self.curr_sense = DanteSense()
 
         self.senses = []
 
     def handle_starttag(self, tag, attrs):
-        if tag == "p:sensecont":
-            if not self.curr_sense.empty():
-                self.curr_id += 1
-                self.curr_sense.sens_num = self.curr_id
-                self.curr_sense.word = self.curr_word
-                self.senses.append(self.curr_sense)
+        if tag == "p:mweblk":
+            self.in_mweblk = True
 
-            self.curr_sense = DanteSense()
+        if self.in_mweblk:
+            return
 
         if tag == "p:pos":
             self.curr_sense.pos = self._get_first_attr(attrs, "p:code")
@@ -87,6 +85,14 @@ class DanteParser(HTMLParser):
             self.in_ex = True
 
     def handle_endtag(self, tag):
+        if tag == "p:sensecont":
+            if not self.curr_sense.empty():
+                self.curr_id += 1
+                self.curr_sense.sens_num = self.curr_id
+                self.curr_sense.word = self.curr_word
+                self.senses.append(self.curr_sense)
+            self.curr_sense = DanteSense()
+
         if tag == "span":
             self.in_sense = False
 
@@ -95,6 +101,9 @@ class DanteParser(HTMLParser):
 
         if tag == "p:meaning":
             self.in_meaning = False
+
+        if tag == "p:mweblk":
+            self.in_mweblk = False
 
         if tag == "p:ex":
             self.in_ex = False
@@ -151,7 +160,7 @@ def process_dir(inp_dir, out_dir):
         if not inp_path.endswith("html"):
             continue
 
-        out_path = fname.split("_")[0] + ".dante.raw.json"
+        out_path = fname.split("_")[0] + ".json"
         out_path = os.path.join(out_dir, out_path)
         process_file(inp_path, out_path)
 
