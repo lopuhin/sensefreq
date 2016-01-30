@@ -37,6 +37,9 @@ def get_word_ids(inp):
 
 
 def download_data(word_ids, out_dir):
+    if not os.path.isdir(out_dir):
+        os.mkdir(out_dir)
+
     for word, entry_id in word_ids:
         data = get_url(entry_id)
         out_path = os.path.join(out_dir, "{}_{}.html".format(word, entry_id))
