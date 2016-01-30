@@ -102,6 +102,7 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
         return
     result_filename = os.path.join(ctx_dir, word.encode('utf-8') + '.json')
     if os.path.exists(result_filename):
+        print >>sys.stderr, result_filename, "already exists, skiping"
         return True
     with codecs.open(
             os.path.join(ctx_dir, ctx_filename), 'rb', 'utf-8') as f:
