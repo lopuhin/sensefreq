@@ -59,7 +59,7 @@ class DanteParser(HTMLParser):
 
         self.curr_ex = ""
         self.curr_word = ""
-        self.curr_id = 1
+        self.curr_id = 0
         self.curr_sense = DanteSense()
 
         self.senses = []
@@ -120,8 +120,8 @@ class DanteParser(HTMLParser):
                 return value
 
 
-def process_file(fpath, out):
-    with open(fpath) as inp:
+def process_file(inp_path, out_path):
+    with open(inp_path) as inp:
         parser = DanteParser()
         for line in inp:
             parser.feed(line)
@@ -132,22 +132,28 @@ def process_file(fpath, out):
     for sense in parser.senses:
         res["meanings"].append(sense.to_json_d())
 
-    json.dump(
-        res, out,
-        sort_keys=True,
-        ensure_ascii=False,
-        # indent=4,
-    )
-    print >>out
+    with codecs.open(out_path, "w", "utf-8") as out:
+        json.dump(
+            res, out,
+            sort_keys=True,
+            ensure_ascii=False,
+            indent=4,
+        )
 
 
-def process_dir(inp_dir, out):
+def process_dir(inp_dir, out_dir):
+    if not os.path.isdir(out_dir):
+        os.mkdir(out_dir)
+
     for fname in os.listdir(inp_dir):
         logging.info("processing " + fname)
-        fpath = os.path.join(inp_dir, fname)
-        if not fpath.endswith("html"):
+        inp_path = os.path.join(inp_dir, fname)
+        if not inp_path.endswith("html"):
             continue
-        process_file(fpath, out)
+
+        out_path = fname.split("_")[0] + ".dante.json"
+        out_path = os.path.join(out_dir, out_path)
+        process_file(inp_path, out_path)
 
 
 def main():
@@ -161,14 +167,12 @@ def main():
     )
     parser.add_argument(
         "-o", "--out",
-        default=codecs.getwriter("utf-8")(sys.stdout),
-        type=lambda s: codecs.open(s, "w", "utf-8"),
-        help="out file",
+        help="output directory",
     )
     args = parser.parse_args()
 
-    with args.out as out:
-        process_dir(args.inp, out)
+    process_dir(args.inp, args.out)
+
 
 if __name__ == "__main__":
     # logging format description
