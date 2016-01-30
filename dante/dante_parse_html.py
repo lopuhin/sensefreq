@@ -129,7 +129,7 @@ class DanteParser(HTMLParser):
                 return value
 
 
-def process_file(inp_path, out_path):
+def process_file(inp_path, out_path, filt_pos):
     with open(inp_path) as inp:
         parser = DanteParser()
         for line in inp:
@@ -139,6 +139,8 @@ def process_file(inp_path, out_path):
     res["word"] = parser.curr_word.strip()
     res["meanings"] = []
     for sense in parser.senses:
+        if filt_pos and sense.pos.strip() != filt_pos:
+            continue
         res["meanings"].append(sense.to_json_d())
 
     with codecs.open(out_path, "w", "utf-8") as out:
@@ -150,7 +152,7 @@ def process_file(inp_path, out_path):
         )
 
 
-def process_dir(inp_dir, out_dir):
+def process_dir(inp_dir, out_dir, filt_pos=None):
     if not os.path.isdir(out_dir):
         os.mkdir(out_dir)
 
@@ -162,7 +164,7 @@ def process_dir(inp_dir, out_dir):
 
         out_path = fname.split("_")[0] + ".json"
         out_path = os.path.join(out_dir, out_path)
-        process_file(inp_path, out_path)
+        process_file(inp_path, out_path, filt_pos)
 
 
 def main():
@@ -175,12 +177,17 @@ def main():
         help="input dir with htmls",
     )
     parser.add_argument(
+        "-f", "--filtpos",
+        choices=("n"),
+        help="filter part of speach",
+    )
+    parser.add_argument(
         "-o", "--out",
         help="output directory",
     )
     args = parser.parse_args()
 
-    process_dir(args.inp, args.out)
+    process_dir(args.inp, args.out, args.filtpos)
 
 
 if __name__ == "__main__":
