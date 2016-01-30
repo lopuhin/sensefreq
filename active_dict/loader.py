@@ -31,13 +31,10 @@ def get_ad_word(word, ad_root):
 
 
 def parse_ad_word(data_or_word_filename):
-    if not isinstance(data_or_word_filename, dict):
-        with open(data_or_word_filename, 'rb') as f:
-            data = json.load(f)
-            if data_or_word_filename.endswith(".raw.json"):
-                return data
-    else:
-        data = data_or_word_filename
+    with open(data_or_word_filename, 'rb') as f:
+        data = json.load(f)
+        if 'word' in data and 'meanings' in data:
+            return data
     return {
         'word': data[u'СЛОВО'],
         'meanings': [{

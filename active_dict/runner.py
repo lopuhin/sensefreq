@@ -157,9 +157,13 @@ def summary(ad_root, ctx_dir):
 
 
 def _load_ipm(ad_root):
-    with open(os.path.join(ad_root, 'freqs.csv'), 'rb') as f:
-        return {word.decode('utf-8'): float(ipm)
-                for word, pos, ipm in csv.reader(f) if pos == 's'}
+    filename = os.path.join(ad_root, 'freqs.csv')
+    if os.path.exists(filename):
+        with open(filename, 'rb') as f:
+            return {word.decode('utf-8'): float(ipm)
+                    for word, pos, ipm in csv.reader(f) if pos == 's'}
+    else:
+        return {}
 
 
 def _print_errors(test_accuracy, answers, ad_word_data, senses):
