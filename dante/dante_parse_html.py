@@ -138,9 +138,15 @@ def process_file(inp_path, out_path, filt_pos):
     res = {}
     res["word"] = parser.curr_word.strip()
     res["meanings"] = []
+
+    cur_id = 0
     for sense in parser.senses:
         if filt_pos and sense.pos.strip() != filt_pos:
             continue
+
+        # id's should be continuous
+        cur_id += 1
+        sense.sens_num = cur_id
         res["meanings"].append(sense.to_json_d())
 
     with codecs.open(out_path, "w", "utf-8") as out:
