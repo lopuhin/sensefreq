@@ -18,7 +18,19 @@ import time
 import urllib2
 
 
-DANTE_URL="http://dante.dps.idm.fr/web/search/dante?_action=browseSingleEntry&projectCode=NEID_LEXMC&displayType=ENTRIES_ONLY&usePositionIdForDisplay=true&entryId={entryId}&styleName=SummaryVersion"
+DANTE_URL = "".join([
+    "http://dante.dps.idm.fr/web/search/dante?",
+    "&".join([
+        "_action=browseSingleEntry",
+        "projectCode=NEID_LEXMC",
+        "displayType=ENTRIES_ONLY"
+        "usePositionIdForDisplay=true",
+        "styleName=SummaryVersion",
+        "entryId={entryId}",
+    ]),
+])
+
+
 def get_url(entry_id):
     url = DANTE_URL.format(entryId=entry_id)
     conn = urllib2.urlopen(url)
@@ -41,10 +53,12 @@ def download_data(word_ids, out_dir):
         os.mkdir(out_dir)
 
     for word, entry_id in word_ids:
+        logging.info("fetching {}...".format(word))
         data = get_url(entry_id)
         out_path = os.path.join(out_dir, "{}_{}.html".format(word, entry_id))
         with open(out_path, "w") as out:
             out.write(data)
+
 
 def main():
     parser = argparse.ArgumentParser(
