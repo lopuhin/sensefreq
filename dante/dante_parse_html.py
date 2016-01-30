@@ -151,7 +151,7 @@ def process_dir(inp_dir, out_dir):
         if not inp_path.endswith("html"):
             continue
 
-        out_path = fname.split("_")[0] + ".dante.json"
+        out_path = fname.split("_")[0] + ".dante.raw.json"
         out_path = os.path.join(out_dir, out_path)
         process_file(inp_path, out_path)
 
