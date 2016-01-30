@@ -1,0 +1,8 @@
+arc	1435377
+base	1443420
+address	1425269
+goose	1533223
+automaton	1439766
+band	1442272
+wagon	1705787
+guide	1536499
