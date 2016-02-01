@@ -4,11 +4,6 @@
 
 <h1>Sense frequencies with Russian Active Dictionary</h1>
 
-<p>Source code available at
-<a href="https://bitbucket.org/kostialopuhin/context-clustering/">
-    https://bitbucket.org/kostialopuhin/context-clustering/
-</a>
-
 <h2>Corpora</h2>
 
 <ul>
@@ -34,6 +29,33 @@
     {% end %}
     {% end %}
 </ul>
+
+<h2>Downloads</h2>
+
+<ul>
+    <li>
+    <a href="https://bitbucket.org/kostialopuhin/context-clustering/">
+        Source code
+    </a>
+    </li>
+
+    <li>Word2Vec models in <a href="https://radimrehurek.com/gensim/">gensim</a>
+    format:
+    <ul>
+        <li>
+        <a href="{{ root }}sg_alldig_w5_d1024_m40.pkl">sg_alldig_w5_d1024_m40.pkl</a>
+        </li>
+        <li>
+        <a href="{{ root }}sg_alldig_w5_d1024_m40.pkl.syn0.npy">sg_alldig_w5_d1024_m40.pkl.syn0.npy</a>
+        </li>
+        <li>
+        <a href="{{ root }}sg_alldig_w5_d1024_m40.pkl.syn1.npy">sg_alldig_w5_d1024_m40.pkl.syn1.npy</a>
+        </li>
+    </ul>
+    </li>
+
+    <li>Weights (built from contexts): <a href="{{ root }}weights.7z">weights.7z</a>
+    </li>
 
 
 {% end %}
