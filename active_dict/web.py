@@ -3,6 +3,7 @@
 
 from __future__ import division
 
+import re
 import json
 import os.path
 import argparse
@@ -18,7 +19,7 @@ from active_dict.loader import get_ad_word
 
 class BaseHandler(RequestHandler):
     def load(self, name, *path):
-        path = [self.ad_root] + list(path) + [name.encode('utf-8') + '.json']
+        path = [self.ad_root] + list(path) + [name + '.json']
         with open(os.path.join(*path), 'rb') as f:
             return json.load(f)
 
@@ -171,6 +172,24 @@ class WordHandler(BaseHandler):
             contexts=contexts)
 
 
+class PosListHandler(BaseHandler):
+    def get(self, pos):
+        name_re = re.compile(r'(\w.*?)\d?\.json', re.U)
+        words = {m.groups()[0] for m in (
+            name_re.match(filename.decode('utf-8'))
+            for filename in os.listdir(os.path.join(self.ad_root, 'ad')))
+            if m is not None}
+        words_info = []
+        for w in sorted(words):
+            w_info = get_ad_word(w, self.ad_root, with_contexts=False)
+            if w_info is not None and w_info['pos'] == pos:
+                words_info.append(w_info)
+        self.render(
+            'templates/pos_list.html',
+            pos=pos,
+            words_info=words_info)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('ad_root')
@@ -182,6 +201,7 @@ def main():
         url(r'/c/([^/]+)/([^/]+)', CompareHandler, name='compare'),
         url(r'/w/([^/]+)', WordsHandler, name='words'),
         url(r'/w/([^/]+)/(.*)', WordHandler, name='word'),
+        url(r'/pos/(.*?)/', PosListHandler, name='pos_list'),
         ],
         static_path='./active_dict/static',
         **vars(args)
