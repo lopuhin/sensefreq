@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Part of speech: {{ pos }}</h1>
+
+<table class="table tablesorter">
+    <thead>
+    <tr>
+        <th>#Senses</th>
+        <th>Word</th>
+        <th>Senses</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for w_info in words_info %}
+    <tr>
+        <td>{{ len(w_info['meanings']) }}</td>
+        <td>{{ w_info['word'] }}</td>
+        <td>
+            <ol>
+                {% for sense in w_info['meanings'] %}
+                <li><b>{{ sense['name'] }}</b>: {{ sense['meaning'] }}</li>
+                {% end %}
+            </ol>
+        </td>
+    </tr>
+    {% end %}
+    </tbody>
+</table>
+
+{% end %}

@@ -8,12 +8,12 @@ import itertools
 import os.path
 
 
-def get_ad_word(word, ad_root):
+def get_ad_word(word, ad_root, with_contexts=True):
     get_filename = lambda w: \
         os.path.join(ad_root, 'ad', w.encode('utf-8') + '.json')
     word_filename = get_filename(word)
     if os.path.exists(word_filename):
-        return parse_ad_word(word_filename)
+        return parse_ad_word(word_filename, with_contexts=with_contexts)
     else:
         # Maybe homonyms? Stored as "wordN".
         meanings = []
@@ -21,27 +21,30 @@ def get_ad_word(word, ad_root):
             filename = get_filename(u'{}{}'.format(word, i))
             if not os.path.exists(filename):
                 break
-            w = parse_ad_word(filename)
+            w = parse_ad_word(filename, with_contexts=with_contexts)
+            pos = w.get('pos')
             for m in w.get('meanings', []):
                 m['id'] = str(len(meanings) + 1)
                 m['name'] = u'{} {}'.format(w['word'], m['name'])
                 meanings.append(m)
         if meanings:
-            return {'word': word, 'meanings': meanings, 'is_homonym': True}
+            return {'word': word, 'meanings': meanings, 'is_homonym': True,
+                    'pos': pos}
 
 
-def parse_ad_word(data_or_word_filename):
+def parse_ad_word(data_or_word_filename, with_contexts=True):
     with open(data_or_word_filename, 'rb') as f:
         data = json.load(f)
         if 'word' in data and 'meanings' in data:
             return data
     return {
         'word': data[u'СЛОВО'],
+        'pos': data.get(u'ЧАСТЬ РЕЧИ'),
         'meanings': [{
             'id': str(i + 1),
             'name': m[u'НАЗВАНИЕ'],
             'meaning': m[u'ЗНАЧЕНИЕ'],
-            'contexts': _get_contexts(m),
+            'contexts': _get_contexts(m) if with_contexts else None,
             } for i, m in enumerate(data[u'ЗНАЧЕНИЯ'])]
     }
 
