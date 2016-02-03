@@ -38,7 +38,7 @@ class IndexHandler(BaseHandler):
         self.render(
             'templates/index.html',
             context_paths=context_paths,
-            root=self.ad_root.rstrip('/') + '/',
+            root='/download/',
             )
 
 

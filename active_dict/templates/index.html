@@ -4,7 +4,7 @@
 
 <h1>Sense frequencies with Russian Active Dictionary</h1>
 
-<h2>Corpora</h2>
+<h3>Corpora</h3>
 
 <ul>
     {% for ctx_path in context_paths %}
@@ -15,7 +15,7 @@
     {% end %}
 </ul>
 
-<h2>Compare corpora</h2>
+<h3>Compare corpora</h3>
 
 <ul>
     {% for ctx_path_1 in context_paths %}
@@ -30,7 +30,7 @@
     {% end %}
 </ul>
 
-<h2>Downloads</h2>
+<h3>Downloads</h3>
 
 <ul>
     <li>
@@ -56,6 +56,17 @@
 
     <li>Weights (built from contexts): <a href="{{ root }}weights.7z">weights.7z</a>
     </li>
+</ul>
 
+<h3>Publications</h3>
+
+<ul>
+    <li>
+    <a href="{{ root }}Automated_Word_Sense_Frequency_Estimation_for_Russian_Nouns_Lopukhina_et_al.pdf">
+        Automated Word Sense Frequency Estimation for Russian Nouns, 2016.</a>
+        Anastasiya Lopukhina, Konstantin Lopukhin, Grigory Nosyrev.
+    </a>
+    </li>
+</ul>
 
 {% end %}
