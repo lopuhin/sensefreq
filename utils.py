@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-
+from __future__ import print_function
 import re
 import time
 import math
@@ -39,7 +39,7 @@ def debug_exec(*deco_args, **deco_kwargs):
         def inner(*args, **kwargs):
             if deco_kwargs.get('traceback'):
                 traceback.print_stack()
-            print 'starting %s' % fn.__name__
+            print('starting %s' % fn.__name__)
             start = time.time()
             stat_profile = deco_kwargs.get('stat_profile')
             if stat_profile:
@@ -50,7 +50,7 @@ def debug_exec(*deco_args, **deco_kwargs):
                 return fn(*args, **kwargs)
             finally:
                 fn_name = fn.__name__
-                print 'finished %s in %.3f s' % (fn_name, time.time() - start)
+                print('finished %s in %.3f s' % (fn_name, time.time() - start))
                 if stat_profile:
                     statprof.stop()
                     statprof.display()
@@ -175,8 +175,8 @@ STOPWORDS = read_stopwords('stopwords.txt')
 
 
 def pprint_json(x):
-    print json.dumps(x, sort_keys=True, indent=4, separators=(',', ': '),
-                     ensure_ascii=False)
+    print(json.dumps(x, sort_keys=True, indent=4, separators=(',', ': '),
+                     ensure_ascii=False))
 
 
 def _cc(code):
@@ -238,3 +238,12 @@ def jensen_shannon_divergence(a, b):
     m /= 2.
     m = np.where(m, m, 1.)
     return 0.5 * np.sum(xlogy(a, a / m) + xlogy(b, b / m), axis=0)
+
+
+def open_xz(filename, mode):
+    if filename.endswith('.xz'):
+        from backports import lzma
+        inp = lzma.open(filename, mode)
+    else:
+        inp = open(filename, mode)
+    return inp
