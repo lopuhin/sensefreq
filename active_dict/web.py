@@ -177,10 +177,14 @@ class WordHandler(BaseHandler):
 class PosListHandler(BaseHandler):
     def get(self, pos):
         name_re = re.compile(r'(\w.*?)\d?\.json', re.U)
-        words = {m.groups()[0] for m in (
-            name_re.match(filename.decode('utf-8'))
-            for filename in os.listdir(os.path.join(self.ad_root, 'ad')))
-            if m is not None}
+        only = self.get_argument('only', None)
+        if only:
+            words = only.split(',')
+        else:
+            words = {m.groups()[0] for m in (
+                name_re.match(filename.decode('utf-8'))
+                for filename in os.listdir(os.path.join(self.ad_root, 'ad')))
+                if m is not None}
         words_info = []
         only_pos = {u'ГЛАГ': 'v', u'СУЩ': 's'}[pos]
         ipm = load_ipm(self.ad_root, only_pos=only_pos)
