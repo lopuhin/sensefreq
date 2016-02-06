@@ -132,7 +132,7 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
 
 def summary(ad_root, ctx_dir):
     all_freqs = {}
-    word_ipm = _load_ipm(ad_root)
+    word_ipm = load_ipm(ad_root)
     for filename in os.listdir(ctx_dir):
         if not filename.endswith('.json') or filename == 'summary.json':
             continue
@@ -157,12 +157,12 @@ def summary(ad_root, ctx_dir):
         json.dump(all_freqs, f)
 
 
-def _load_ipm(ad_root):
+def load_ipm(ad_root, only_pos='s'):
     filename = os.path.join(ad_root, 'freqs.csv')
     if os.path.exists(filename):
         with open(filename, 'rb') as f:
             return {word.decode('utf-8'): float(ipm)
-                    for word, pos, ipm in csv.reader(f) if pos == 's'}
+                    for word, pos, ipm in csv.reader(f) if pos == only_pos}
     else:
         return {}
 

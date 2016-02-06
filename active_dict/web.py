@@ -15,6 +15,7 @@ from tornado.web import url, RequestHandler, Application
 
 from utils import avg
 from active_dict.loader import get_ad_word
+from active_dict.runner import load_ipm
 
 
 class BaseHandler(RequestHandler):
@@ -181,9 +182,13 @@ class PosListHandler(BaseHandler):
             for filename in os.listdir(os.path.join(self.ad_root, 'ad')))
             if m is not None}
         words_info = []
+        only_pos = {u'ГЛАГ': 'v', u'СУЩ': 's'}[pos]
+        ipm = load_ipm(self.ad_root, only_pos=only_pos)
         for w in sorted(words):
             w_info = get_ad_word(w, self.ad_root, with_contexts=False)
-            if w_info is not None and w_info['pos'] == pos:
+            if w_info is not None and w_info['pos'] == pos \
+                    and 2 <= len(w_info['meanings']) <= 10:
+                w_info['ipm'] = ipm.get(w_info['word'].lower())
                 words_info.append(w_info)
         self.render(
             'templates/pos_list.html',

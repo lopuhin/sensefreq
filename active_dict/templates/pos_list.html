@@ -8,6 +8,7 @@
     <thead>
     <tr>
         <th>#Senses</th>
+        <th>ipm</th>
         <th>Word</th>
         <th>Senses</th>
     </tr>
@@ -16,6 +17,7 @@
     {% for w_info in words_info %}
     <tr>
         <td>{{ len(w_info['meanings']) }}</td>
+        <td>{{ '%.1f' % w_info['ipm'] if w_info['ipm'] else '-' }}</td>
         <td>{{ w_info['word'] }}</td>
         <td>
             <ol>
