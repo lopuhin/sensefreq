@@ -16,6 +16,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename')
     parser.add_argument('output')
+    # TODO - support window?
     args = parser.parse_args()
     if os.path.isdir(args.filename):
         targets = [

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
+from __future__ import division, print_function
 import os
 import itertools
 import argparse
@@ -70,4 +71,3 @@ def _item(line):
 
 if __name__ == '__main__':
     main()
-
