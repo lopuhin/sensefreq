@@ -348,6 +348,7 @@ def main():
     arg('--window', type=int, default=10)
     arg('--only')
     arg('--semeval2007', action='store_true')
+    arg('--weights-root', default='.')
     arg('--no-weights', action='store_true')
     arg('--w2v-weights', action='store_true')
     args = parser.parse_args()
@@ -377,7 +378,7 @@ def main():
         if args.only and word != args.only.decode('utf-8'):
             continue
         weights = None if (args.no_weights or args.w2v_weights) else \
-                  load_weights(word)
+                  load_weights(word, args.weights_root)
         test_accuracy, train_accuracy, estimates, word_freq_errors = [], [], [], []
         if args.semeval2007:
             senses, test_data, train_data = semeval2007_data[word]
