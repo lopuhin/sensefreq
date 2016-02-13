@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
+from __future__ import print_function
 import sys
 
 import msgpackrpc
@@ -16,7 +17,7 @@ class Word2VecServer(object):
             self.model = Word2Vec.load_word2vec_format(filename, binary=True)
         else:
             self.model = Word2Vec.load(filename)
-        self._total_count = sum(x.count for x in self.model.vocab.itervalues())
+        self._total_count = sum(x.count for x in self.model.vocab.values())
 
     def vec(self, w):
         w = w.decode('utf-8')
@@ -48,5 +49,5 @@ class Word2VecServer(object):
 if __name__ == '__main__':
     server = msgpackrpc.Server(Word2VecServer(sys.argv[1]))
     server.listen(msgpackrpc.Address('localhost', WORD2VEC_PORT))
-    print 'running...'
+    print('running...')
     server.start()

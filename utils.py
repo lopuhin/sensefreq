@@ -4,7 +4,7 @@ import re
 import time
 import math
 import traceback
-import cPickle as pickle
+import pickle
 from functools import wraps, partial
 import codecs
 import json

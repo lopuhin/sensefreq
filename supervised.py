@@ -36,7 +36,7 @@ def get_ans_test_train(filename, n_train=None, test_ratio=None):
         n_test = len(w_d) - n_train
     random.shuffle(w_d)
     return (
-        {ans: (meaning, counts[ans]) for ans, meaning in senses.iteritems()},
+        {ans: (meaning, counts[ans]) for ans, meaning in senses.items()},
         w_d[:n_test],
         w_d[n_test:])
 
@@ -48,11 +48,11 @@ def get_labeled_ctx(filename):
     where both annotators agree on the meaning and it is defined.
     '''
     w_d = []
-    with open(filename, 'rb') as f:
+    with open(filename, 'r') as f:
         senses = {}
         other = None
         for i, line in enumerate(f, 1):
-            row = filter(None, line.decode('utf-8').strip().split('\t'))
+            row = list(filter(None, line.strip().split('\t')))
             try:
                 if line.startswith('\t'):
                     if len(row) == 3:
@@ -98,13 +98,14 @@ class SupervisedModel(object):
         self.sense_vectors = None
         self.context_vectors = {
             ans: np.array([cv for cv in map(self.cv, xs) if cv is not None])
-            for ans, xs in self.examples.iteritems()}
+            for ans, xs in self.examples.items()}
         if self.examples:
             self.dominant_sense = max(
-                ((ans, len(ex)) for ans, ex in self.examples.iteritems()),
+                ((ans, len(ex)) for ans, ex in self.examples.items()),
                 key=itemgetter(1))[0]
 
-    def cv(self, (before, word, after)):
+    def cv(self, ctx):
+        before, word, after = ctx
         word, = lemmatize_s(word)
         get_words = lambda s: [
             w for w in lemmatize_s(s) if word_re.match(w) and w != word]
@@ -139,7 +140,7 @@ class SphericalModel(SupervisedModel):
     def __init__(self, *args, **kwargs):
         super(SphericalModel, self).__init__(*args, **kwargs)
         self.sense_vectors = {ans: cvs.mean(axis=0)
-            for ans, cvs in self.context_vectors.iteritems()
+            for ans, cvs in self.context_vectors.items()
             if cvs.any()}
 
     def __call__(self, x, c_ans=None, with_confidence=False):
@@ -149,7 +150,7 @@ class SphericalModel(SupervisedModel):
             return (m_ans, 0.0) if with_confidence else m_ans
         ans_closeness = [
             (ans, v_closeness(v, sense_v))
-            for ans, sense_v in self.sense_vectors.iteritems()]
+            for ans, sense_v in self.sense_vectors.items()]
         m_ans = max(ans_closeness, key=itemgetter(1))[0]
         if self.verbose:
             print(' '.join(x))
@@ -160,8 +161,7 @@ class SphericalModel(SupervisedModel):
                 print('correct: %s, model: %s, %s' % (
                         c_ans, m_ans, bool_color(c_ans == m_ans)))
         if with_confidence:
-            closeness = map(itemgetter(1), ans_closeness)
-            closeness.sort(reverse=True)
+            closeness = sorted(map(itemgetter(1), ans_closeness), reverse=True)
             confidence = closeness[0] - closeness[1] if len(closeness) >= 2 \
                          else 1.0
         return (m_ans, confidence) if with_confidence else m_ans
@@ -194,13 +194,13 @@ class KNearestModel(SupervisedModel):
         v = self.cv(x)
         ans_closeness = sorted(
             ((ans, (v_closeness(v, _v)))
-            for ans, context_vectors in self.context_vectors.iteritems()
+            for ans, context_vectors in self.context_vectors.items()
             for _v in context_vectors),
-            key=lambda (_, cl): cl, reverse=True)
+            key=itemgetter(1), reverse=True)
         ans_counts = defaultdict(int)
         for ans, _ in ans_closeness[:self.k_nearest]:
             ans_counts[ans] += 1
-        return max(ans_counts.iteritems(), key=lambda (_, count): count)[0]
+        return max(ans_counts.items(), key=itemgetter(1))[0]
 
 
 class SupervisedWrapper(SupervisedModel):
@@ -285,7 +285,7 @@ def write_errors(answers, i, filename, senses):
         _w()
         _w('ans', 'model_ans', 'n_errors')
         for (ans, model_ans), n_errors in sorted(
-                error_counts.iteritems(), key=itemgetter(1), reverse=True):
+                error_counts.items(), key=itemgetter(1), reverse=True):
             _w(ans, model_ans, n_errors)
         _w()
         _w('ans', 'model_ans', 'before', 'word', 'after')
@@ -295,13 +295,14 @@ def write_errors(answers, i, filename, senses):
 
 
 def sorted_senses(senses):
-    return sorted(senses.iteritems(), key=sense_sort_key)
+    return sorted(senses.items(), key=sense_sort_key)
 
-sense_sort_key = lambda (ans, _): int(ans)
+sense_sort_key = lambda x: int(x[0])
 
 
 def get_errors(answers):
-    return filter(lambda (_, ans, model_ans): ans != model_ans, answers)
+    return [(x, ans, model_ans) for x, ans, model_ans in answers
+            if ans != model_ans]
 
 
 def load_weights(word, root='.'):
@@ -332,7 +333,7 @@ def show_tsne(model, answers, senses, word):
     plt.axes().get_xaxis().set_visible(False)
     plt.axes().get_yaxis().set_visible(False)
     legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
-        for ans, (label, _) in senses.iteritems() if ans in seen_answers]
+        for ans, (label, _) in senses.items() if ans in seen_answers]
     plt.legend(handles=legend)
     plt.title(word)
     filename = word + '.pdf'
@@ -378,8 +379,8 @@ def main():
         if args.semeval2007:
             word = filename
         else:
-            word = filename.split('/')[-1].split('.')[0].decode('utf-8')
-        if args.only and word != args.only.decode('utf-8'):
+            word = filename.split('/')[-1].split('.')[0]
+        if args.only and word != args.only:
             continue
         weights = None if (args.no_weights or args.w2v_weights) else \
                   load_weights(word, args.weights_root)
@@ -392,7 +393,7 @@ def main():
         else:
             mfs_baseline = get_mfs_baseline(get_labeled_ctx(filename)[1])
         random.seed(1)
-        for i in xrange(args.n_runs):
+        for i in range(args.n_runs):
             if not args.semeval2007:
                 senses, test_data, train_data = \
                     get_ans_test_train(filename, n_train=args.n_train)
