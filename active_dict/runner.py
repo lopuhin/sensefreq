@@ -59,19 +59,19 @@ def evaluate_word(word, ad_root, labeled_root, print_errors=False,
     model, train_data = train_model(
         word, ad_word_data, ad_root, **model_params)
     if not model: return
-    test_accuracy, max_freq_error, js_div, confidence, answers = \
+    test_accuracy, max_freq_error, js_div, estimate, answers = \
         evaluate(model, test_data, train_data)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
     return mfs_baseline, model.get_train_accuracy(verbose=False), \
-           test_accuracy, max_freq_error, js_div, confidence
+           test_accuracy, max_freq_error, js_div, estimate
 
 
 def evaluate_words(filename, **params):
     with codecs.open(filename, 'rb', 'utf-8') as f:
         words = [l.strip() for l in f]
     all_metrics = []
-    metric_names = ['MFS', 'train', 'test', 'freq', 'JSD', 'confidence']
+    metric_names = ['MFS', 'train', 'test', 'freq', 'JSD', 'estimate']
     wjust = 20
     print(u'\t'.join(['word'.ljust(wjust)] + metric_names))
     for word in sorted(words):
