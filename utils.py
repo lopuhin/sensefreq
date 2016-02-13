@@ -1,13 +1,11 @@
-# -*- encoding: utf-8 -*-
-from __future__ import print_function
 import re
 import time
 import math
 import traceback
 import pickle
 from functools import wraps, partial
-import codecs
 import json
+import lzma
 
 from pymystem3 import Mystem
 import msgpackrpc
@@ -163,7 +161,7 @@ def context_vector(words,
 
 def read_stopwords(filename):
     stopwords = set()
-    with codecs.open(filename, 'rb', 'utf-8') as f:
+    with open(filename, 'r') as f:
         for l in f:
             l = l.split('|')[0]
             w = l.strip().lower()
@@ -182,6 +180,7 @@ def pprint_json(x):
 def _cc(code):
     tpl = ('\x1b[%sm' % code) + '%s\x1b[0m'
     return lambda x: tpl % x
+
 red = _cc(31)
 green = _cc(32)
 blue = _cc(34)
@@ -242,7 +241,6 @@ def jensen_shannon_divergence(a, b):
 
 def open_xz(filename, mode):
     if filename.endswith('.xz'):
-        from backports import lzma
         inp = lzma.open(filename, mode)
     else:
         inp = open(filename, mode)

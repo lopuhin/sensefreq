@@ -1,12 +1,7 @@
 #!/usr/bin/env python
-# -*- encoding: utf-8 -*-
-
-from __future__ import division, print_function
-
 import os
 import sys
 import random
-import codecs
 from collections import defaultdict, Counter
 import itertools
 import argparse
@@ -277,7 +272,7 @@ def write_errors(answers, i, filename, senses):
     model_counts = Counter(model_ans for _, _, model_ans in answers)
     error_counts = Counter((ans, model_ans) for _, ans, model_ans in errors)
     err_filename = filename[:-4] + ('.errors%d.tsv' % (i + 1))
-    with codecs.open(err_filename, 'wb', 'utf-8') as f:
+    with open(err_filename, 'w') as f:
         _w = lambda *x: f.write('\t'.join(map(unicode, x)) + '\n')
         _w('ans', 'count', 'model_count', 'meaning')
         for ans, (sense, count) in sorted_senses(senses)[1:-1]:
@@ -308,7 +303,7 @@ def get_errors(answers):
 def load_weights(word, root='.'):
     filename = os.path.join(root, 'cdict', word + '.txt')
     if os.path.exists(filename):
-        with codecs.open(filename, 'rb', 'utf-8') as f:
+        with open(filename, 'r') as f:
             return {w: float(weight) for w, weight in (l.split() for l in f)}
     else:
         print('Weight file "%s" not found' % filename, file=sys.stderr)
