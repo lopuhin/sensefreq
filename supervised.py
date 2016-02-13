@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
-from __future__ import division
+from __future__ import division, print_function
 
 import os
 import sys
@@ -18,7 +18,7 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from utils import word_re, lemmatize_s, avg, avg_w_bounds, v_closeness, \
+from utils import word_re, lemmatize_s, avg, v_closeness, \
     context_vector, jensen_shannon_divergence, \
     bool_color, blue, magenta, bold_if
 from semeval2007 import load_semeval2007
@@ -71,7 +71,7 @@ def get_labeled_ctx(filename):
                     if ans != '0' and ans != other:
                         w_d.append(((before, word, after), ans))
             except ValueError:
-                print 'error on line', i
+                print('error on line', i, file=sys.stderr)
                 raise
     return senses, w_d
 
@@ -139,7 +139,6 @@ class SphericalModel(SupervisedModel):
     def __call__(self, x, c_ans=None, with_confidence=False):
         v = self.cv(x)
         if v is None:
-           #print >>sys.stderr, 'context vector is None:', ' '.join(x)
             m_ans = self.dominant_sense
             return (m_ans, 0.0) if with_confidence else m_ans
         ans_closeness = [
@@ -147,13 +146,13 @@ class SphericalModel(SupervisedModel):
             for ans, sense_v in self.sense_vectors.iteritems()]
         m_ans = max(ans_closeness, key=itemgetter(1))[0]
         if self.verbose:
-            print ' '.join(x)
-            print ' '.join(
+            print(' '.join(x))
+            print(' '.join(
                 '%s: %s' % (ans, bold_if(ans == m_ans, '%.3f' % cl))
-                for ans, cl in sorted(ans_closeness, key=sense_sort_key))
+                for ans, cl in sorted(ans_closeness, key=sense_sort_key)))
             if c_ans is not None:
-                print 'correct: %s, model: %s, %s' % (
-                        c_ans, m_ans, bool_color(c_ans == m_ans))
+                print('correct: %s, model: %s, %s' % (
+                        c_ans, m_ans, bool_color(c_ans == m_ans)))
         if with_confidence:
             closeness = map(itemgetter(1), ans_closeness)
             closeness.sort(reverse=True)
@@ -230,10 +229,10 @@ def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
                 return ':(-)'
     else:
         sv = lambda _: ''
-    print
-    print ' '.join(
+    print()
+    print(' '.join(
         bold_if(weight > 1., '%s:%s%s' % (w, blue('%.2f' % weight), sv(w)))
-        for w, weight in zip(words, w_weights))
+        for w, weight in zip(words, w_weights)))
 
 
 def evaluate(model, test_data, train_data, perplexity=False):
@@ -305,7 +304,7 @@ def load_weights(word, root='.'):
         with codecs.open(filename, 'rb', 'utf-8') as f:
             return {w: float(weight) for w, weight in (l.split() for l in f)}
     else:
-        print >>sys.stderr, 'Weight file "%s" not found' % filename
+        print('Weight file "%s" not found' % filename, file=sys.stderr)
 
 
 def show_tsne(model, answers, senses, word):
@@ -331,7 +330,7 @@ def show_tsne(model, answers, senses, word):
     plt.legend(handles=legend)
     plt.title(word)
     filename = word + '.pdf'
-    print 'saving tSNE clustering to', filename
+    print('saving tSNE clustering to', filename)
     plt.savefig(filename)
 
 
@@ -367,9 +366,8 @@ def main():
     mfs_baselines, accuracies, freq_errors = [], [], []
     model_class = SphericalModel
     wjust = 20
-    print u'\t'.join([
-        'word'.ljust(wjust), 'senses', 'MFS',
-        'train', 'test', 'freq', 'estimate'])
+    print(u'\t'.join(['word'.ljust(wjust), 'senses', 'MFS',
+                      'train', 'test', 'freq', 'estimate']))
     for filename in filenames:
         if args.semeval2007:
             word = filename
@@ -382,8 +380,8 @@ def main():
         test_accuracy, train_accuracy, estimates, word_freq_errors = [], [], [], []
         if args.semeval2007:
             senses, test_data, train_data = semeval2007_data[word]
-           #print '%s: %d senses, %d test, %d train' % (
-           #    word, len(senses), len(test_data), len(train_data))
+           #print('%s: %d senses, %d test, %d train' % (
+           #    word, len(senses), len(test_data), len(train_data)))
             mfs_baseline = get_mfs_baseline(test_data + train_data)
         else:
             mfs_baseline = get_mfs_baseline(get_labeled_ctx(filename)[1])
@@ -393,13 +391,13 @@ def main():
                 senses, test_data, train_data = \
                     get_ans_test_train(filename, n_train=args.n_train)
            #if i == 0:
-           #    print '%s: %d senses' % (word, len(senses) - 2)  # "n/a" and "other"
-           #    print '%d test samples, %d train samples' % (
-           #        len(test_data), len(train_data))
+           #    print('%s: %d senses' % (word, len(senses) - 2))  # "n/a" and "other"
+           #    print('%d test samples, %d train samples' % (
+           #        len(test_data), len(train_data)))
             model = model_class(
                 train_data, weights=weights, verbose=args.verbose,
                 window=args.window, w2v_weights=args.w2v_weights)
-            accuracy, max_freq_error, js_div, estimate, answers = evaluate(
+            accuracy, max_freq_error, _js_div, estimate, answers = evaluate(
                 model, test_data, train_data, perplexity=args.perplexity)
             if args.tsne:
                 show_tsne(model, answers, senses, word)
@@ -414,19 +412,19 @@ def main():
         mfs_baselines.append(mfs_baseline)
         avg_fmt = lambda x: '%.2f' % avg(x)
         #if args.n_runs > 1: avg_fmt = avg_w_bounds
-        print u'%s\t%d\t%.2f\t%s\t%s\t%s\t%s' % (
+        print(u'%s\t%d\t%.2f\t%s\t%s\t%s\t%s' % (
             word.ljust(wjust), len(senses), mfs_baseline,
             avg_fmt(train_accuracy),
             avg_fmt(test_accuracy),
             avg_fmt(word_freq_errors),
-            avg_fmt(estimates))
-    print
-    print 'MSF     : %.3f' % avg(mfs_baselines)
-    print 'test acc: %.3f' % avg(accuracies)
-    print 'freq err: %.3f' % avg(freq_errors)
+            avg_fmt(estimates)))
+    print()
+    print('MSF\t%.3f' % avg(mfs_baselines))
+    print('test acc\t%.3f' % avg(accuracies))
+    print('freq err\t%.3f' % avg(freq_errors))
     if len(filenames) == 1:
-        print '\n'.join('%s: %s' % (ans, s)
-                        for ans, (s, _) in sorted_senses(senses))
+        print('\n'.join('%s: %s' % (ans, s)
+                        for ans, (s, _) in sorted_senses(senses)))
 
 
 if __name__ == '__main__':
