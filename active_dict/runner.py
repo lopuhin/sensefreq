@@ -23,7 +23,8 @@ import cluster_methods
 
 
 def train_model(word, ad_word_data, ad_root, **model_params):
-    weights = load_weights(word, root=ad_root)
+    weights = None if model_params.pop('no_weights', None) else \
+              load_weights(word, root=ad_root)
     train_data = get_ad_train_data(word, ad_word_data)
     model = None
     if train_data:
@@ -48,9 +49,10 @@ def train_model(word, ad_word_data, ad_root, **model_params):
     return model, train_data
 
 
-def evaluate_word(word, ad_root, print_errors=False, **model_params):
+def evaluate_word(word, ad_root, labeled_root, print_errors=False,
+                  **model_params):
     senses, test_data = get_labeled_ctx(
-        os.path.join('ann', 'ad', word + '.txt'))
+        os.path.join(labeled_root, word + '.txt'))
     mfs_baseline = get_mfs_baseline(test_data)
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data: return
@@ -218,9 +220,14 @@ def main():
     arg('--max-contexts', type=int, default=2000,
         help='(for run) max number of contexts in sample')
     arg('--verbose', action='store_true')
+    arg('--labeled-root')
+    arg('--no-weights', action='store_true')
     args = parser.parse_args()
-    params = {k: getattr(args, k) for k in ['ad_root', 'window', 'verbose']}
+    params = {k: getattr(args, k) for k in [
+        'ad_root', 'window', 'verbose', 'labeled_root', 'no_weights']}
     if args.action == 'evaluate':
+        if not args.labeled_root:
+            parser.error('Please specify --labeled-root')
         if os.path.exists(args.word_or_filename):
             evaluate_words(args.word_or_filename, **params)
         else:
