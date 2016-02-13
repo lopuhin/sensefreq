@@ -14,7 +14,7 @@ import msgpackrpc
 import numpy as np
 from scipy.special import xlogy
 
-from conf import WORD2VEC_PORT
+from word2vec_server import WORD2VEC_PORT
 
 
 word_re = re.compile(r'\w+', re.U)

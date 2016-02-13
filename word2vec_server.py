@@ -6,7 +6,8 @@ import sys
 import msgpackrpc
 from gensim.models import Word2Vec
 
-from conf import WORD2VEC_PORT
+
+WORD2VEC_PORT = 18800
 
 
 class Word2VecServer(object):
