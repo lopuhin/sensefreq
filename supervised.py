@@ -220,7 +220,7 @@ def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
                 v_closeness(w_vectors[w], sense_v)
                 if w_vectors[w] is not None else None
                 for _, sense_v in sorted_senses(sense_vectors)]
-            defined_closeness = filter(None, closeness)
+            defined_closeness = list(filter(None, closeness))
             if defined_closeness:
                 max_closeness = max(defined_closeness)
                 return ':(%s)' % ('|'.join(
@@ -273,7 +273,7 @@ def write_errors(answers, i, filename, senses):
     error_counts = Counter((ans, model_ans) for _, ans, model_ans in errors)
     err_filename = filename[:-4] + ('.errors%d.tsv' % (i + 1))
     with open(err_filename, 'w') as f:
-        _w = lambda *x: f.write('\t'.join(map(unicode, x)) + '\n')
+        _w = lambda *x: f.write('\t'.join(map(str, x)) + '\n')
         _w('ans', 'count', 'model_count', 'meaning')
         for ans, (sense, count) in sorted_senses(senses)[1:-1]:
             _w(ans, count, model_counts[ans], sense)
