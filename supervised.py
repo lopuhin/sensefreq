@@ -135,7 +135,8 @@ class SphericalModel(SupervisedModel):
     def __init__(self, *args, **kwargs):
         super(SphericalModel, self).__init__(*args, **kwargs)
         self.sense_vectors = {ans: cvs.mean(axis=0)
-            for ans, cvs in self.context_vectors.items()}
+            for ans, cvs in self.context_vectors.items()
+            if cvs.any()}
 
     def __call__(self, x, c_ans=None, with_confidence=False):
         v = self.cv(x)
@@ -169,19 +170,22 @@ class WordsOrderMixin:
             w for w in lemmatize_s(s) if word_re.match(w) and w != word]
         before, after = map(get_words, [before, after])
         before, after = before[-self.window:], after[:self.window]
-        # TODO - proper length for before and after
-        words = before + after
+        pad_left = self.window - len(before)
+        pad_right = self.window - len(after)
         _, w_vectors, w_weights = context_vector(
-            words, excl_stopwords=self.excl_stopwords,
+            before + after, excl_stopwords=self.excl_stopwords,
             weights=self.weights,
             weight_word=word if self.w2v_weights else None)
-        weighted_vectors = [
-            v * weight for v, weight in zip(w_vectors, w_weights)
-            if v is not None]
-        if weighted_vectors:
-            return np.concatenate([
-                v * weight for v, weight in zip(w_vectors, w_weights)
-                if v is not None])
+        try:
+            dim = len([v for v in w_vectors if v is not None][0])
+        except IndexError:
+            return None
+        pad = np.zeros([dim], dtype=np.float32)
+        vectors = [
+            v * weight if v is not None else pad
+            for v, weight in zip(w_vectors, w_weights)]
+        vectors = [pad] * pad_left + vectors + [pad] * pad_right
+        return np.concatenate(vectors)
 
 
 class SphericalModelOrder(WordsOrderMixin, SphericalModel):
@@ -233,6 +237,10 @@ class KNearestModel(SupervisedModel):
             key=itemgetter(1))
         confidence = 1.0
         return (m_ans, confidence) if with_confidence else m_ans
+
+
+class KNearestModelOrder(WordsOrderMixin, KNearestModel):
+    pass
 
 
 class SupervisedWrapper(SupervisedModel):

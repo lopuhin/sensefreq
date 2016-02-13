@@ -136,8 +136,8 @@ def context_vector(words,
         w_vectors = [w2v_cache[w] for w in words]
     else:
         w_vectors = [np.array(v, dtype=np.float32) if v else None
-                    for v in w2v_vecs(words)]
-    w_vectors = [v if (not excl_stopwords or w not in STOPWORDS) else None
+                     for v in w2v_vecs(words)]
+    w_vectors = [None if excl_stopwords and w in STOPWORDS else v
                  for v, w in zip(w_vectors, words)]
     w_weights = [1.0] * len(words)
     missing_weight = 0.2
