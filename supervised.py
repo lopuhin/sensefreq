@@ -236,11 +236,10 @@ def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
         for w, weight in zip(words, w_weights)))
 
 
-def evaluate(model, test_data, train_data, perplexity=False):
-    test_on = test_data if not perplexity else train_data
+def evaluate(model, test_data, train_data):
     answers = []
     confidences = []
-    for x, ans in test_on:
+    for x, ans in test_data:
         model_ans, confidence = model(x, ans, with_confidence=True)
         answers.append((x, ans, model_ans))
         confidences.append(confidence)
@@ -342,7 +341,6 @@ def main():
     arg('path')
     arg('--write-errors', action='store_true')
     arg('--n-train', type=int, default=50)
-    arg('--perplexity', action='store_true', help='test on train data')
     arg('--verbose', action='store_true')
     arg('--n-runs', type=int, default=10)
     arg('--tsne', action='store_true')
@@ -400,7 +398,7 @@ def main():
                 train_data, weights=weights, verbose=args.verbose,
                 window=args.window, w2v_weights=args.w2v_weights)
             accuracy, max_freq_error, _js_div, estimate, answers = evaluate(
-                model, test_data, train_data, perplexity=args.perplexity)
+                model, test_data, train_data)
             if args.tsne:
                 show_tsne(model, answers, senses, word)
             if args.write_errors:
