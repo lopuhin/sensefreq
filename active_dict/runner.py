@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
-from __future__ import division
+from __future__ import division, print_function
 
 import os.path
 import codecs
@@ -71,18 +71,18 @@ def evaluate_words(filename, **params):
     all_metrics = []
     metric_names = ['MFS', 'train', 'test', 'freq', 'JSD', 'confidence']
     wjust = 20
-    print u'\t'.join(['word'.ljust(wjust)] + metric_names)
+    print(u'\t'.join(['word'.ljust(wjust)] + metric_names))
     for word in sorted(words):
         metrics = evaluate_word(word, **params)
         if metrics is not None:
             all_metrics.append(metrics)
-            print u'%s\t%s' % (
-                word.ljust(wjust), '\t'.join('%.2f' % v for v in metrics))
+            print(u'%s\t%s' % (
+                word.ljust(wjust), '\t'.join('%.2f' % v for v in metrics)))
         else:
-            print u'%s\tmissing' % word
-    print u'%s\t%s' % ('Avg.'.ljust(wjust), '\t'.join(
+            print(u'%s\tmissing' % word)
+    print(u'%s\t%s' % ('Avg.'.ljust(wjust), '\t'.join(
         '%.3f' % avg(metrics[i] for metrics in all_metrics)
-        for i, _ in enumerate(metric_names)))
+        for i, _ in enumerate(metric_names))))
 
 
 def run_on_words(ctx_dir, **params):
@@ -91,7 +91,7 @@ def run_on_words(ctx_dir, **params):
             continue
         success = run_on_word(ctx_filename, ctx_dir, **params)
         if not success:
-            print >>sys.stderr, 'skip', ctx_filename
+            print('skip', ctx_filename, file=sys.stderr)
 
 
 def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
@@ -102,7 +102,7 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
         return
     result_filename = os.path.join(ctx_dir, word.encode('utf-8') + '.json')
     if os.path.exists(result_filename):
-        print >>sys.stderr, result_filename, "already exists, skiping"
+        print(result_filename, "already exists, skiping", file=sys.stderr)
         return True
     with codecs.open(
             os.path.join(ctx_dir, ctx_filename), 'rb', 'utf-8') as f:
@@ -171,20 +171,20 @@ def _print_errors(test_accuracy, answers, ad_word_data, senses):
     errors = get_errors(answers)
     ad_senses = {m['id']: m['meaning'] for m in ad_word_data['meanings']}
     for sid, meaning in sorted_senses(senses):
-        print
-        print sid, meaning
+        print()
+        print(sid, meaning)
         if sid in ad_senses:
-            print ad_senses[sid]
+            print(ad_senses[sid])
         else:
-            print 'Missing in AD!'
+            print('Missing in AD!')
     assert set(ad_senses).issubset(senses)
-    print '\ncorrect: %.2f\n' % test_accuracy
+    print('\ncorrect: %.2f\n' % test_accuracy)
     error_kinds = Counter((ans, model_ans)
                           for _, ans, model_ans in errors)
-    print 'ans\tmodel\terrors'
+    print('ans\tmodel\terrors')
     for (ans, model_ans), count in \
             sorted(error_kinds.iteritems(), key=itemgetter(1), reverse=True):
-        print '%s\t%s\t%s' % (ans, model_ans, count)
+        print('%s\t%s\t%s' % (ans, model_ans, count))
 
 
 def get_ad_train_data(word, ad_word_data):
