@@ -424,8 +424,7 @@ def main():
             avg_fmt(test_accuracy),
             avg_fmt(word_freq_errors),
             avg_fmt(estimates)))
-    print()
-    print('MSF\t%.3f' % avg(mfs_baselines))
+    print('MSF     \t%.3f' % avg(mfs_baselines))
     print('test acc\t%.3f' % avg(accuracies))
     print('freq err\t%.3f' % avg(freq_errors))
     if len(filenames) == 1:
