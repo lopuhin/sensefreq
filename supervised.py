@@ -77,7 +77,7 @@ def get_labeled_ctx(filename):
     return senses, w_d
 
 
-class SupervisedModel(object):
+class SupervisedModel:
     def __init__(self, train_data,
             weights=None, excl_stopwords=True, verbose=False, window=None,
             w2v_weights=None):
@@ -135,8 +135,7 @@ class SphericalModel(SupervisedModel):
     def __init__(self, *args, **kwargs):
         super(SphericalModel, self).__init__(*args, **kwargs)
         self.sense_vectors = {ans: cvs.mean(axis=0)
-            for ans, cvs in self.context_vectors.items()
-            if cvs.any()}
+            for ans, cvs in self.context_vectors.items()}
 
     def __call__(self, x, c_ans=None, with_confidence=False):
         v = self.cv(x)
@@ -160,6 +159,33 @@ class SphericalModel(SupervisedModel):
             confidence = closeness[0] - closeness[1] if len(closeness) >= 2 \
                          else 1.0
         return (m_ans, confidence) if with_confidence else m_ans
+
+
+class WordsOrderMixin:
+    def cv(self, ctx):
+        before, word, after = ctx
+        word, = lemmatize_s(word)
+        get_words = lambda s: [
+            w for w in lemmatize_s(s) if word_re.match(w) and w != word]
+        before, after = map(get_words, [before, after])
+        before, after = before[-self.window:], after[:self.window]
+        # TODO - proper length for before and after
+        words = before + after
+        _, w_vectors, w_weights = context_vector(
+            words, excl_stopwords=self.excl_stopwords,
+            weights=self.weights,
+            weight_word=word if self.w2v_weights else None)
+        weighted_vectors = [
+            v * weight for v, weight in zip(w_vectors, w_weights)
+            if v is not None]
+        if weighted_vectors:
+            return np.concatenate([
+                v * weight for v, weight in zip(w_vectors, w_weights)
+                if v is not None])
+
+
+class SphericalModelOrder(WordsOrderMixin, SphericalModel):
+    pass
 
 
 class GMMModel(SupervisedModel):

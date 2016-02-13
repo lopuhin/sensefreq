@@ -137,6 +137,8 @@ def context_vector(words,
     else:
         w_vectors = [np.array(v, dtype=np.float32) if v else None
                     for v in w2v_vecs(words)]
+    w_vectors = [v if (not excl_stopwords or w not in STOPWORDS) else None
+                 for v, w in zip(w_vectors, words)]
     w_weights = [1.0] * len(words)
     missing_weight = 0.2
     if weights is not None:
@@ -146,15 +148,11 @@ def context_vector(words,
         w_weights = [
             2.0 * max(0.0, v_closeness(w_v, word_vector))
             if w_v is not None else missing_weight for w_v in w_vectors]
-    v_weights = [(v, weight)
-        for w, v, weight in zip(words, w_vectors, w_weights)
-        if v is not None and (not excl_stopwords or w not in STOPWORDS)]
-    if v_weights:
-       #if all(weight <= 1.0 for _, weight in v_w_lst):
-       #    vectors = [v for v, _ in v_w_lst]
-       #else:
-        vectors = [v * weight for v, weight in v_weights]
-        return unitvec(np.mean(vectors, axis=0)), w_vectors, w_weights
+    if any(v is not None for v in w_vectors):
+        vectors = [v * weight for v, weight in zip(w_vectors, w_weights)
+                   if v is not None]
+        cv = unitvec(np.mean(vectors, axis=0))
+        return cv, w_vectors, w_weights
     else:
         return None, [], []
 
