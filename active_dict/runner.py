@@ -1,10 +1,5 @@
 #!/usr/bin/env python
-# -*- encoding: utf-8 -*-
-
-from __future__ import division, print_function
-
 import os.path
-import codecs
 import argparse
 import random
 import json
@@ -33,8 +28,7 @@ def train_model(word, ad_word_data, ad_root, **model_params):
        #method = cluster_methods.AutoEncoderADMapping
         if issubclass(method, cluster_methods.Method):
             context_vectors = get_context_vectors(
-                word, os.path.join(
-                    ad_root, 'contexts-100k', word.encode('utf-8') + '.txt'),
+                word, os.path.join(ad_root, 'contexts-100k', word + '.txt'),
                 weights)
             cluster_model = method(dict(
                 word=word,
@@ -68,7 +62,7 @@ def evaluate_word(word, ad_root, labeled_root, print_errors=False,
 
 
 def evaluate_words(filename, **params):
-    with codecs.open(filename, 'rb', 'utf-8') as f:
+    with open(filename, 'r') as f:
         words = [l.strip() for l in f]
     all_metrics = []
     metric_names = ['MFS', 'train', 'test', 'freq', 'JSD', 'estimate']
@@ -99,15 +93,14 @@ def run_on_words(ctx_dir, **params):
 def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
     max_contexts = params.get('max_contexts')
     min_contexts = params.get('min_contexts')
-    word = ctx_filename.split('.')[0].decode('utf-8')
+    word = ctx_filename.split('.')[0]
     if word[-1].isdigit():
         return
-    result_filename = os.path.join(ctx_dir, word.encode('utf-8') + '.json')
+    result_filename = os.path.join(ctx_dir, word + '.json')
     if os.path.exists(result_filename):
         print(result_filename, "already exists, skiping", file=sys.stderr)
         return True
-    with codecs.open(
-            os.path.join(ctx_dir, ctx_filename), 'rb', 'utf-8') as f:
+    with open(os.path.join(ctx_dir, ctx_filename), 'r') as f:
         contexts = [line.split('\t') for line in f]
     if max_contexts and len(contexts) > max_contexts:
         contexts = random.sample(contexts, max_contexts)
@@ -123,7 +116,7 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
         model_ans, confidence = model(x, with_confidence=True)
         result.append((x, model_ans))
         confidences.append(confidence)
-    with codecs.open(result_filename, 'wb', 'utf-8') as f:
+    with open(result_filename, 'w') as f:
         json.dump({
             'word': word,
             'contexts': result,
@@ -163,7 +156,7 @@ def load_ipm(ad_root, only_pos='s'):
     filename = os.path.join(ad_root, 'freqs.csv')
     if os.path.exists(filename):
         with open(filename, 'rb') as f:
-            return {word.decode('utf-8'): float(ipm)
+            return {word: float(ipm)
                     for word, pos, ipm in csv.reader(f) if pos == only_pos}
     else:
         return {}
@@ -231,8 +224,7 @@ def main():
         if os.path.exists(args.word_or_filename):
             evaluate_words(args.word_or_filename, **params)
         else:
-            evaluate_word(args.word_or_filename.decode('utf-8'),
-                          print_errors=True, **params)
+            evaluate_word(args.word_or_filename, print_errors=True, **params)
     elif args.action == 'run':
         run_on_words(args.word_or_filename, **params)
     elif args.action == 'summary':

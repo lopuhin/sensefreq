@@ -2,7 +2,6 @@
 # kmeans.py using any of the 20-odd metrics in scipy.spatial.distance
 # kmeanssample 2 pass, first sample sqrt(N)
 
-from __future__ import division
 import random
 import numpy as np
 from scipy.spatial.distance import cdist  # $scipy/spatial/distance.py
@@ -43,8 +42,8 @@ def kmeans( X, centres, delta=.001, maxiter=10, metric="euclidean", p=2, verbose
         raise ValueError( "kmeans: X %s and centres %s must have the same number of columns" % (
             X.shape, centres.shape ))
     if verbose:
-        print "kmeans: X %s  centres %s  delta=%.2g  maxiter=%d  metric=%s" % (
-            X.shape, centres.shape, delta, maxiter, metric)
+        print("kmeans: X %s  centres %s  delta=%.2g  maxiter=%d  metric=%s" % (
+            X.shape, centres.shape, delta, maxiter, metric))
     allx = np.arange(N)
     prevdist = 0
     for jiter in range( 1, maxiter+1 ):
@@ -53,7 +52,7 @@ def kmeans( X, centres, delta=.001, maxiter=10, metric="euclidean", p=2, verbose
         distances = D[allx,xtoc]
         avdist = distances.mean()  # median ?
         if verbose >= 2:
-            print "kmeans: av |X - nearest centre| = %.4g" % avdist
+            print("kmeans: av |X - nearest centre| = %.4g" % avdist)
         if (1 - delta) * prevdist <= avdist <= prevdist \
         or jiter == maxiter:
             break
@@ -63,7 +62,7 @@ def kmeans( X, centres, delta=.001, maxiter=10, metric="euclidean", p=2, verbose
             if len(c) > 0:
                 centres[jc] = X[c].mean( axis=0 )
     if verbose:
-        print "kmeans: %d iterations  cluster sizes:" % jiter, np.bincount(xtoc)
+        print("kmeans: %d iterations  cluster sizes:" % jiter, np.bincount(xtoc))
     if verbose >= 2:
         r50 = np.zeros(k)
         r90 = np.zeros(k)
@@ -71,8 +70,8 @@ def kmeans( X, centres, delta=.001, maxiter=10, metric="euclidean", p=2, verbose
             dist = distances[ xtoc == j ]
             if len(dist) > 0:
                 r50[j], r90[j] = np.percentile( dist, (50, 90) )
-        print "kmeans: cluster 50 % radius", r50.astype(int)
-        print "kmeans: cluster 90 % radius", r90.astype(int)
+        print("kmeans: cluster 50 % radius", r50.astype(int))
+        print("kmeans: cluster 90 % radius", r90.astype(int))
         # scale L1 / dim, L2 / sqrt(dim) ?
     return centres, xtoc, distances
 

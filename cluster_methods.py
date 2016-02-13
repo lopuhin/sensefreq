@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# -*- encoding: utf-8 -*-
-
 from collections import defaultdict
 from functools import partial
 from operator import itemgetter
@@ -171,12 +169,12 @@ class AutoEncoder(Method):
             sess.run(tf.initialize_all_variables())
             get_loss = lambda : sess.run(loss_op, feed_dict={
                 inputs: self.features, l2_penalty: 0.0}) / n_features
-            print 'initial loss', get_loss()
+            print('initial loss', get_loss())
             for epoch in range(1, n_epochs):
                 for batch in batches(self.features, batch_size):
                     _, loss = sess.run(
                         [train, loss_op], feed_dict={inputs: batch})
-                print get_loss()
+                print(get_loss())
             exit()
 
     def predict(self, vectors):
@@ -195,7 +193,7 @@ class ADMappingMixin(object):
         for ci, center in enumerate(self._c.centres):
             self.mapping[ci] = max(
                 ((int(mid), v_closeness(center, m_center))
-                    for mid, m_center in ad_centers.iteritems()),
+                    for mid, m_center in ad_centers.items()),
                 key=itemgetter(1))[0]
         return clusters
 
