@@ -151,6 +151,7 @@ def context_vector(words,
     if all(np.isclose(weight, 0) for weight in w_weights):
         w_weights = [1.0] * len(words)
     if any(v is not None for v in w_vectors):
+        assert len(w_vectors) == len(w_weights) == len(words)
         vectors = [v * weight for v, weight in zip(w_vectors, w_weights)
                    if v is not None]
         cv = unitvec(np.mean(vectors, axis=0))
