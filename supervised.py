@@ -344,7 +344,7 @@ def main():
     arg('--n-train', type=int, default=50)
     arg('--perplexity', action='store_true', help='test on train data')
     arg('--verbose', action='store_true')
-    arg('--n-runs', type=int, default=4)
+    arg('--n-runs', type=int, default=10)
     arg('--tsne', action='store_true')
     arg('--window', type=int, default=10)
     arg('--only')
