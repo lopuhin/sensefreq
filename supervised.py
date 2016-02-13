@@ -387,8 +387,8 @@ def main():
             mfs_baseline = get_mfs_baseline(test_data + train_data)
         else:
             mfs_baseline = get_mfs_baseline(get_labeled_ctx(filename)[1])
-        random.seed(1)
         for i in range(args.n_runs):
+            random.seed(i)
             if not args.semeval2007:
                 senses, test_data, train_data = \
                     get_ans_test_train(filename, n_train=args.n_train)
