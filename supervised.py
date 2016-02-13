@@ -182,20 +182,31 @@ class GMMModel(SupervisedModel):
 
 class KNearestModel(SupervisedModel):
     def __init__(self, *args, **kwargs):
-        self.k_nearest = kwargs.pop('k_nearest', 5)
+        self.k_nearest = kwargs.pop('k_nearest', 3)
         super(KNearestModel, self).__init__(*args, **kwargs)
 
-    def __call__(self, x):
+    def __call__(self, x, c_ans=None, with_confidence=False):
         v = self.cv(x)
-        ans_closeness = sorted(
+        if v is None:
+            m_ans = self.dominant_sense
+            return (m_ans, 0.0) if with_confidence else m_ans
+        sorted_answers = sorted(
             ((ans, (v_closeness(v, _v)))
             for ans, context_vectors in self.context_vectors.items()
-            for _v in context_vectors),
+            for _v in context_vectors if _v is not None),
             key=itemgetter(1), reverse=True)
         ans_counts = defaultdict(int)
-        for ans, _ in ans_closeness[:self.k_nearest]:
+        ans_closeness = defaultdict(list)
+        for ans, closeness in sorted_answers[:self.k_nearest]:
             ans_counts[ans] += 1
-        return max(ans_counts.items(), key=itemgetter(1))[0]
+            ans_closeness[ans].append(closeness)
+        _, max_count = max(ans_counts.items(), key=itemgetter(1))
+        m_ans, _ = max(
+            ((ans, np.mean(ans_closeness[ans]))
+             for ans, count in ans_counts.items() if count == max_count),
+            key=itemgetter(1))
+        confidence = 1.0
+        return (m_ans, confidence) if with_confidence else m_ans
 
 
 class SupervisedWrapper(SupervisedModel):
@@ -350,6 +361,7 @@ def main():
     arg('--weights-root', default='.')
     arg('--no-weights', action='store_true')
     arg('--w2v-weights', action='store_true')
+    arg('--method', default='SphericalModel')
     args = parser.parse_args()
 
     if args.semeval2007:
@@ -364,7 +376,7 @@ def main():
         filenames.sort()
 
     mfs_baselines, accuracies, freq_errors = [], [], []
-    model_class = SphericalModel
+    model_class = globals()[args.method]
     wjust = 20
     print(u'\t'.join(['word'.ljust(wjust), 'senses', 'MFS',
                       'train', 'test', 'freq', 'estimate']))

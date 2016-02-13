@@ -11,21 +11,19 @@ from collections import Counter
 from utils import word_re, lemmatize_s, avg
 from active_dict.loader import get_ad_word
 from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
-    SphericalModel, SupervisedWrapper, sorted_senses, get_accuracy_estimate, \
-    get_mfs_baseline
+    SupervisedWrapper, sorted_senses, get_accuracy_estimate, get_mfs_baseline
 from cluster import get_context_vectors
-import cluster_methods
+import cluster_methods, supervised
 
 
-def train_model(word, ad_word_data, ad_root, **model_params):
+def train_model(word, ad_word_data, ad_root, method=None, **model_params):
     weights = None if model_params.pop('no_weights', None) else \
               load_weights(word, root=ad_root)
     train_data = get_ad_train_data(word, ad_word_data)
     model = None
     if train_data:
-        method = SphericalModel
-       #method = cluster_methods.SKMeansADMapping
-       #method = cluster_methods.AutoEncoderADMapping
+        method = getattr(supervised, method,
+                         getattr(cluster_methods, method, None))
         if issubclass(method, cluster_methods.Method):
             context_vectors = get_context_vectors(
                 word, os.path.join(ad_root, 'contexts-100k', word + '.txt'),
@@ -216,10 +214,11 @@ def main():
     arg('--labeled-root')
     arg('--no-weights', action='store_true')
     arg('--w2v-weights', action='store_true')
+    arg('--method', default='SphericalModel')
     args = parser.parse_args()
     params = {k: getattr(args, k) for k in [
         'ad_root', 'window', 'verbose', 'labeled_root',
-        'no_weights', 'w2v_weights']}
+        'no_weights', 'w2v_weights', 'method']}
     if args.action == 'evaluate':
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
