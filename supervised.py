@@ -42,12 +42,15 @@ def get_ans_test_train(filename, n_train=None, test_ratio=None):
 
 
 def get_labeled_ctx(filename):
-    ''' Read results from two annotators, return only contexts
+    ''' Read results from file with labeled data.
+    Skip undefined or "other" senses.
+    If there are two annotators, return only contexts
     where both annotators agree on the meaning and it is defined.
     '''
     w_d = []
     with open(filename, 'rb') as f:
         senses = {}
+        other = None
         for i, line in enumerate(f, 1):
             row = filter(None, line.decode('utf-8').strip().split('\t'))
             try:
@@ -57,9 +60,12 @@ def get_labeled_ctx(filename):
                         assert ans == ans2
                     else:
                         meaning, ans = row
-                    senses[ans] = meaning
+                    if ans != '0':
+                        senses[ans] = meaning
                 else:
-                    other = str(len(senses) - 1)
+                    if other is None:
+                        other = str(len(senses))
+                        del senses[other]
                     if len(row) == 5:
                         before, word, after, ans1, ans2 = row
                         if ans1 == ans2:
@@ -391,7 +397,7 @@ def main():
                 senses, test_data, train_data = \
                     get_ans_test_train(filename, n_train=args.n_train)
            #if i == 0:
-           #    print('%s: %d senses' % (word, len(senses) - 2))  # "n/a" and "other"
+           #    print('%s: %d senses' % (word, len(senses)))
            #    print('%d test samples, %d train samples' % (
            #        len(test_data), len(train_data)))
             model = model_class(
