@@ -418,9 +418,9 @@ def main():
             avg_fmt(test_accuracy),
             avg_fmt(word_freq_errors),
             avg_fmt(estimates)))
-    print('MSF     \t%.3f' % avg(mfs_baselines))
-    print('test acc\t%.3f' % avg(accuracies))
-    print('freq err\t%.3f' % avg(freq_errors))
+    print('%s\t\t%.3f\t\t%.3f\t%.3f' % (
+        'Avg.'.ljust(wjust),
+        avg(mfs_baselines), avg(accuracies), avg(freq_errors)))
     if len(filenames) == 1:
         print('\n'.join('%s: %s' % (ans, s)
                         for ans, (s, _) in sorted_senses(senses)))
