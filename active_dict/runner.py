@@ -215,9 +215,11 @@ def main():
     arg('--verbose', action='store_true')
     arg('--labeled-root')
     arg('--no-weights', action='store_true')
+    arg('--w2v-weights', action='store_true')
     args = parser.parse_args()
     params = {k: getattr(args, k) for k in [
-        'ad_root', 'window', 'verbose', 'labeled_root', 'no_weights']}
+        'ad_root', 'window', 'verbose', 'labeled_root',
+        'no_weights', 'w2v_weights']}
     if args.action == 'evaluate':
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
