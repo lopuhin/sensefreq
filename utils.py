@@ -148,6 +148,8 @@ def context_vector(words,
         w_weights = [
             2.0 * max(0.0, v_closeness(w_v, word_vector))
             if w_v is not None else missing_weight for w_v in w_vectors]
+    if all(np.isclose(weight, 0) for weight in w_weights):
+        w_weights = [1.0] * len(words)
     if any(v is not None for v in w_vectors):
         vectors = [v * weight for v, weight in zip(w_vectors, w_weights)
                    if v is not None]

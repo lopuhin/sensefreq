@@ -146,7 +146,7 @@ class SphericalModel(SupervisedModel):
         ans_closeness = [
             (ans, v_closeness(v, sense_v))
             for ans, sense_v in self.sense_vectors.items()]
-        m_ans = max(ans_closeness, key=itemgetter(1))[0]
+        m_ans, _ = max(ans_closeness, key=itemgetter(1))
         if self.verbose:
             print(' '.join(x))
             print(' '.join(
