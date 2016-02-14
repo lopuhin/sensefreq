@@ -250,48 +250,48 @@ class KNearestModelOrder(WordsOrderMixin, KNearestModel):
 
 class DNNModel(SupervisedModel):
     supersample = True
+    n_models = 5
 
     def __init__(self, *args, **kwargs):
         super(DNNModel, self).__init__(*args, **kwargs)
+        self.senses = list(self.context_vectors.keys())
+        xs, ys = [], []
+        for ans, cvs in self.context_vectors.items():
+            for cv in cvs:
+                if cv is not None:
+                    xs.append(cv)
+                    y = np.zeros([len(self.senses)], dtype=np.int32)
+                    y[self.senses.index(ans)] = 1
+                    ys.append(y)
+        xs = np.array(xs)
+        ys = np.array(ys)
+        self.models = [
+            self._build_fit_model(xs, ys) for _ in range(self.n_models)]
+
+    def _build_fit_model(self, xs, ys):
         os.environ['KERAS_BACKEND'] = 'tensorflow'
         from keras.models import Sequential
         from keras.layers.core import Dense, Dropout
-        from keras.regularizers import l2
-        from keras.constraints import maxnorm
-        self.model = Sequential()
-        self.senses = list(self.context_vectors.keys())
-        in_dim = self._get_input_dim()
-        out_dim = len(self.senses)
-        self.model.add(Dropout(0.5, input_shape=[in_dim]))
-#       self.model.add(Dense(
+#       from keras.regularizers import l2
+#       from keras.constraints import maxnorm
+        model = Sequential()
+        in_dim, out_dim = xs.shape[1], ys.shape[1]
+        model.add(Dropout(0.5, input_shape=[in_dim]))
+#       model.add(Dense(
 #           input_dim=in_dim, output_dim=20, activation='relu',
 #           W_regularizer=l2(0.01),
 #           ))
-#       self.model.add(Dropout(0.5))
-        self.model.add(Dense(
+#       model.add(Dropout(0.5))
+        model.add(Dense(
             input_dim=in_dim,
             output_dim=out_dim, activation='softmax',
 #           W_regularizer=l2(0.01),
 #           b_constraint=maxnorm(0),
             ))
-        self.model.compile(loss='categorical_crossentropy', optimizer='adam')
-        xs, ys = [], []
-        for ans, cvs in self.context_vectors.items():
-            for cv in cvs:
-                xs.append(cv)
-                y = np.zeros([out_dim], dtype=np.int32)
-                y[self.senses.index(ans)] = 1
-                ys.append(y)
-        xs = np.array(xs)
-        ys = np.array(ys)
+        model.compile(loss='categorical_crossentropy', optimizer='adam')
         nb_epoch = 200 if self.supersample else 1000
-        self.model.fit(xs, ys, nb_epoch=nb_epoch, verbose=0)
-
-    def _get_input_dim(self):
-        for cvs in self.context_vectors.values():
-            for cv in cvs:
-                if cv is not None:
-                    return len(cv)
+        model.fit(xs, ys, nb_epoch=nb_epoch, verbose=0)
+        return model
 
     def __call__(self, x, c_ans=None, with_confidence=False):
         v = self.cv(x)
@@ -299,9 +299,11 @@ class DNNModel(SupervisedModel):
             m_ans = self.dominant_sense
             return (m_ans, 0.0) if with_confidence else m_ans
         confidence = 1.0
-        # TODO - confidence via model.predict
-        label = self.model.predict_classes(np.array([v]), verbose=0)[0]
-        m_ans = self.senses[label]
+        probs = [model.predict(np.array([v]), verbose=0)[0]
+                 for model in self.models]
+        probs = np.max(probs, axis=0)  # mean is similar
+        # TODO - confidence
+        m_ans = self.senses[probs.argmax()]
         return (m_ans, confidence) if with_confidence else m_ans
 
 
