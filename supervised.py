@@ -253,7 +253,7 @@ class KNearestModelOrder(WordsOrderMixin, KNearestModel):
 class DNNModel(SupervisedModel):
     supersample = True
     n_models = 5
-    confidence_threshold = 0.15
+    confidence_threshold = 0.17
 
     def __init__(self, *args, **kwargs):
         super(DNNModel, self).__init__(*args, **kwargs)
