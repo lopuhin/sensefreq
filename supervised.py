@@ -12,6 +12,9 @@ from sklearn.mixture import GMM
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+os.environ['KERAS_BACKEND'] = 'tensorflow'
+from keras.models import Sequential
+from keras.layers.core import Dense, Activation
 
 from utils import word_re, lemmatize_s, avg, v_closeness, \
     context_vector, jensen_shannon_divergence, \
@@ -241,6 +244,45 @@ class KNearestModel(SupervisedModel):
 
 class KNearestModelOrder(WordsOrderMixin, KNearestModel):
     pass
+
+
+class DNNModel(SupervisedModel):
+    def __init__(self, *args, **kwargs):
+        super(DNNModel, self).__init__(*args, **kwargs)
+        self.model = Sequential()
+        self.senses = list(self.context_vectors.keys())
+        in_dim = self._get_input_dim()
+        out_dim = len(self.senses)
+        self.model.add(Dense(
+            input_dim=in_dim, output_dim=out_dim, activation='softmax'))
+        self.model.compile(loss='categorical_crossentropy', optimizer='adam')
+        xs, ys = [], []
+        for ans, cvs in self.context_vectors.items():
+            for cv in cvs:
+                xs.append(cv)
+                y = np.zeros([out_dim], dtype=np.int32)
+                y[self.senses.index(ans)] = 1
+                ys.append(y)
+        xs = np.array(xs)
+        ys = np.array(ys)
+        self.model.fit(xs, ys, nb_epoch=200, verbose=0)
+
+    def _get_input_dim(self):
+        for cvs in self.context_vectors.values():
+            for cv in cvs:
+                if cv is not None:
+                    return len(cv)
+
+    def __call__(self, x, c_ans=None, with_confidence=False):
+        v = self.cv(x)
+        if v is None:
+            m_ans = self.dominant_sense
+            return (m_ans, 0.0) if with_confidence else m_ans
+        confidence = 1.0
+        # TODO - confidence via model.predict
+        label = self.model.predict_classes(np.array([v]), verbose=0)[0]
+        m_ans = self.senses[label]
+        return (m_ans, confidence) if with_confidence else m_ans
 
 
 class SupervisedWrapper(SupervisedModel):
