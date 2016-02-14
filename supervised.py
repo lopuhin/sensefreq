@@ -79,14 +79,15 @@ def get_labeled_ctx(filename):
 
 
 class SupervisedModel:
+    supersample = False
+
     def __init__(self, train_data,
             weights=None, excl_stopwords=True, verbose=False, window=None,
-            w2v_weights=None, supersample=False):
+            w2v_weights=None):
         self.train_data = train_data
         self.examples = defaultdict(list)
-        self.supersample = supersample
         for x, ans in self.train_data:
-            n = sum(len(part.split()) for part in x) if supersample else 1
+            n = sum(len(part.split()) for part in x) if self.supersample else 1
             for _ in range(n):
                 self.examples[ans].append(x)
         self.verbose = verbose
@@ -248,6 +249,8 @@ class KNearestModelOrder(WordsOrderMixin, KNearestModel):
 
 
 class DNNModel(SupervisedModel):
+    supersample = True
+
     def __init__(self, *args, **kwargs):
         super(DNNModel, self).__init__(*args, **kwargs)
         os.environ['KERAS_BACKEND'] = 'tensorflow'
@@ -281,7 +284,7 @@ class DNNModel(SupervisedModel):
                 ys.append(y)
         xs = np.array(xs)
         ys = np.array(ys)
-        nb_epoch = 100 if self.supersample else 1000
+        nb_epoch = 200 if self.supersample else 1000
         self.model.fit(xs, ys, nb_epoch=nb_epoch, verbose=0)
 
     def _get_input_dim(self):
