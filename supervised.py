@@ -12,9 +12,6 @@ from sklearn.mixture import GMM
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-os.environ['KERAS_BACKEND'] = 'tensorflow'
-from keras.models import Sequential
-from keras.layers.core import Dense, Activation
 
 from utils import word_re, lemmatize_s, avg, v_closeness, \
     context_vector, jensen_shannon_divergence, \
@@ -249,12 +246,27 @@ class KNearestModelOrder(WordsOrderMixin, KNearestModel):
 class DNNModel(SupervisedModel):
     def __init__(self, *args, **kwargs):
         super(DNNModel, self).__init__(*args, **kwargs)
+        os.environ['KERAS_BACKEND'] = 'tensorflow'
+        from keras.models import Sequential
+        from keras.layers.core import Dense, Dropout
+        from keras.regularizers import l2
+        from keras.constraints import maxnorm
         self.model = Sequential()
         self.senses = list(self.context_vectors.keys())
         in_dim = self._get_input_dim()
         out_dim = len(self.senses)
+        self.model.add(Dropout(0.5, input_shape=[in_dim]))
+#       self.model.add(Dense(
+#           input_dim=in_dim, output_dim=20, activation='relu',
+#           W_regularizer=l2(0.01),
+#           ))
+#       self.model.add(Dropout(0.5))
         self.model.add(Dense(
-            input_dim=in_dim, output_dim=out_dim, activation='softmax'))
+            input_dim=in_dim,
+            output_dim=out_dim, activation='softmax',
+#           W_regularizer=l2(0.01),
+#           b_constraint=maxnorm(0),
+            ))
         self.model.compile(loss='categorical_crossentropy', optimizer='adam')
         xs, ys = [], []
         for ans, cvs in self.context_vectors.items():
@@ -265,7 +277,7 @@ class DNNModel(SupervisedModel):
                 ys.append(y)
         xs = np.array(xs)
         ys = np.array(ys)
-        self.model.fit(xs, ys, nb_epoch=200, verbose=0)
+        self.model.fit(xs, ys, nb_epoch=1000, verbose=0)
 
     def _get_input_dim(self):
         for cvs in self.context_vectors.values():
