@@ -81,11 +81,14 @@ def get_labeled_ctx(filename):
 class SupervisedModel:
     def __init__(self, train_data,
             weights=None, excl_stopwords=True, verbose=False, window=None,
-            w2v_weights=None):
+            w2v_weights=None, supersample=False):
         self.train_data = train_data
         self.examples = defaultdict(list)
+        self.supersample = supersample
         for x, ans in self.train_data:
-            self.examples[ans].append(x)
+            n = sum(len(part.split()) for part in x) if supersample else 1
+            for _ in range(n):
+                self.examples[ans].append(x)
         self.verbose = verbose
         self.window = window
         self.excl_stopwords = excl_stopwords
@@ -278,7 +281,8 @@ class DNNModel(SupervisedModel):
                 ys.append(y)
         xs = np.array(xs)
         ys = np.array(ys)
-        self.model.fit(xs, ys, nb_epoch=1000, verbose=0)
+        nb_epoch = 100 if self.supersample else 1000
+        self.model.fit(xs, ys, nb_epoch=nb_epoch, verbose=0)
 
     def _get_input_dim(self):
         for cvs in self.context_vectors.values():
