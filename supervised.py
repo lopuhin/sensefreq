@@ -137,6 +137,8 @@ class SupervisedModel:
 
 
 class SphericalModel(SupervisedModel):
+    confidence_threshold = 0.05
+
     def __init__(self, *args, **kwargs):
         super(SphericalModel, self).__init__(*args, **kwargs)
         self.sense_vectors = {ans: cvs.mean(axis=0)
@@ -251,6 +253,7 @@ class KNearestModelOrder(WordsOrderMixin, KNearestModel):
 class DNNModel(SupervisedModel):
     supersample = True
     n_models = 5
+    confidence_threshold = 0.15
 
     def __init__(self, *args, **kwargs):
         super(DNNModel, self).__init__(*args, **kwargs)
@@ -304,6 +307,10 @@ class DNNModel(SupervisedModel):
         probs = np.max(probs, axis=0)  # mean is similar
         # TODO - confidence
         m_ans = self.senses[probs.argmax()]
+        if with_confidence:
+            sorted_probs = sorted(probs, reverse=True)
+            confidence = sorted_probs[0] - sorted_probs[1] \
+                         if len(sorted_probs) >= 2 else 1.0
         return (m_ans, confidence) if with_confidence else m_ans
 
 
@@ -345,7 +352,7 @@ def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
         for w, weight in zip(words, w_weights)))
 
 
-def evaluate(model, test_data, train_data):
+def evaluate(model, test_data):
     answers = []
     confidences = []
     for x, ans in test_data:
@@ -353,7 +360,7 @@ def evaluate(model, test_data, train_data):
         answers.append((x, ans, model_ans))
         confidences.append(confidence)
     n = len(answers)
-    estimate = get_accuracy_estimate(confidences)
+    estimate = get_accuracy_estimate(confidences, model.confidence_threshold)
     n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
     counts = Counter(ans for _, ans, _ in answers)
     model_counts = Counter(model_ans for _, _, model_ans in answers)
@@ -364,8 +371,8 @@ def evaluate(model, test_data, train_data):
     return (n_correct / n, max_count_error / n, js_div, estimate, answers)
 
 
-def get_accuracy_estimate(confidences):
-    return 1.0 - sum(c < 0.05 for c in confidences) / len(confidences)
+def get_accuracy_estimate(confidences, threshold):
+    return sum(c > threshold for c in confidences) / len(confidences)
 
 
 def get_mfs_baseline(labeled_data):
@@ -508,7 +515,7 @@ def main():
                 train_data, weights=weights, verbose=args.verbose,
                 window=args.window, w2v_weights=args.w2v_weights)
             accuracy, max_freq_error, _js_div, estimate, answers = evaluate(
-                model, test_data, train_data)
+                model, test_data)
             if args.tsne:
                 show_tsne(model, answers, senses, word)
             if args.write_errors:

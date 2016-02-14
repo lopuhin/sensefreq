@@ -39,7 +39,7 @@ def train_model(word, ad_word_data, ad_root, method=None, **model_params):
                 cluster_model, weights=weights, **model_params)
         else:
             model = method(train_data, weights=weights, **model_params)
-    return model, train_data
+    return model
 
 
 def evaluate_word(word, ad_root, labeled_root, print_errors=False,
@@ -49,11 +49,10 @@ def evaluate_word(word, ad_root, labeled_root, print_errors=False,
     mfs_baseline = get_mfs_baseline(test_data)
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data: return
-    model, train_data = train_model(
-        word, ad_word_data, ad_root, **model_params)
+    model = train_model(word, ad_word_data, ad_root, **model_params)
     if not model: return
     test_accuracy, max_freq_error, js_div, estimate, answers = \
-        evaluate(model, test_data, train_data)
+        evaluate(model, test_data)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
     return mfs_baseline, model.get_train_accuracy(verbose=False), \
@@ -107,7 +106,7 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
         return
     ad_word_data = get_ad_word(word, ad_root)
     if ad_word_data is None: return
-    model, _ = train_model(word, ad_word_data, ad_root, **params)
+    model = train_model(word, ad_word_data, ad_root, **params)
     if model is None: return
     result = []
     confidences = []
