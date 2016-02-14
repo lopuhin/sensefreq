@@ -305,7 +305,6 @@ class DNNModel(SupervisedModel):
         probs = [model.predict(np.array([v]), verbose=0)[0]
                  for model in self.models]
         probs = np.max(probs, axis=0)  # mean is similar
-        # TODO - confidence
         m_ans = self.senses[probs.argmax()]
         if with_confidence:
             sorted_probs = sorted(probs, reverse=True)
