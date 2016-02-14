@@ -358,16 +358,22 @@ def evaluate(model, test_data):
         model_ans, confidence = model(x, ans, with_confidence=True)
         answers.append((x, ans, model_ans))
         confidences.append(confidence)
-    n = len(answers)
     estimate = get_accuracy_estimate(confidences, model.confidence_threshold)
     n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
-    counts = Counter(ans for _, ans, _ in answers)
-    model_counts = Counter(model_ans for _, _, model_ans in answers)
-    max_count_error = max(abs(counts[s] - model_counts[s]) for s in counts)
-    all_senses = sorted(set(model_counts) | set(counts))
+    freqs = _get_freqs([ans for _, ans in test_data])
+    model_freqs = _get_freqs([model_ans for _, _, model_ans in answers])
+    all_senses = sorted(set(model_freqs) | set(freqs))
+    max_freq_error = max(abs(freqs[s] - model_freqs[s]) for s in all_senses)
     js_div = jensen_shannon_divergence(
-        [counts[s] for s in all_senses], [model_counts[s] for s in all_senses])
-    return (n_correct / n, max_count_error / n, js_div, estimate, answers)
+        [freqs[s] for s in all_senses], [model_freqs[s] for s in all_senses])
+    return (n_correct / len(answers), max_freq_error, js_div, estimate, answers)
+
+
+def _get_freqs(answers):
+    counts = Counter(answers)
+    freqs = defaultdict(float)
+    freqs.update((ans, count / len(answers)) for ans, count in counts.items())
+    return freqs
 
 
 def get_accuracy_estimate(confidences, threshold):
