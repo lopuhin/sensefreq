@@ -135,6 +135,9 @@ class SupervisedModel:
             self.verbose = is_verbose
         return accuracy
 
+    def __call__(self, x, c_ans=None, with_confidence=False):
+        raise NotImplementedError
+
 
 class SphericalModel(SupervisedModel):
     confidence_threshold = 0.05
@@ -212,7 +215,7 @@ class GMMModel(SupervisedModel):
             list(itertools.chain(*self.context_vectors.values())))
         self.classifier.fit(x_train)
 
-    def __call__(self, x):
+    def __call__(self, x, *args, **kwargs):
         v = self.cv(x)
         return self.senses[self.classifier.predict(v)[0]]
 
