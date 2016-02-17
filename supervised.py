@@ -227,6 +227,8 @@ class GMMModel(SupervisedModel):
 
 
 class KNearestModel(SupervisedModel):
+    confidence_threshold = 0.1  # whatever
+
     def __init__(self, *args, **kwargs):
         self.k_nearest = kwargs.pop('k_nearest', 3)
         super(KNearestModel, self).__init__(*args, **kwargs)
@@ -320,6 +322,10 @@ class DNNModel(SupervisedModel):
             confidence = sorted_probs[0] - sorted_probs[1] \
                          if len(sorted_probs) >= 2 else 1.0
         return (m_ans, confidence) if with_confidence else m_ans
+
+
+class DNNModelOrder(WordsOrderMixin, DNNModel):
+    pass
 
 
 class SupervisedWrapper(SupervisedModel):
