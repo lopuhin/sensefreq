@@ -63,11 +63,11 @@ def evaluate_words(filename, **params):
     with open(filename, 'r') as f:
         words = [l.strip() for l in f]
     all_metrics = []
-    metric_names = ['MFS', 'train', 'test', 'freq', 'JSD', 'estimate']
+    metric_names = ['MFS', 'Train', 'Test', 'Freq'] #, 'JSD', 'Estimate']
     wjust = 20
-    print(u'\t'.join(['word'.ljust(wjust)] + metric_names))
+    print(u'\t'.join(['Word'.ljust(wjust)] + metric_names))
     for word in sorted(words):
-        metrics = evaluate_word(word, **params)
+        metrics = evaluate_word(word, **params)[:len(metric_names)]
         if metrics is not None:
             all_metrics.append(metrics)
             print(u'%s\t%s' % (
