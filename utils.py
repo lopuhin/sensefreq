@@ -93,8 +93,14 @@ def lemmatized_sentences(sentences_iter):
 
 @memoize
 def lemmatize_s(s):
-    return [normalize(w) for w in mystem.lemmatize(s)
+    return [normalize(w) for w in mystem.lemmatize(s.lower())
             if w != ' ' and w != '\n']
+
+
+@memoize
+def tokenize_s(s):
+    return [normalize(item['text']) for item in mystem.analyze(s)
+            if item['text'] != '\n']
 
 
 def normalize(w):

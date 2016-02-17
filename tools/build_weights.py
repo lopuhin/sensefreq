@@ -9,17 +9,17 @@ from utils import w2v_counts, w2v_total_count
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('filename')
+    parser.add_argument('input')
     parser.add_argument('output')
     # TODO - support window?
     args = parser.parse_args()
-    if os.path.isdir(args.filename):
+    if os.path.isdir(args.input):
         targets = [
-            (os.path.join(args.filename, f),
+            (os.path.join(args.input, f),
              os.path.join(args.output, f))
-            for f in os.listdir(args.filename) if f.endswith('.txt')]
+            for f in os.listdir(args.input) if f.endswith('.txt')]
     else:
-        targets = [(args.filename, args.output)]
+        targets = [(args.input, args.output)]
     for input_filename, output_filename in targets:
         write_cdict(input_filename, output_filename)
 

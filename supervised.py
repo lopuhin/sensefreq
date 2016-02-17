@@ -14,7 +14,7 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from utils import word_re, lemmatize_s, avg, v_closeness, \
+from utils import word_re, lemmatize_s, tokenize_s, avg, v_closeness, \
     context_vector, jensen_shannon_divergence, \
     bool_color, blue, magenta, bold_if
 from semeval2007 import load_semeval2007
@@ -83,8 +83,9 @@ class SupervisedModel:
 
     def __init__(self, train_data,
             weights=None, excl_stopwords=False, verbose=False, window=None,
-            w2v_weights=None):
+            w2v_weights=None, lemmatize=True):
         self.train_data = train_data
+        self.lemmatize = lemmatize
         self.examples = defaultdict(list)
         for x, ans in self.train_data:
             n = sum(len(part.split()) for part in x) if self.supersample else 1
@@ -104,14 +105,24 @@ class SupervisedModel:
                 ((ans, len(ex)) for ans, ex in self.examples.items()),
                 key=itemgetter(1))[0]
 
-    def cv(self, ctx):
+    def _get_before_word_after(self, ctx):
         before, word, after = ctx
-        word, = lemmatize_s(word)
-        get_words = lambda s: [
-            w for w in lemmatize_s(s) if word_re.match(w) and w != word]
+        lemm, = lemmatize_s(word)
+        if self.lemmatize:
+            word = lemm
+            get_words = lambda s: [
+                w for w in lemmatize_s(s) if word_re.match(w) and w != word]
+        else:
+            get_words = lambda s: [
+                w for w in tokenize_s(s) if word_re.match(w) and
+                lemmatize_s(w) != [lemm]]
         before, after = map(get_words, [before, after])
         if self.window:
             before, after = before[-self.window:], after[:self.window]
+        return before, word, after
+
+    def cv(self, ctx):
+        before, word, after = self._get_before_word_after(ctx)
         words = before + after
         cv, w_vectors, w_weights = context_vector(
             words, excl_stopwords=self.excl_stopwords,
@@ -174,12 +185,7 @@ class SphericalModel(SupervisedModel):
 
 class WordsOrderMixin:
     def cv(self, ctx):
-        before, word, after = ctx
-        word, = lemmatize_s(word)
-        get_words = lambda s: [
-            w for w in lemmatize_s(s) if word_re.match(w) and w != word]
-        before, after = map(get_words, [before, after])
-        before, after = before[-self.window:], after[:self.window]
+        before, word, after = self._get_before_word_after(ctx)
         pad_left = self.window - len(before)
         pad_right = self.window - len(after)
         _, w_vectors, w_weights = context_vector(
@@ -423,8 +429,9 @@ def get_errors(answers):
             if ans != model_ans]
 
 
-def load_weights(word, root='.'):
-    filename = os.path.join(root, 'cdict', word + '.txt')
+def load_weights(word, root='.', lemmatize=True):
+    filename = os.path.join(
+        root, 'cdict' if lemmatize else 'cdict-no-lemm', word + '.txt')
     if os.path.exists(filename):
         with open(filename, 'r') as f:
             return {w: float(weight) for w, weight in (l.split() for l in f)}
@@ -475,7 +482,9 @@ def main():
     arg('--no-weights', action='store_true')
     arg('--w2v-weights', action='store_true')
     arg('--method', default='SphericalModel')
+    arg('--no-lemm', action='store_true')
     args = parser.parse_args()
+    lemmatize = not args.no_lemm
 
     if args.semeval2007:
         semeval2007_data = load_semeval2007(args.path)
@@ -501,8 +510,9 @@ def main():
         if args.only and word != args.only:
             continue
         weights = None if (args.no_weights or args.w2v_weights) else \
-                  load_weights(word, args.weights_root)
-        test_accuracy, train_accuracy, estimates, word_freq_errors = [], [], [], []
+                  load_weights(word, args.weights_root, lemmatize=lemmatize)
+        test_accuracy, train_accuracy, estimates, word_freq_errors = \
+            [], [], [], []
         if args.semeval2007:
             senses, test_data, train_data = semeval2007_data[word]
            #print('%s: %d senses, %d test, %d train' % (
@@ -521,7 +531,8 @@ def main():
            #        len(test_data), len(train_data)))
             model = model_class(
                 train_data, weights=weights, verbose=args.verbose,
-                window=args.window, w2v_weights=args.w2v_weights)
+                window=args.window, w2v_weights=args.w2v_weights,
+                lemmatize=lemmatize)
             accuracy, max_freq_error, _js_div, estimate, answers = evaluate(
                 model, test_data)
             if args.tsne:

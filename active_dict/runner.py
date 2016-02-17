@@ -9,7 +9,7 @@ import sys
 from operator import itemgetter
 from collections import Counter
 
-from utils import word_re, lemmatize_s, avg
+from utils import avg, mystem
 from active_dict.loader import get_ad_word
 from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
     SupervisedWrapper, sorted_senses, get_accuracy_estimate, get_mfs_baseline
@@ -18,8 +18,8 @@ import cluster_methods, supervised
 
 
 def train_model(word, ad_word_data, ad_root, method=None, **model_params):
-    weights = None if model_params.pop('no_weights', None) else \
-              load_weights(word, root=ad_root)
+    weights = None if model_params.pop('no_weights', None) else load_weights(
+        word, root=ad_root, lemmatize=model_params.get('lemmatize'))
     train_data = get_ad_train_data(word, ad_word_data)
     model = None
     if train_data:
@@ -185,17 +185,17 @@ def get_ad_train_data(word, ad_word_data):
     for m in ad_word_data['meanings']:
         ans = m['id']
         for ctx in m['contexts']:
-            words = [w for w in lemmatize_s(ctx.lower()) if word_re.match(w)]
-            try:
-                w_idx = words.index(word)
-            except ValueError:
-                before = u' '.join(words)
-                after = ''
-            else:
-                before = u' '.join(words[:w_idx])
-                after = u' '.join(w for w in words[w_idx+1:] if w != word)
-            train_data.append(
-                ((before, word, after), ans))
+            before, mid, after = [], None, []
+            append_to = before
+            for item in mystem.analyze(ctx):
+                text = item['text']
+                if any(a['lex'] == word for a in item.get('analysis', [])):
+                    mid = text
+                    append_to = after
+                elif text != '\n':
+                    append_to.append(text)
+            before, after = ''.join(before).strip(), ''.join(after).strip()
+            train_data.append(((before, mid or word, after), ans))
     return train_data
 
 
@@ -214,11 +214,13 @@ def main():
     arg('--labeled-root')
     arg('--no-weights', action='store_true')
     arg('--w2v-weights', action='store_true')
+    arg('--no-lemm', action='store_true')
     arg('--method', default='SphericalModel')
     args = parser.parse_args()
     params = {k: getattr(args, k) for k in [
         'ad_root', 'window', 'verbose', 'labeled_root',
         'no_weights', 'w2v_weights', 'method']}
+    params['lemmatize'] = not args.no_lemm
     if args.action == 'evaluate':
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
