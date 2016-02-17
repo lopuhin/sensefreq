@@ -131,7 +131,7 @@ def v_closeness(v1, v2):
 
 
 def context_vector(words,
-        excl_stopwords=True, weights=None, w2v_cache=None, weight_word=None):
+        excl_stopwords=False, weights=None, w2v_cache=None, weight_word=None):
     if w2v_cache:
         w_vectors = [w2v_cache[w] for w in words]
     else:
