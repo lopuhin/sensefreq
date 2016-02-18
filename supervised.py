@@ -11,6 +11,9 @@ from operator import itemgetter
 import numpy as np
 from sklearn.mixture import GMM
 from sklearn.manifold import TSNE
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+import sklearn.linear_model
+import sklearn.naive_bayes
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
@@ -79,12 +82,25 @@ def get_labeled_ctx(filename):
 
 
 class SupervisedModel:
+    confidence_threshold = 1.0  # override
+
+    def __init__(self, train_data):
+        self.train_data = train_data
+
+    def __call__(self, x, c_ans=None, with_confidence=False):
+        raise NotImplementedError
+
+    def get_train_accuracy(self, verbose=None):
+        raise NotImplementedError
+
+
+class SupervisedW2VModel(SupervisedModel):
     supersample = False
 
     def __init__(self, train_data,
             weights=None, excl_stopwords=False, verbose=False, window=None,
             w2v_weights=None, lemmatize=True):
-        self.train_data = train_data
+        super().__init__(train_data)
         self.lemmatize = lemmatize
         self.examples = defaultdict(list)
         for x, ans in self.train_data:
@@ -146,11 +162,8 @@ class SupervisedModel:
             self.verbose = is_verbose
         return accuracy
 
-    def __call__(self, x, c_ans=None, with_confidence=False):
-        raise NotImplementedError
 
-
-class SphericalModel(SupervisedModel):
+class SphericalModel(SupervisedW2VModel):
     confidence_threshold = 0.05
 
     def __init__(self, *args, **kwargs):
@@ -208,7 +221,7 @@ class SphericalModelOrder(WordsOrderMixin, SphericalModel):
     pass
 
 
-class GMMModel(SupervisedModel):
+class GMMModel(SupervisedW2VModel):
     def __init__(self, *args, **kwargs):
         super(GMMModel, self).__init__(*args, **kwargs)
         self.senses = np.array(self.context_vectors.keys())
@@ -226,9 +239,7 @@ class GMMModel(SupervisedModel):
         return self.senses[self.classifier.predict(v)[0]]
 
 
-class KNearestModel(SupervisedModel):
-    confidence_threshold = 0.1  # whatever
-
+class KNearestModel(SupervisedW2VModel):
     def __init__(self, *args, **kwargs):
         self.k_nearest = kwargs.pop('k_nearest', 3)
         super(KNearestModel, self).__init__(*args, **kwargs)
@@ -261,7 +272,7 @@ class KNearestModelOrder(WordsOrderMixin, KNearestModel):
     pass
 
 
-class DNNModel(SupervisedModel):
+class DNNModel(SupervisedW2VModel):
     supersample = True
     n_models = 5
     confidence_threshold = 0.17
@@ -328,7 +339,53 @@ class DNNModelOrder(WordsOrderMixin, DNNModel):
     pass
 
 
-class SupervisedWrapper(SupervisedModel):
+class TextSKLearnModel(SupervisedModel):
+    Classifier = None
+
+    def __init__(self, train_data, window=None, **_kwargs):
+        super().__init__(train_data)
+        self.window = window
+        self.senses = list(set(map(itemgetter(1), train_data)))
+        xs, ys = [], []
+        for ctx, ans in train_data:
+            xs.append(self._transform_ctx(ctx))
+            ys.append(self.senses.index(ans))
+        self.cv = CountVectorizer()
+        self.clf = self.Classifier()
+        self.tfidf_transformer = TfidfTransformer()
+        features = self.cv.fit_transform(xs)
+        features = self.tfidf_transformer.fit_transform(features)
+        self.clf.fit(features, ys)
+
+    def _transform_ctx(self, ctx):
+        before, word, after = ctx
+        word, = lemmatize_s(word)
+        words = [w for chunk in [before, after]
+                    for w in lemmatize_s(chunk) if word_re.match(w)
+                    and w != word]
+        return ' '.join(words)
+
+    def __call__(self, x, c_ans=None, with_confidence=False):
+        x = self._transform_ctx(x)
+        features = self.cv.transform([x])
+        features = self.tfidf_transformer.transform(features)
+        m_ans = self.senses[self.clf.predict(features)[0]]
+        confidence = 0.0
+        return (m_ans, confidence) if with_confidence else m_ans
+
+    def get_train_accuracy(self, verbose=None):
+        return 0
+
+
+class SVMModel(TextSKLearnModel):
+    Classifier = sklearn.linear_model.SGDClassifier
+
+
+class NaiveBayesModel(TextSKLearnModel):
+    Classifier = sklearn.naive_bayes.MultinomialNB
+
+
+class SupervisedWrapper(SupervisedW2VModel):
     ''' Supervised wrapper around cluster.Method.
     '''
     def __init__(self, model, **kwargs):
