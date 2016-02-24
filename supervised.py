@@ -431,6 +431,15 @@ def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):
         for w, weight in zip(words, w_weights)))
 
 
+def print_cross_errors(senses, answers):
+    senses = sorted_senses(senses)
+    for label, sense in senses:
+        print('%s: %s' % (label, sense))
+    ans_counts = Counter((a, ma) for _, a, ma in answers)
+    for m_ans, _ in senses:
+        print('\t'.join(str(ans_counts[ans, m_ans]) for ans, _ in senses))
+
+
 def evaluate(model, test_data):
     answers = []
     confidences = []
