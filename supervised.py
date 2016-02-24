@@ -340,8 +340,6 @@ class DNNModelOrder(WordsOrderMixin, DNNModel):
 
 
 class TextSKLearnModel(SupervisedModel):
-    Classifier = None
-
     def __init__(self, train_data, window=None, **_kwargs):
         super().__init__(train_data)
         self.window = window
@@ -351,7 +349,7 @@ class TextSKLearnModel(SupervisedModel):
             xs.append(self._transform_ctx(ctx))
             ys.append(self.senses.index(ans))
         self.cv = CountVectorizer()
-        self.clf = self.Classifier()
+        self.clf = self.get_classifier()
         self.tfidf_transformer = TfidfTransformer()
         features = self.cv.fit_transform(xs)
         features = self.tfidf_transformer.fit_transform(features)
@@ -376,13 +374,23 @@ class TextSKLearnModel(SupervisedModel):
     def get_train_accuracy(self, verbose=None):
         return 0
 
+    def get_classifier(self):
+        raise NotImplementedError
+
 
 class SVMModel(TextSKLearnModel):
-    Classifier = sklearn.linear_model.SGDClassifier
+    def get_classifier(self):
+        return sklearn.linear_model.SGDClassifier()
 
 
 class NaiveBayesModel(TextSKLearnModel):
-    Classifier = sklearn.naive_bayes.MultinomialNB
+    def get_classifier(self):
+        return sklearn.naive_bayes.MultinomialNB()
+
+
+class LogModel(TextSKLearnModel):
+    def get_classifier(self):
+        return sklearn.linear_model.SGDClassifier(loss='log', penalty='l1')
 
 
 class SupervisedWrapper(SupervisedW2VModel):
