@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 
-import argparse, os, traceback
+import argparse, os, time
 from collections import Counter
 from itertools import islice
 
 import numpy as np
-os.environ['KERAS_BACKEND'] = 'tensorflow'
-from keras.models import Sequential
-from keras.layers.core import Dense, Flatten
-from keras.layers.embeddings import Embedding
-from keras.utils.np_utils import to_categorical
+import tensorflow as tf
 
 UNK = '<UNK>'
 
@@ -22,10 +18,8 @@ def main():
     arg('--vocab-size', type=int, default=10000)
     arg('--vec-size', type=int, default=30)
     arg('--hidden-size', type=int, default=30)
-    arg('--hidden2-size', type=int, default=0)
     arg('--reload-vocab', action='store_true')
     arg('--nb-epoch', type=int, default=100)
-    arg('--resume-from')
     args = parser.parse_args()
 
     vocab_path = args.corpus + '.vocab.npz'
@@ -40,12 +34,12 @@ def main():
                  words=words, n_tokens=n_tokens, n_total_tokens=n_total_tokens)
     print('{:,} tokens total, {:,} without <UNK>'.format(
         int(n_total_tokens), int(n_tokens)))
-    model = train(
-        args.corpus, words, n_tokens,
-        vec_size=args.vec_size, window=args.window,
-        hidden_size=args.hidden_size, hidden2_size=args.hidden2_size,
-        nb_epoch=args.nb_epoch, resume_from=args.resume_from)
-    model.save_weights('model', overwrite=True)
+    model = Model(
+        vec_size=args.vec_size,
+        hidden_size=args.hidden_size,
+        window=args.window,
+        words=words)
+    model.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch)
 
 
 def get_words(corpus, vocab_size):
@@ -71,85 +65,99 @@ def get_word_to_idx(words):
     return word_to_idx
 
 
-def train(corpus, words, n_tokens, window, nb_epoch, resume_from=None,
-          **model_params):
-    word_to_idx = get_word_to_idx(words)
-    full_vocab_size = len(word_to_idx)
-    unk_id = word_to_idx[UNK]
-    model = build_model(
-        window=window, full_vocab_size=full_vocab_size, **model_params)
-    if resume_from:
-        model.load_weights(resume_from)
+class Model:
+    def __init__(self, vec_size, hidden_size, window, words):
+        self.window = window
+        self.vec_size = vec_size
+        self.word_to_idx = get_word_to_idx(words)
+        self.batch_size = 32
+        full_vocab_size = len(self.word_to_idx)
+        input_size = self.window * 2
 
-    def gen_data():
-        try:
-            with open(corpus, 'r') as f:
-                while True:
-                    yield from file_contexts(f)
-        except Exception:
-            traceback.print_exc()
-            raise
+        embeddings = tf.Variable(tf.random_uniform(
+            [full_vocab_size, self.vec_size], -1.0, 1.0))
+        hidden_input_size = self.vec_size * input_size
+        hidden_weights = tf.Variable(tf.random_uniform(
+            [hidden_input_size, hidden_size], -0.01, 0.01))
+        hidden_biases = tf.Variable(tf.zeros([hidden_size]))
+        out_weights = tf.Variable(tf.truncated_normal(
+            [full_vocab_size, hidden_size],
+            stddev=1.0 / np.sqrt(self.vec_size)))
+        out_biases = tf.Variable(tf.zeros([full_vocab_size]))
 
-    def file_contexts(f):
-        # TODO - shuffle size vs speed?
-        word_ids = np.array([
-            word_to_idx.get(w, unk_id)
-            for line in islice(f, 100000)
-            for w in tokenize(line)], dtype=np.int32)
-        if len(word_ids) > 0:
+        self.inputs = tf.placeholder(tf.int32, shape=[None, input_size])
+        self.labels = tf.placeholder(tf.int32, shape=[None, 1])
+
+        embed = tf.nn.embedding_lookup(embeddings, self.inputs)
+        embed = tf.reshape(embed, [-1, hidden_input_size])
+        hidden = tf.nn.relu(tf.matmul(embed, hidden_weights) + hidden_biases)
+
+        num_sampled = 512
+        self.loss = tf.reduce_mean(tf.nn.nce_loss(
+            out_weights, out_biases, hidden, self.labels,
+            num_sampled, full_vocab_size))
+        self.global_step = tf.Variable(0, name='global_step', trainable=False)
+        self.train_op = tf.train.AdamOptimizer()\
+            .minimize(self.loss, global_step=self.global_step)
+
+    def train(self, corpus, n_tokens, nb_epoch):
+        with tf.Session() as sess:
+            sess.run(tf.initialize_all_variables())
+            with open(corpus) as f:
+                for n_epoch in range(1, nb_epoch + 1):
+                    f.seek(0)
+                    self.train_epoch(sess, self.batches(f), n_epoch, n_tokens)
+
+    def train_epoch(self, sess, batches, n_epoch, n_tokens):
+        batches_per_epoch = n_tokens / self.batch_size
+        report_step = 1000
+        t0 = epoch_start = time.time()
+        losses = []
+        for n_batch, (xs, ys) in enumerate(batches):
+            _, loss_value = sess.run(
+                [self.train_op, self.loss],
+                feed_dict={self.inputs: xs, self.labels: ys})
+            losses.append(loss_value)
+            step = self.global_step.eval()
+            if step % report_step == 0:
+                progress = n_batch / batches_per_epoch
+                t1 = time.time()
+                speed = self.batch_size * report_step / (t1 - t0)
+                print(
+                    'Step {:,}; epoch {}; {:.1f}%: loss {:.3f} '
+                    '(at {:.1f}K contexts/sec, {}s since epoch start)'
+                    .format(
+                        step, n_epoch, progress * 100, np.mean(losses),
+                        speed / 1000, int(t1 - epoch_start)))
+                losses = []
+                t0 = t1
+
+    def batches(self, f):
+        unk_id = self.word_to_idx[UNK]
+        read_lines_batch = 1000000
+        while True:
+            print('Reading next data batch...')
+            word_ids = np.array([
+                self.word_to_idx.get(w, unk_id)
+                for line in islice(f, read_lines_batch)
+                for w in tokenize(line)], dtype=np.int32)
+            if len(word_ids) == 0:
+                print('Batch empty.')
+                break
+            print('Vectorizing...')
             contexts = []
-            for idx in range(window, len(word_ids) - window - 1):
+            for idx in range(self.window, len(word_ids) - self.window - 1):
                 if word_ids[idx] != unk_id:
-                    contexts.append(word_ids[idx - window : idx + window + 1])
+                    contexts.append(
+                        word_ids[idx - self.window : idx + self.window + 1])
             contexts = np.array(contexts)
             np.random.shuffle(contexts)
-            chunk_size = 1000
-            for idx in range(0, len(contexts), chunk_size):
-                yield get_xs_ys(contexts[idx : idx + chunk_size])
-        else:
-            f.seek(0)
-
-    def get_xs_ys(contexts):
-        xs, ys = np.delete(contexts, window, 1), contexts[:,window]
-        ys = to_categorical(ys, full_vocab_size)
-        return xs, ys
-
-    model.fit_generator(
-        gen_data(),
-        nb_epoch=nb_epoch,
-        show_accuracy=True,
-        samples_per_epoch=n_tokens - 2 * window,
-        )
-    return model
-
-
-def build_model(**params):
-    model = model_base(**params)
-    model.add(Dense(params['full_vocab_size'], activation='softmax'))
-    model.compile(
-        loss='categorical_crossentropy',
-        optimizer='adam')
-    return model
-
-
-def model_base(vec_size, hidden_size, hidden2_size, window, full_vocab_size):
-    model = Sequential()
-    model.add(Embedding(full_vocab_size, vec_size, input_length=2 * window))
-    model.add(Flatten())
-    model.add(Dense(hidden_size, activation='relu'))
-    if hidden2_size:
-        model.add(Dense(hidden2_size, activation='relu'))
-    return model
-
-
-def load_base_model(path, **params):
-    trained_model = build_model(**params)
-    trained_model.load_weights(path)
-    weights = trained_model.get_weights()
-    model = model_base(**params)
-    model.compile(loss='cosine_proximity', optimizer='sgd')  # just to compile
-    model.set_weights(weights[:-2])  # without last layers (W and b)
-    return model
+            print('Batch ready.')
+            for idx in range(0, len(contexts), self.batch_size):
+                batch = contexts[idx : idx + self.batch_size]
+                xs = np.delete(batch, self.window, 1)
+                ys = batch[:,self.window : self.window + 1]
+                yield xs, ys
 
 
 if __name__ == '__main__':
