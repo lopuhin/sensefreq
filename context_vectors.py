@@ -39,7 +39,7 @@ def main():
         np.savez(vocab_path[:-len('.npz')],
                  words=words, n_tokens=n_tokens, n_total_tokens=n_total_tokens)
     print('{:,} tokens total, {:,} without <UNK>'.format(
-        n_total_tokens, n_tokens))
+        int(n_total_tokens), int(n_tokens)))
     model = train(
         args.corpus, words, n_tokens,
         vec_size=args.vec_size, window=args.window,
