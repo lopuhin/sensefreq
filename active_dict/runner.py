@@ -153,7 +153,7 @@ def summary(ad_root, ctx_dir):
 def load_ipm(ad_root, only_pos='s'):
     filename = os.path.join(ad_root, 'freqs.csv')
     if os.path.exists(filename):
-        with open(filename, 'rb') as f:
+        with open(filename, 'r') as f:
             return {word: float(ipm)
                     for word, pos, ipm in csv.reader(f) if pos == only_pos}
     else:

@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# -*- encoding: utf-8 -*-
-
-from __future__ import division
-
 import re
 import json
 import os.path
@@ -21,7 +17,7 @@ from active_dict.runner import load_ipm
 class BaseHandler(RequestHandler):
     def load(self, name, *path):
         path = [self.ad_root] + list(path) + [name + '.json']
-        with open(os.path.join(*path), 'rb') as f:
+        with open(os.path.join(*path), 'r') as f:
             return json.load(f)
 
     @property
@@ -48,7 +44,7 @@ class WordsHandler(BaseHandler):
         summary = self.load('summary', ctx_path)
         words_senses = []
         homonyms = self.get_argument('homonyms', None)
-        for word, winfo in summary.iteritems():
+        for word, winfo in summary.items():
             if (homonyms == 'yes' and not winfo['is_homonym']) or \
                (homonyms == 'no' and winfo['is_homonym']):
                 continue
@@ -71,10 +67,10 @@ COLORS = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'violet']
 
 
 def sorted_senses(senses):
-    for id_, sense in senses.iteritems():
+    for id_, sense in senses.items():
         sense['id'] = id_
         sense['color'] = COLORS[(int(id_) - 1) % len(COLORS)]
-    return sorted(senses.itervalues(), key=lambda s: s['freq'], reverse=True)
+    return sorted(senses.values(), key=lambda s: s['freq'], reverse=True)
 
 
 def statistics(words_senses):
@@ -160,7 +156,7 @@ def compare_statistics(summary1, summary2):
 
 class WordHandler(BaseHandler):
     def get(self, ctx_path, word):
-        ctx = self.load(word, ctx_path.encode('utf-8'))
+        ctx = self.load(word, ctx_path)
         contexts = ctx['contexts'][:100]
         parsed = get_ad_word(word, self.ad_root)
         sense_by_id = {m['id']: m for m in parsed['meanings']}
@@ -170,7 +166,7 @@ class WordHandler(BaseHandler):
             word=parsed['word'],
             senses=sorted(
                 (sid, sense_by_id[sid], count / len(contexts))
-                for sid, count in counts.iteritems()),
+                for sid, count in counts.items()),
             contexts=contexts)
 
 
@@ -182,11 +178,11 @@ class PosListHandler(BaseHandler):
             words = only.split(',')
         else:
             words = {m.groups()[0] for m in (
-                name_re.match(filename.decode('utf-8'))
+                name_re.match(filename)
                 for filename in os.listdir(os.path.join(self.ad_root, 'ad')))
                 if m is not None}
         words_info = []
-        only_pos = {u'ГЛАГ': 'v', u'СУЩ': 's'}[pos]
+        only_pos = {'ГЛАГ': 'v', 'СУЩ': 's'}[pos]
         ipm = load_ipm(self.ad_root, only_pos=only_pos)
         for w in sorted(words):
             w_info = get_ad_word(w, self.ad_root, with_contexts=False)
