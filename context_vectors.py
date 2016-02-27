@@ -20,6 +20,7 @@ def main():
     arg('--batch-size', type=int, default=32)
     arg('--hidden-size', type=int, default=30)
     arg('--nb-epoch', type=int, default=100)
+    arg('--save-path', default='cv-model')
     args = parser.parse_args()
 
     vocab_path = args.corpus + '.{}-vocab.npz'.format(args.vocab_size)
@@ -35,11 +36,10 @@ def main():
     print('{:,} tokens total, {:,} without <UNK>'.format(
         int(n_total_tokens), int(n_tokens)))
     model = Model(
-        vec_size=args.vec_size,
-        hidden_size=args.hidden_size,
-        window=args.window,
         words=words,
-        batch_size=args.batch_size)
+        **{k: getattr(args, k) for k in [
+            'vec_size', 'hidden_size', 'window', 'batch_size', 'save_path',
+            ]})
     model.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch)
 
 
@@ -72,11 +72,13 @@ def get_word_to_idx(words):
 
 
 class Model:
-    def __init__(self, vec_size, hidden_size, window, words, batch_size):
+    def __init__(self, vec_size, hidden_size, window, words, batch_size,
+                 save_path):
         self.window = window
         self.vec_size = vec_size
         self.word_to_idx = get_word_to_idx(words)
         self.batch_size = batch_size
+        self.save_path = save_path
         full_vocab_size = len(self.word_to_idx)
         input_size = self.window * 2
 
@@ -105,6 +107,7 @@ class Model:
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         self.train_op = tf.train.AdamOptimizer()\
             .minimize(self.loss, global_step=self.global_step)
+        self.saver = tf.train.Saver()
 
     def train(self, corpus, n_tokens, nb_epoch):
         with tf.Session() as sess:
@@ -117,6 +120,7 @@ class Model:
     def train_epoch(self, sess, batches, n_epoch, n_tokens):
         batches_per_epoch = n_tokens / self.batch_size
         report_step = 1000
+        save_step = report_step * 10
         t0 = epoch_start = time.time()
         losses = []
         for n_batch, (xs, ys) in enumerate(batches):
@@ -137,6 +141,10 @@ class Model:
                         speed / 1000, int(t1 - epoch_start)))
                 losses = []
                 t0 = t1
+            if step % save_step == 0:
+                print('Saving model...')
+                self.saver.save(sess, self.save_path, global_step=step)
+                print('Done.')
 
     def batches(self, f):
         unk_id = self.word_to_idx[UNK]
