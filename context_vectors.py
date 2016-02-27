@@ -15,6 +15,7 @@ def main():
     arg = parser.add_argument
     arg('corpus')
     arg('--window', type=int, default=3)
+    arg('--window-bag', type=int, default=10)
     arg('--vocab-size', type=int, default=10000)
     arg('--vec-size', type=int, default=30)
     arg('--batch-size', type=int, default=32)
@@ -38,7 +39,8 @@ def main():
     model = Model(
         words=words,
         **{k: getattr(args, k) for k in [
-            'vec_size', 'hidden_size', 'window', 'batch_size', 'save_path',
+            'vec_size', 'hidden_size', 'window', 'window_bag', 'batch_size',
+            'save_path',
             ]})
     model.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch)
 
@@ -72,39 +74,52 @@ def get_word_to_idx(words):
 
 
 class Model:
-    def __init__(self, vec_size, hidden_size, window, words, batch_size,
-                 save_path):
+    def __init__(self, vec_size, hidden_size, window, window_bag, words,
+                 batch_size, save_path):
         self.window = window
+        self.window_bag = window_bag
         self.vec_size = vec_size
         self.word_to_idx = get_word_to_idx(words)
         self.batch_size = batch_size
         self.save_path = save_path
         full_vocab_size = len(self.word_to_idx)
-        input_size = self.window * 2
-
+        # Inputs: contexts of length window_bag * 2, and middle words.
+        self.inputs = tf.placeholder(
+            tf.int32, shape=[None, self.window_bag * 2])
+        self.labels = tf.placeholder(tf.int32, shape=[None, 1])
+        # Embedding: take mean of outer (window_bag) context,
+        # and concatenate inner (window) context.
         embeddings = tf.Variable(tf.random_uniform(
             [full_vocab_size, self.vec_size], -1.0, 1.0))
-        hidden_input_size = self.vec_size * input_size
+        embed = tf.nn.embedding_lookup(embeddings, self.inputs)
+        delta = self.window_bag - self.window
+        embed_inner = tf.reshape(
+            tf.slice(embed, [0, delta, 0], [-1, self.window * 2, -1]),
+            [-1, self.vec_size * self.window * 2])
+        embed_outer = tf.concat(1, [
+            tf.slice(embed, [0, 0, 0], [-1, delta, -1]),
+            tf.slice(embed,
+                     [0, 2 * self.window_bag - delta, 0], [-1, delta, -1])
+            ])
+        embed_outer = tf.reduce_mean(embed_outer, 1)
+        embed_output = tf.concat(1, [embed_inner, embed_outer])
+        # Hidden layer (dense relu)
         hidden_weights = tf.Variable(tf.random_uniform(
-            [hidden_input_size, hidden_size], -0.01, 0.01))
+            [embed_output.get_shape()[1].value, hidden_size], -0.01, 0.01))
         hidden_biases = tf.Variable(tf.zeros([hidden_size]))
+        hidden = tf.nn.relu(
+            tf.matmul(embed_output, hidden_weights) + hidden_biases)
+        # Output layer (softmax)
         out_weights = tf.Variable(tf.truncated_normal(
             [full_vocab_size, hidden_size],
             stddev=1.0 / np.sqrt(self.vec_size)))
         out_biases = tf.Variable(tf.zeros([full_vocab_size]))
-
-        self.inputs = tf.placeholder(tf.int32, shape=[None, input_size])
-        self.labels = tf.placeholder(tf.int32, shape=[None, 1])
-
-        embed = tf.nn.embedding_lookup(embeddings, self.inputs)
-        embed = tf.reshape(embed, [-1, hidden_input_size])
-        hidden = tf.nn.relu(tf.matmul(embed, hidden_weights) + hidden_biases)
-
         num_sampled = 512
         self.loss = tf.reduce_mean(tf.nn.nce_loss(
             out_weights, out_biases, hidden, self.labels,
             num_sampled, full_vocab_size))
         tf.scalar_summary('loss', self.loss)
+
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         self.train_op = tf.train.AdamOptimizer()\
             .minimize(self.loss, global_step=self.global_step)
@@ -157,6 +172,7 @@ class Model:
 
     def batches(self, f):
         unk_id = self.word_to_idx[UNK]
+        window = self.window_bag
         read_lines_batch = 1000000
         while True:
             print('Reading next data batch...')
@@ -167,19 +183,18 @@ class Model:
             if len(word_ids) == 0:
                 print('Batch empty.')
                 break
-            print('Vectorizing...')
+            print('Assembling contexts...')
             contexts = []
-            for idx in range(self.window, len(word_ids) - self.window - 1):
+            for idx in range(window, len(word_ids) - window - 1):
                 if word_ids[idx] != unk_id:
-                    contexts.append(
-                        word_ids[idx - self.window : idx + self.window + 1])
+                    contexts.append(word_ids[idx - window : idx + window + 1])
             contexts = np.array(contexts)
             np.random.shuffle(contexts)
             print('Batch ready.')
             for idx in range(0, len(contexts), self.batch_size):
                 batch = contexts[idx : idx + self.batch_size]
-                xs = np.delete(batch, self.window, 1)
-                ys = batch[:,self.window : self.window + 1]
+                xs = np.delete(batch, window, 1)
+                ys = batch[:, window : window + 1]
                 yield xs, ys
 
 
