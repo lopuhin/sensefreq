@@ -125,7 +125,7 @@ class Model:
             stddev=1.0 / np.sqrt(self.vec_size)))
         out_biases = tf.Variable(tf.zeros([full_vocab_size]))
         num_sampled = 512
-        self.loss = tf.reduce_mean(tf.nn.nce_loss(
+        self.loss = tf.reduce_mean(tf.nn.sampled_softmax_loss(
             out_weights, out_biases, hidden, self.labels,
             num_sampled, full_vocab_size))
         tf.scalar_summary('loss', self.loss)
