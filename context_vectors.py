@@ -114,14 +114,14 @@ class Model:
             tf.matmul(embed_output, hidden_weights) + hidden_biases)
         if hidden2_size:
             # Another hidden layer
-            hidden_weights = tf.Variable(tf.random_uniform(
+            hidden2_weights = tf.Variable(tf.random_uniform(
                 [hidden.get_shape()[1].value, hidden2_size], -0.01, 0.01))
-            hidden_biases = tf.Variable(tf.zeros([hidden2_size]))
+            hidden2_biases = tf.Variable(tf.zeros([hidden2_size]))
             hidden = tf.nn.relu(
-                tf.matmul(hidden, hidden_weights) + hidden_biases)
+                tf.matmul(hidden, hidden2_weights) + hidden2_biases)
         # Output layer (softmax)
         out_weights = tf.Variable(tf.truncated_normal(
-            [full_vocab_size, hidden_size],
+            [full_vocab_size, hidden2_size or hidden_size],
             stddev=1.0 / np.sqrt(self.vec_size)))
         out_biases = tf.Variable(tf.zeros([full_vocab_size]))
         num_sampled = 512
