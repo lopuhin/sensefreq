@@ -203,12 +203,12 @@ class Model:
                     contexts.append(word_ids[idx - window : idx + window + 1])
             contexts = np.array(contexts)
             np.random.shuffle(contexts)
+            xs = np.delete(contexts, window, 1)
+            ys = contexts[:, window : window + 1]
             print('Batch ready.')
             for idx in range(0, len(contexts), self.batch_size):
-                batch = contexts[idx : idx + self.batch_size]
-                xs = np.delete(batch, window, 1)
-                ys = batch[:, window : window + 1]
-                yield xs, ys
+                yield (xs[idx : idx + self.batch_size],
+                       ys[idx : idx + self.batch_size])
 
 
 if __name__ == '__main__':
