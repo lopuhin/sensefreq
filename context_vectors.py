@@ -18,12 +18,11 @@ def main():
     arg('--vocab-size', type=int, default=10000)
     arg('--vec-size', type=int, default=30)
     arg('--hidden-size', type=int, default=30)
-    arg('--reload-vocab', action='store_true')
     arg('--nb-epoch', type=int, default=100)
     args = parser.parse_args()
 
-    vocab_path = args.corpus + '.vocab.npz'
-    if os.path.exists(vocab_path) and not args.reload_vocab:
+    vocab_path = args.corpus + '{}-vocab.npz'.format(args.vocab_size)
+    if os.path.exists(vocab_path):
         data = np.load(vocab_path)
         words, n_tokens, n_total_tokens = [data[k] for k in [
             'words', 'n_tokens', 'n_total_tokens']]
