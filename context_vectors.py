@@ -22,6 +22,7 @@ def main():
     arg('--hidden-size', type=int, default=30)
     arg('--nb-epoch', type=int, default=100)
     arg('--save-path', default='cv-model')
+    arg('--resume-from')
     args = parser.parse_args()
 
     vocab_path = args.corpus + '.{}-vocab.npz'.format(args.vocab_size)
@@ -42,7 +43,8 @@ def main():
             'vec_size', 'hidden_size', 'window', 'window_bag', 'batch_size',
             'save_path',
             ]})
-    model.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch)
+    model.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch,
+                resume_from=args.resume_from)
 
 
 def get_words(corpus, vocab_size):
@@ -128,9 +130,12 @@ class Model:
         self.summary_writer = None
         self.saver = tf.train.Saver()
 
-    def train(self, corpus, n_tokens, nb_epoch):
+    def train(self, corpus, n_tokens, nb_epoch, resume_from=None):
         with tf.Session() as sess:
-            sess.run(tf.initialize_all_variables())
+            if resume_from:
+                self.saver.restore(sess, resume_from)
+            else:
+                sess.run(tf.initialize_all_variables())
             self.summary_writer = tf.train.SummaryWriter(
                 self.save_path, graph_def=sess.graph_def, flush_secs=20)
             with smart_open(corpus) as f:
