@@ -17,6 +17,7 @@ def main():
     arg('--window', type=int, default=3)
     arg('--vocab-size', type=int, default=10000)
     arg('--vec-size', type=int, default=30)
+    arg('--batch-size', type=int, default=32)
     arg('--hidden-size', type=int, default=30)
     arg('--nb-epoch', type=int, default=100)
     args = parser.parse_args()
@@ -37,7 +38,8 @@ def main():
         vec_size=args.vec_size,
         hidden_size=args.hidden_size,
         window=args.window,
-        words=words)
+        words=words,
+        batch_size=args.batch_size)
     model.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch)
 
 
@@ -70,11 +72,11 @@ def get_word_to_idx(words):
 
 
 class Model:
-    def __init__(self, vec_size, hidden_size, window, words):
+    def __init__(self, vec_size, hidden_size, window, words, batch_size):
         self.window = window
         self.vec_size = vec_size
         self.word_to_idx = get_word_to_idx(words)
-        self.batch_size = 32
+        self.batch_size = batch_size
         full_vocab_size = len(self.word_to_idx)
         input_size = self.window * 2
 
