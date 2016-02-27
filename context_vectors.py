@@ -106,19 +106,10 @@ class Model:
             ])
         embed_outer = tf.reduce_mean(embed_outer, 1)
         embed_output = tf.concat(1, [embed_inner, embed_outer])
-        # Hidden layer (dense relu)
-        hidden_weights = tf.Variable(tf.random_uniform(
-            [embed_output.get_shape()[1].value, hidden_size], -0.01, 0.01))
-        hidden_biases = tf.Variable(tf.zeros([hidden_size]))
-        hidden = tf.nn.relu(
-            tf.matmul(embed_output, hidden_weights) + hidden_biases)
+        # Hidden layers (dense relu)
+        hidden = self.hidden_layer(embed_output, hidden_size)
         if hidden2_size:
-            # Another hidden layer
-            hidden2_weights = tf.Variable(tf.random_uniform(
-                [hidden.get_shape()[1].value, hidden2_size], -0.01, 0.01))
-            hidden2_biases = tf.Variable(tf.zeros([hidden2_size]))
-            hidden = tf.nn.relu(
-                tf.matmul(hidden, hidden2_weights) + hidden2_biases)
+            hidden = self.hidden_layer(hidden, hidden2_size)
         # Output layer (softmax)
         out_weights = tf.Variable(tf.truncated_normal(
             [full_vocab_size, hidden2_size or hidden_size],
@@ -137,6 +128,12 @@ class Model:
         self.summary_op = tf.merge_all_summaries()
         self.summary_writer = None
         self.saver = tf.train.Saver()
+
+    def hidden_layer(self, inp, size):
+        weights = tf.Variable(tf.truncated_normal(
+            [inp.get_shape()[1].value, size], stddev=0.1))
+        biases = tf.Variable(tf.constant(0.1, shape=[size]))
+        return tf.nn.relu(tf.matmul(inp, weights) + biases)
 
     def train(self, corpus, n_tokens, nb_epoch, resume_from=None):
         with tf.Session() as sess:
