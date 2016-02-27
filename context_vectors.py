@@ -20,6 +20,7 @@ def main():
     arg('--vec-size', type=int, default=30)
     arg('--batch-size', type=int, default=32)
     arg('--hidden-size', type=int, default=30)
+    arg('--hidden2-size', type=int, default=0)
     arg('--nb-epoch', type=int, default=100)
     arg('--save-path', default='cv-model')
     arg('--resume-from')
@@ -40,8 +41,8 @@ def main():
     model = Model(
         words=words,
         **{k: getattr(args, k) for k in [
-            'vec_size', 'hidden_size', 'window', 'window_bag', 'batch_size',
-            'save_path',
+            'vec_size', 'hidden_size', 'hidden2_size', 'window', 'window_bag',
+            'batch_size', 'save_path',
             ]})
     model.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch,
                 resume_from=args.resume_from)
@@ -76,8 +77,8 @@ def get_word_to_idx(words):
 
 
 class Model:
-    def __init__(self, vec_size, hidden_size, window, window_bag, words,
-                 batch_size, save_path):
+    def __init__(self, vec_size, hidden_size, hidden2_size, window, window_bag,
+                 words, batch_size, save_path):
         self.window = window
         self.window_bag = window_bag
         self.vec_size = vec_size
@@ -111,6 +112,13 @@ class Model:
         hidden_biases = tf.Variable(tf.zeros([hidden_size]))
         hidden = tf.nn.relu(
             tf.matmul(embed_output, hidden_weights) + hidden_biases)
+        if hidden2_size:
+            # Another hidden layer
+            hidden_weights = tf.Variable(tf.random_uniform(
+                [hidden.get_shape()[1].value, hidden2_size], -0.01, 0.01))
+            hidden_biases = tf.Variable(tf.zeros([hidden2_size]))
+            hidden = tf.nn.relu(
+                tf.matmul(hidden, hidden_weights) + hidden_biases)
         # Output layer (softmax)
         out_weights = tf.Variable(tf.truncated_normal(
             [full_vocab_size, hidden_size],
