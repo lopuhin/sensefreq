@@ -104,14 +104,20 @@ class Model:
         self.loss = tf.reduce_mean(tf.nn.nce_loss(
             out_weights, out_biases, hidden, self.labels,
             num_sampled, full_vocab_size))
+        tf.scalar_summary('loss', self.loss)
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         self.train_op = tf.train.AdamOptimizer()\
             .minimize(self.loss, global_step=self.global_step)
+
+        self.summary_op = tf.merge_all_summaries()
+        self.summary_writer = None
         self.saver = tf.train.Saver()
 
     def train(self, corpus, n_tokens, nb_epoch):
         with tf.Session() as sess:
             sess.run(tf.initialize_all_variables())
+            self.summary_writer = tf.train.SummaryWriter(
+                self.save_path, graph_def=sess.graph_def, flush_secs=20)
             with smart_open(corpus) as f:
                 for n_epoch in range(1, nb_epoch + 1):
                     f.seek(0)
@@ -119,13 +125,14 @@ class Model:
 
     def train_epoch(self, sess, batches, n_epoch, n_tokens):
         batches_per_epoch = n_tokens / self.batch_size
+        summary_step = 100
         report_step = 1000
         save_step = report_step * 10
         t0 = epoch_start = time.time()
         losses = []
         for n_batch, (xs, ys) in enumerate(batches):
-            _, loss_value = sess.run(
-                [self.train_op, self.loss],
+            _, loss_value, summary_str = sess.run(
+                [self.train_op, self.loss, self.summary_op],
                 feed_dict={self.inputs: xs, self.labels: ys})
             losses.append(loss_value)
             step = self.global_step.eval()
@@ -145,6 +152,8 @@ class Model:
                 print('Saving model...')
                 self.saver.save(sess, self.save_path, global_step=step)
                 print('Done.')
+            if step % summary_step == 0:
+                self.summary_writer.add_summary(summary_str, step)
 
     def batches(self, f):
         unk_id = self.word_to_idx[UNK]
