@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import argparse, os, time
+import argparse, lzma, os, time
 from collections import Counter
 from itertools import islice
 
@@ -21,7 +21,7 @@ def main():
     arg('--nb-epoch', type=int, default=100)
     args = parser.parse_args()
 
-    vocab_path = args.corpus + '{}-vocab.npz'.format(args.vocab_size)
+    vocab_path = args.corpus + '.{}-vocab.npz'.format(args.vocab_size)
     if os.path.exists(vocab_path):
         data = np.load(vocab_path)
         words, n_tokens, n_total_tokens = [data[k] for k in [
@@ -42,7 +42,8 @@ def main():
 
 
 def get_words(corpus, vocab_size):
-    with open(corpus, 'r') as f:
+    with smart_open(corpus) as f:
+        print('Building vocabulary...')
         counts = Counter(w for line in f for w in tokenize(line))
     n_tokens = 0
     words = []
@@ -53,9 +54,13 @@ def get_words(corpus, vocab_size):
     return np.array(words), n_tokens, n_total_tokens
 
 
+def smart_open(f):
+    return lzma.open(f, 'rb') if f.endswith('.xz') else open(f, 'rb')
+
+
 def tokenize(line):
     # Text is already tokenized, so just split and lower
-    return line.lower().split()
+    return line.decode('utf-8').lower().split()
 
 
 def get_word_to_idx(words):
@@ -102,7 +107,7 @@ class Model:
     def train(self, corpus, n_tokens, nb_epoch):
         with tf.Session() as sess:
             sess.run(tf.initialize_all_variables())
-            with open(corpus) as f:
+            with smart_open(corpus) as f:
                 for n_epoch in range(1, nb_epoch + 1):
                     f.seek(0)
                     self.train_epoch(sess, self.batches(f), n_epoch, n_tokens)
