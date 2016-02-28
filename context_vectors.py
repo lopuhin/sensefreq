@@ -24,6 +24,7 @@ def main():
     arg('--nb-epoch', type=int, default=100)
     arg('--save-path', default='cv-model')
     arg('--resume-from')
+    arg('--validate-on')
     args = parser.parse_args()
 
     vocab_path = args.corpus + '.{}-vocab.npz'.format(args.vocab_size)
@@ -42,7 +43,7 @@ def main():
         words=words,
         **{k: getattr(args, k) for k in [
             'vec_size', 'hidden_size', 'hidden2_size', 'window', 'window_bag',
-            'batch_size', 'save_path',
+            'batch_size', 'save_path', 'validate_on',
             ]})
     model.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch,
                 resume_from=args.resume_from)
@@ -78,13 +79,14 @@ def get_word_to_idx(words):
 
 class Model:
     def __init__(self, vec_size, hidden_size, hidden2_size, window, window_bag,
-                 words, batch_size, save_path):
+                 words, batch_size, save_path, validate_on):
         self.window = window
         self.window_bag = window_bag
         self.vec_size = vec_size
         self.word_to_idx = get_word_to_idx(words)
         self.batch_size = batch_size
         self.save_path = save_path
+        self.validate_on = validate_on
         full_vocab_size = len(self.word_to_idx)
         # Inputs: contexts of length window_bag * 2, and middle words.
         self.inputs = tf.placeholder(
@@ -107,33 +109,32 @@ class Model:
         embed_outer = tf.reduce_mean(embed_outer, 1)
         embed_output = tf.concat(1, [embed_inner, embed_outer])
         # Hidden layers (dense relu)
-        hidden = self.hidden_layer(embed_output, hidden_size)
+        hidden = hidden_layer(embed_output, hidden_size)
         if hidden2_size:
-            hidden = self.hidden_layer(hidden, hidden2_size)
-        # Output layer (softmax)
+            hidden = hidden_layer(hidden, hidden2_size)
+        # Output layer (sampled softmax)
         out_weights = tf.Variable(tf.truncated_normal(
             [full_vocab_size, hidden2_size or hidden_size],
             stddev=1.0 / np.sqrt(self.vec_size)))
         out_biases = tf.Variable(tf.zeros([full_vocab_size]))
         num_sampled = 512
-        self.loss = tf.reduce_mean(tf.nn.sampled_softmax_loss(
+        self.sampled_loss = tf.reduce_mean(tf.nn.sampled_softmax_loss(
             out_weights, out_biases, hidden, self.labels,
             num_sampled, full_vocab_size))
-        tf.scalar_summary('loss', self.loss)
+        tf.scalar_summary('sampled_loss', self.sampled_loss)
+        self.softmax_loss = tf.reduce_mean(
+            tf.nn.softmax_cross_entropy_with_logits(
+                tf.matmul(hidden, out_weights, transpose_b=True) + out_biases,
+                one_hot(self.labels, full_vocab_size)))
 
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         self.train_op = tf.train.AdamOptimizer()\
-            .minimize(self.loss, global_step=self.global_step)
+            .minimize(self.sampled_loss, global_step=self.global_step)
 
         self.summary_op = tf.merge_all_summaries()
         self.summary_writer = None
         self.saver = tf.train.Saver()
-
-    def hidden_layer(self, inp, size):
-        weights = tf.Variable(tf.truncated_normal(
-            [inp.get_shape()[1].value, size], stddev=0.1))
-        biases = tf.Variable(tf.constant(0.1, shape=[size]))
-        return tf.nn.relu(tf.matmul(inp, weights) + biases)
+        self.validation_contexts = None
 
     def train(self, corpus, n_tokens, nb_epoch, resume_from=None):
         with tf.Session() as sess:
@@ -153,26 +154,30 @@ class Model:
         summary_step = 100
         report_step = 1000
         save_step = report_step * 10
+        validation_step = save_step
         t0 = epoch_start = time.time()
-        losses = []
+        sampled_losses = []
         for n_batch, (xs, ys) in enumerate(batches):
-            _, loss_value, summary_str = sess.run(
-                [self.train_op, self.loss, self.summary_op],
+            _, sampled_loss, summary_str = sess.run(
+                [self.train_op, self.sampled_loss, self.summary_op],
                 feed_dict={self.inputs: xs, self.labels: ys})
-            losses.append(loss_value)
+            sampled_losses.append(sampled_loss)
             step = self.global_step.eval()
             if step % report_step == 0:
                 progress = n_batch / batches_per_epoch
                 t1 = time.time()
                 speed = self.batch_size * report_step / (t1 - t0)
                 print(
-                    'Step {:,}; epoch {}; {:.1f}%: loss {:.3f} '
+                    'Step {:,}; epoch {}; {:.1f}%: sampled loss {:.3f} '
                     '(at {:.1f}K contexts/sec, {}s since epoch start)'
                     .format(
-                        step, n_epoch, progress * 100, np.mean(losses),
+                        step, n_epoch, progress * 100, np.mean(sampled_losses),
                         speed / 1000, int(t1 - epoch_start)))
-                losses = []
+                sampled_losses = []
                 t0 = t1
+            if step % validation_step == 0 and self.validate_on:
+                valid_loss = self.run_validation(sess)
+                print('Validation softmax loss {:.3f}'.format(valid_loss))
             if step % save_step == 0:
                 print('Saving model...')
                 self.saver.save(sess, self.save_path, global_step=step)
@@ -180,20 +185,24 @@ class Model:
             if step % summary_step == 0:
                 self.summary_writer.add_summary(summary_str, step)
 
-    def batches(self, f):
+    def batches(self, f, batch_size=None, verbose=True):
+        batch_size = batch_size or self.batch_size
         unk_id = self.word_to_idx[UNK]
         window = self.window_bag
         read_lines_batch = 1000000
         while True:
-            print('Reading next data batch...')
+            if verbose:
+                print('Reading next data batch...')
             word_ids = np.array([
                 self.word_to_idx.get(w, unk_id)
                 for line in islice(f, read_lines_batch)
                 for w in tokenize(line)], dtype=np.int32)
             if len(word_ids) == 0:
-                print('Batch empty.')
+                if verbose:
+                    print('Batch empty.')
                 break
-            print('Assembling contexts...')
+            if verbose:
+                print('Assembling contexts...')
             contexts = []
             for idx in range(window, len(word_ids) - window - 1):
                 if word_ids[idx] != unk_id:
@@ -202,10 +211,40 @@ class Model:
             np.random.shuffle(contexts)
             xs = np.delete(contexts, window, 1)
             ys = contexts[:, window : window + 1]
-            print('Batch ready.')
-            for idx in range(0, len(contexts), self.batch_size):
-                yield (xs[idx : idx + self.batch_size],
-                       ys[idx : idx + self.batch_size])
+            if verbose:
+                print('Batch ready.')
+            for idx in range(0, len(contexts), batch_size):
+                end_idx = idx + batch_size
+                yield xs[idx : end_idx], ys[idx : end_idx]
+
+    def run_validation(self, sess):
+        t0 = time.time()
+        print('Running validation...')
+        with smart_open(self.validate_on) as f:
+            losses = []
+            for xs, ys in self.batches(f, batch_size=1024, verbose=False):
+                losses.append(sess.run(
+                    self.softmax_loss,
+                    feed_dict={self.inputs: xs, self.labels: ys}))
+            print('Done in {} s'.format(int(time.time() - t0)))
+            return np.mean(losses)
+
+
+def hidden_layer(inp, size):
+    weights = tf.Variable(tf.truncated_normal(
+        [inp.get_shape()[1].value, size], stddev=0.1))
+    biases = tf.Variable(tf.constant(0.1, shape=[size]))
+    return tf.nn.relu(tf.matmul(inp, weights) + biases)
+
+
+def one_hot(labels, num_classes):
+    labels = tf.reshape(labels, [-1])
+    batch_size = tf.size(labels)
+    labels = tf.expand_dims(labels, 1)
+    indices = tf.expand_dims(tf.range(0, batch_size, 1), 1)
+    concated = tf.concat(1, [indices, labels])
+    return tf.sparse_to_dense(
+        concated, tf.pack([batch_size, num_classes]), 1.0, 0.0)
 
 
 if __name__ == '__main__':
