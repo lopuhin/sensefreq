@@ -23,7 +23,8 @@ def main():
     arg('--save-path', default='cv-model')
     arg('--resume-from')
     arg('--validate-on')
-    arg('--method', default='dnn', choices=['dnn', 'lstm', 'gru'])
+    arg('--method', default='dnn', choices=[
+        'dnn', 'lstm', 'gru', 'bi-lstm', 'bi-gru'])
     # DNNWithBag params
     arg('--dnn-window', type=int, default=3)
     arg('--hidden-size', type=int, default=128)
@@ -43,15 +44,16 @@ def main():
     print('{:,} tokens total, {:,} without <UNK>'.format(
         int(n_total_tokens), int(n_tokens)))
 
-    params = ['vec_size', 'full_window', 'batch_size',
-              'save_path', 'validate_on']
     method_cls = {
         'dnn': DNNWithBag,
         'lstm': LSTM,
         'gru': GRU,
+        'bi-lstm': BidirectionalLSTM,
+        'bi-gru': BidirectionalGRU,
     }[args.method]
-    if args.method == 'dnn':
-        params.extend(['hidden_size', 'hidden2_size', 'dnn_window'])
+    params = [
+        'vec_size', 'full_window', 'batch_size', 'save_path', 'validate_on']
+    params.extend(method_cls.extra_params or [])
     method = method_cls(words=words, **{k: getattr(args, k) for k in params})
     method.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch,
                  resume_from=args.resume_from)
@@ -86,6 +88,8 @@ def get_word_to_idx(words):
 
 
 class BaseMethod:
+    extra_params = None
+
     def __init__(self, words, vec_size, full_window,
                  batch_size, save_path, validate_on):
         self.vec_size = vec_size
@@ -159,7 +163,7 @@ class BaseMethod:
                 speed = self.batch_size * report_step / (t1 - t0)
                 print(
                     'Step {:,}; epoch {}; {:.1f}%: sampled loss {:.3f} '
-                    '(at {:.1f}K contexts/sec, {}s since epoch start)'
+                    '(at {:.2f}K contexts/sec, {}s since epoch start)'
                     .format(
                         step, n_epoch, progress * 100, np.mean(sampled_losses),
                         speed / 1000, int(t1 - epoch_start)))
@@ -223,6 +227,8 @@ class BaseMethod:
 
 
 class DNNWithBag(BaseMethod):
+    extra_params = ['hidden_size', 'hidden2_size', 'dnn_window']
+
     def __init__(self, hidden2_size, dnn_window, **kwargs):
         self.hidden2_size = hidden2_size
         self.dnn_window = dnn_window
@@ -246,16 +252,10 @@ class DNNWithBag(BaseMethod):
         embed_outer = tf.reduce_mean(embed_outer, 1)
         embed_output = tf.concat(1, [embed_inner, embed_outer])
         # Hidden layers (dense relu)
-        hidden = self.hidden_layer(embed_output, self.hidden_size)
+        hidden = hidden_layer(embed_output, self.hidden_size)
         if self.hidden2_size:
-            hidden = self.hidden_layer(hidden, self.hidden2_size)
+            hidden = hidden_layer(hidden, self.hidden2_size)
         return hidden
-
-    def hidden_layer(self, inp, size):
-        weights = tf.Variable(tf.truncated_normal(
-            [inp.get_shape()[1].value, size], stddev=0.1))
-        biases = tf.Variable(tf.constant(0.1, shape=[size]))
-        return tf.nn.relu(tf.matmul(inp, weights) + biases)
 
 
 class LSTM(BaseMethod):
@@ -265,6 +265,9 @@ class LSTM(BaseMethod):
         embeddings = tf.Variable(tf.random_uniform(
             [self.vocab_size, self.vec_size], -1.0, 1.0))
         inputs = tf.slice(self.inputs, [0, 0], [-1, self.full_window])
+        return self.rnn(inputs, embeddings)
+
+    def rnn(self, inputs, embeddings):
         embed = tf.nn.embedding_lookup(embeddings, inputs)
         cell = self.cell_type(self.vec_size)
         # TODO - add initial_state to feed_dict?
@@ -279,6 +282,37 @@ class LSTM(BaseMethod):
 
 class GRU(LSTM):
     cell_type = rnn_cell.GRUCell
+
+
+class BidirectionalLSTM(LSTM):
+    extra_params = ['hidden_size']
+
+    def __init__(self, hidden_size, **kwargs):
+        self.hidden_size = hidden_size
+        super().__init__(**kwargs)
+
+    def build_model(self):
+        embeddings = tf.Variable(tf.random_uniform(
+            [self.vocab_size, self.vec_size], -1.0, 1.0))
+        left_inputs = tf.slice(self.inputs, [0, 0], [-1, self.full_window])
+        right_inputs = tf.slice(self.inputs, [0, self.full_window], [-1, -1])
+        right_inputs = tf.reverse(right_inputs, [False, True])
+        left_output = self.rnn(left_inputs, embeddings)
+        right_output = self.rnn(right_inputs, embeddings)
+        return hidden_layer(
+            tf.concat(1, [left_output, right_output]),
+            self.hidden_size)
+
+
+class BidirectionalGRU(BidirectionalLSTM):
+    cell_type = rnn_cell.GRUCell
+
+
+def hidden_layer(inp, size):
+    weights = tf.Variable(tf.truncated_normal(
+        [inp.get_shape()[1].value, size], stddev=0.1))
+    biases = tf.Variable(tf.constant(0.1, shape=[size]))
+    return tf.nn.relu(tf.matmul(inp, weights) + biases)
 
 
 def one_hot(labels, num_classes):
