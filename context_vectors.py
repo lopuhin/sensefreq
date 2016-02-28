@@ -17,7 +17,7 @@ def main():
     arg('corpus')
     arg('--full-window', type=int, default=10)
     arg('--vocab-size', type=int, default=10000)
-    arg('--vec-size', type=int, default=30)
+    arg('--vec-size', type=int, default=128)
     arg('--batch-size', type=int, default=32)
     arg('--nb-epoch', type=int, default=100)
     arg('--save-path', default='cv-model')
@@ -26,7 +26,7 @@ def main():
     arg('--method', default='dnn', choices=['dnn', 'lstm'])
     # DNNWithBag params
     arg('--dnn-window', type=int, default=3)
-    arg('--hidden-size', type=int, default=30)
+    arg('--hidden-size', type=int, default=128)
     arg('--hidden2-size', type=int, default=0)
     args = parser.parse_args()
 
@@ -263,7 +263,7 @@ class LSTM(BaseModel):
         cell = rnn_cell.BasicLSTMCell(self.vec_size)
         # TODO - add initial_state to feed_dict?
         batch_size = array_ops.shape(inputs[:,0])[0]
-        state = cell.zero_state(batch_size, np.float32)
+        state = self.initial_state = cell.zero_state(batch_size, np.float32)
         for i in range(self.full_window):
             if i > 0:
                 variable_scope.get_variable_scope().reuse_variables()
