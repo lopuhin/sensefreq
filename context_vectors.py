@@ -14,17 +14,19 @@ def main():
     parser = argparse.ArgumentParser()
     arg = parser.add_argument
     arg('corpus')
-    arg('--window', type=int, default=3)
-    arg('--window-bag', type=int, default=10)
+    arg('--full-window', type=int, default=10)
     arg('--vocab-size', type=int, default=10000)
     arg('--vec-size', type=int, default=30)
-    arg('--batch-size', type=int, default=32)
     arg('--hidden-size', type=int, default=30)
-    arg('--hidden2-size', type=int, default=0)
+    arg('--batch-size', type=int, default=32)
     arg('--nb-epoch', type=int, default=100)
     arg('--save-path', default='cv-model')
     arg('--resume-from')
     arg('--validate-on')
+    arg('--method', default='dnn', choices=['dnn'])
+    # DNNWithBag params
+    arg('--dnn-window', type=int, default=3)
+    arg('--hidden2-size', type=int, default=0)
     args = parser.parse_args()
 
     vocab_path = args.corpus + '.{}-vocab.npz'.format(args.vocab_size)
@@ -39,12 +41,13 @@ def main():
                  words=words, n_tokens=n_tokens, n_total_tokens=n_total_tokens)
     print('{:,} tokens total, {:,} without <UNK>'.format(
         int(n_total_tokens), int(n_tokens)))
-    model = Model(
-        words=words,
-        **{k: getattr(args, k) for k in [
-            'vec_size', 'hidden_size', 'hidden2_size', 'window', 'window_bag',
-            'batch_size', 'save_path', 'validate_on',
-            ]})
+
+    params = ['vec_size', 'hidden_size', 'full_window',
+              'batch_size', 'save_path', 'validate_on']
+    if args.method == 'dnn':
+        cls = DNNWithBag
+        params.extend(['hidden2_size', 'dnn_window'])
+    model = cls( words=words, **{k: getattr(args, k) for k in params})
     model.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch,
                 resume_from=args.resume_from)
 
@@ -77,56 +80,36 @@ def get_word_to_idx(words):
     return word_to_idx
 
 
-class Model:
-    def __init__(self, vec_size, hidden_size, hidden2_size, window, window_bag,
-                 words, batch_size, save_path, validate_on):
-        self.window = window
-        self.window_bag = window_bag
+class BaseModel:
+    def __init__(self, words, vec_size, hidden_size, full_window,
+                 batch_size, save_path, validate_on):
         self.vec_size = vec_size
-        self.word_to_idx = get_word_to_idx(words)
+        self.hidden_size = hidden_size
+        self.full_window = full_window
         self.batch_size = batch_size
         self.save_path = save_path
         self.validate_on = validate_on
-        full_vocab_size = len(self.word_to_idx)
-        # Inputs: contexts of length window_bag * 2, and middle words.
+        self.word_to_idx = get_word_to_idx(words)
+        self.vocab_size = len(self.word_to_idx)
+
         self.inputs = tf.placeholder(
-            tf.int32, shape=[None, self.window_bag * 2])
+            tf.int32, shape=[None, self.full_window * 2])
         self.labels = tf.placeholder(tf.int32, shape=[None, 1])
-        # Embedding: take mean of outer (window_bag) context,
-        # and concatenate inner (window) context.
-        embeddings = tf.Variable(tf.random_uniform(
-            [full_vocab_size, self.vec_size], -1.0, 1.0))
-        embed = tf.nn.embedding_lookup(embeddings, self.inputs)
-        delta = self.window_bag - self.window
-        embed_inner = tf.reshape(
-            tf.slice(embed, [0, delta, 0], [-1, self.window * 2, -1]),
-            [-1, self.vec_size * self.window * 2])
-        embed_outer = tf.concat(1, [
-            tf.slice(embed, [0, 0, 0], [-1, delta, -1]),
-            tf.slice(embed,
-                     [0, 2 * self.window_bag - delta, 0], [-1, delta, -1])
-            ])
-        embed_outer = tf.reduce_mean(embed_outer, 1)
-        embed_output = tf.concat(1, [embed_inner, embed_outer])
-        # Hidden layers (dense relu)
-        hidden = hidden_layer(embed_output, hidden_size)
-        if hidden2_size:
-            hidden = hidden_layer(hidden, hidden2_size)
+        hidden = self.build_model()
         # Output layer (sampled softmax)
         out_weights = tf.Variable(tf.truncated_normal(
-            [full_vocab_size, hidden2_size or hidden_size],
+            [self.vocab_size, hidden.get_shape()[1].value],
             stddev=1.0 / np.sqrt(self.vec_size)))
-        out_biases = tf.Variable(tf.zeros([full_vocab_size]))
+        out_biases = tf.Variable(tf.zeros([self.vocab_size]))
         num_sampled = 512
         self.sampled_loss = tf.reduce_mean(tf.nn.sampled_softmax_loss(
             out_weights, out_biases, hidden, self.labels,
-            num_sampled, full_vocab_size))
+            num_sampled, self.vocab_size))
         tf.scalar_summary('sampled_loss', self.sampled_loss)
         self.softmax_loss = tf.reduce_mean(
             tf.nn.softmax_cross_entropy_with_logits(
                 tf.matmul(hidden, out_weights, transpose_b=True) + out_biases,
-                one_hot(self.labels, full_vocab_size)))
-
+                one_hot(self.labels, self.vocab_size)))
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         self.train_op = tf.train.AdamOptimizer()\
             .minimize(self.sampled_loss, global_step=self.global_step)
@@ -135,6 +118,9 @@ class Model:
         self.summary_writer = None
         self.saver = tf.train.Saver()
         self.validation_contexts = None
+
+    def build_model(self):
+        raise NotImplementedError
 
     def train(self, corpus, n_tokens, nb_epoch, resume_from=None):
         with tf.Session() as sess:
@@ -188,7 +174,7 @@ class Model:
     def batches(self, f, batch_size=None, verbose=True):
         batch_size = batch_size or self.batch_size
         unk_id = self.word_to_idx[UNK]
-        window = self.window_bag
+        window = self.full_window
         read_lines_batch = 1000000
         while True:
             if verbose:
@@ -230,11 +216,40 @@ class Model:
             return np.mean(losses)
 
 
-def hidden_layer(inp, size):
-    weights = tf.Variable(tf.truncated_normal(
-        [inp.get_shape()[1].value, size], stddev=0.1))
-    biases = tf.Variable(tf.constant(0.1, shape=[size]))
-    return tf.nn.relu(tf.matmul(inp, weights) + biases)
+class DNNWithBag(BaseModel):
+    def __init__(self, hidden2_size, dnn_window, **kwargs):
+        self.hidden2_size = hidden2_size
+        self.dnn_window = dnn_window
+        super().__init__(**kwargs)
+
+    def build_model(self):
+        # Embedding: take mean of outer (window_bag) context,
+        # and concatenate inner (window) context.
+        embeddings = tf.Variable(tf.random_uniform(
+            [self.vocab_size, self.vec_size], -1.0, 1.0))
+        embed = tf.nn.embedding_lookup(embeddings, self.inputs)
+        delta = self.full_window - self.dnn_window
+        embed_inner = tf.reshape(
+            tf.slice(embed, [0, delta, 0], [-1, self.dnn_window * 2, -1]),
+            [-1, self.vec_size * self.dnn_window * 2])
+        embed_outer = tf.concat(1, [
+            tf.slice(embed, [0, 0, 0], [-1, delta, -1]),
+            tf.slice(embed,
+                     [0, 2 * self.full_window - delta, 0], [-1, delta, -1])
+            ])
+        embed_outer = tf.reduce_mean(embed_outer, 1)
+        embed_output = tf.concat(1, [embed_inner, embed_outer])
+        # Hidden layers (dense relu)
+        hidden = self.hidden_layer(embed_output, self.hidden_size)
+        if self.hidden2_size:
+            hidden = self.hidden_layer(hidden, self.hidden2_size)
+        return hidden
+
+    def hidden_layer(self, inp, size):
+        weights = tf.Variable(tf.truncated_normal(
+            [inp.get_shape()[1].value, size], stddev=0.1))
+        biases = tf.Variable(tf.constant(0.1, shape=[size]))
+        return tf.nn.relu(tf.matmul(inp, weights) + biases)
 
 
 def one_hot(labels, num_classes):
