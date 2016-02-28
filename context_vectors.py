@@ -23,7 +23,7 @@ def main():
     arg('--save-path', default='cv-model')
     arg('--resume-from')
     arg('--validate-on')
-    arg('--method', default='dnn', choices=['dnn', 'lstm'])
+    arg('--method', default='dnn', choices=['dnn', 'lstm', 'gru'])
     # DNNWithBag params
     arg('--dnn-window', type=int, default=3)
     arg('--hidden-size', type=int, default=128)
@@ -45,14 +45,16 @@ def main():
 
     params = ['vec_size', 'full_window', 'batch_size',
               'save_path', 'validate_on']
+    method_cls = {
+        'dnn': DNNWithBag,
+        'lstm': LSTM,
+        'gru': GRU,
+    }[args.method]
     if args.method == 'dnn':
-        cls = DNNWithBag
         params.extend(['hidden_size', 'hidden2_size', 'dnn_window'])
-    elif args.method == 'lstm':
-        cls = LSTM
-    model = cls( words=words, **{k: getattr(args, k) for k in params})
-    model.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch,
-                resume_from=args.resume_from)
+    method = method_cls(words=words, **{k: getattr(args, k) for k in params})
+    method.train(args.corpus, n_tokens=n_tokens, nb_epoch=args.nb_epoch,
+                 resume_from=args.resume_from)
 
 
 def get_words(corpus, vocab_size):
@@ -83,7 +85,7 @@ def get_word_to_idx(words):
     return word_to_idx
 
 
-class BaseModel:
+class BaseMethod:
     def __init__(self, words, vec_size, full_window,
                  batch_size, save_path, validate_on):
         self.vec_size = vec_size
@@ -220,7 +222,7 @@ class BaseModel:
             return np.mean(losses)
 
 
-class DNNWithBag(BaseModel):
+class DNNWithBag(BaseMethod):
     def __init__(self, hidden2_size, dnn_window, **kwargs):
         self.hidden2_size = hidden2_size
         self.dnn_window = dnn_window
@@ -256,13 +258,15 @@ class DNNWithBag(BaseModel):
         return tf.nn.relu(tf.matmul(inp, weights) + biases)
 
 
-class LSTM(BaseModel):
+class LSTM(BaseMethod):
+    cell_type = rnn_cell.BasicLSTMCell
+
     def build_model(self):
         embeddings = tf.Variable(tf.random_uniform(
             [self.vocab_size, self.vec_size], -1.0, 1.0))
         inputs = tf.slice(self.inputs, [0, 0], [-1, self.full_window])
         embed = tf.nn.embedding_lookup(embeddings, inputs)
-        cell = rnn_cell.BasicLSTMCell(self.vec_size)
+        cell = self.cell_type(self.vec_size)
         # TODO - add initial_state to feed_dict?
         batch_size = array_ops.shape(inputs[:,0])[0]
         state = self.initial_state = cell.zero_state(batch_size, np.float32)
@@ -271,6 +275,10 @@ class LSTM(BaseModel):
                 variable_scope.get_variable_scope().reuse_variables()
             output, state = cell(embed[:,i,:], state)
         return output
+
+
+class GRU(LSTM):
+    cell_type = rnn_cell.GRUCell
 
 
 def one_hot(labels, num_classes):
