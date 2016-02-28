@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import argparse, lzma, os, time
+import argparse, lzma, os, random, time
 from collections import Counter
 from itertools import islice
 
@@ -177,7 +177,7 @@ class BaseModel:
         batch_size = batch_size or self.batch_size
         unk_id = self.word_to_idx[UNK]
         window = self.full_window
-        read_lines_batch = 1000000
+        read_lines_batch = 100000
         while True:
             if verbose:
                 print('Reading next data batch...')
@@ -192,7 +192,9 @@ class BaseModel:
             if verbose:
                 print('Assembling contexts...')
             contexts = []
-            for idx in range(window, len(word_ids) - window - 1):
+            indices = list(range(window, len(word_ids) - window - 1))
+            indices = random.sample(indices, int(len(indices) / window))
+            for idx in indices:
                 if word_ids[idx] != unk_id:
                     contexts.append(word_ids[idx - window : idx + window + 1])
             contexts = np.array(contexts)
