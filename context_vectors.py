@@ -179,7 +179,7 @@ class BaseMethod:
             if step % summary_step == 0:
                 self.summary_writer.add_summary(summary_str, step)
 
-    def batches(self, f, batch_size=None, verbose=True):
+    def batches(self, f, batch_size=None, verbose=True, subsample=True):
         batch_size = batch_size or self.batch_size
         unk_id = self.word_to_idx[UNK]
         window = self.full_window
@@ -199,7 +199,8 @@ class BaseMethod:
                 print('Assembling contexts...')
             contexts = []
             indices = list(range(window, len(word_ids) - window - 1))
-            indices = random.sample(indices, int(len(indices) / window))
+            if subsample:
+                indices = random.sample(indices, int(len(indices) / window))
             for idx in indices:
                 if word_ids[idx] != unk_id:
                     contexts.append(word_ids[idx - window : idx + window + 1])
@@ -218,7 +219,8 @@ class BaseMethod:
         print('Running validation...')
         with smart_open(self.validate_on) as f:
             losses = []
-            for xs, ys in self.batches(f, batch_size=1024, verbose=False):
+            for xs, ys in self.batches(
+                    f, batch_size=1024, verbose=False, subsample=False):
                 losses.append(sess.run(
                     self.softmax_loss,
                     feed_dict={self.inputs: xs, self.labels: ys}))
