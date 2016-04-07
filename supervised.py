@@ -272,6 +272,22 @@ class KNearestModelOrder(WordsOrderMixin, KNearestModel):
     pass
 
 
+def get_w2v_xs_ys(senses, context_vectors, one_hot):
+    xs, ys = [], []
+    for ans, cvs in context_vectors.items():
+        for cv in cvs:
+            if cv is not None:
+                xs.append(cv)
+                sense_idx = senses.index(ans)
+                if one_hot:
+                    y = np.zeros([len(senses)], dtype=np.int32)
+                    y[sense_idx] = 1
+                else:
+                    y = sense_idx
+                ys.append(y)
+    return np.array(xs), np.array(ys)
+
+
 class DNNModel(SupervisedW2VModel):
     supersample = True
     n_models = 5
@@ -280,16 +296,7 @@ class DNNModel(SupervisedW2VModel):
     def __init__(self, *args, **kwargs):
         super(DNNModel, self).__init__(*args, **kwargs)
         self.senses = list(self.context_vectors.keys())
-        xs, ys = [], []
-        for ans, cvs in self.context_vectors.items():
-            for cv in cvs:
-                if cv is not None:
-                    xs.append(cv)
-                    y = np.zeros([len(self.senses)], dtype=np.int32)
-                    y[self.senses.index(ans)] = 1
-                    ys.append(y)
-        xs = np.array(xs)
-        ys = np.array(ys)
+        xs, ys = get_w2v_xs_ys(self.senses, self.context_vectors, one_hot=True)
         self.models = [
             self._build_fit_model(xs, ys) for _ in range(self.n_models)]
 
@@ -337,6 +344,39 @@ class DNNModel(SupervisedW2VModel):
 
 class DNNModelOrder(WordsOrderMixin, DNNModel):
     pass
+
+
+class W2VSklearnModel(SupervisedW2VModel):
+    def __init__(self, *args, **kwargs):
+        super(W2VSklearnModel, self).__init__(*args, **kwargs)
+        self.senses = list(self.context_vectors.keys())
+        xs, ys = get_w2v_xs_ys(
+            self.senses, self.context_vectors, one_hot=False)
+        xs -= xs.min()
+        self.clf = self.get_classifier()
+        self.clf.fit(xs, ys)
+
+    def get_classifier(self):
+        raise NotImplementedError
+
+    def __call__(self, x, c_ans=None, with_confidence=False):
+        v = self.cv(x)
+        if v is None:
+            m_ans = self.dominant_sense
+            return (m_ans, 0.0) if with_confidence else m_ans
+        m_ans = self.senses[self.clf.predict([v])[0]]
+        confidence = 0.0
+        return (m_ans, confidence) if with_confidence else m_ans
+
+
+class W2VBayesModel(W2VSklearnModel):
+    def get_classifier(self):
+        return sklearn.naive_bayes.MultinomialNB()
+
+
+class W2VSVMModel(W2VSklearnModel):
+    def get_classifier(self):
+        return sklearn.linear_model.SGDClassifier()
 
 
 class TextSKLearnModel(SupervisedModel):
