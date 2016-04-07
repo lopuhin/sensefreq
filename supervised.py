@@ -288,6 +288,29 @@ def get_w2v_xs_ys(senses, context_vectors, one_hot):
     return np.array(xs), np.array(ys)
 
 
+def build_dnn_model(in_dim, out_dim):
+    os.environ['KERAS_BACKEND'] = 'tensorflow'
+    from keras.models import Sequential
+    from keras.layers.core import Dense, Dropout
+#   from keras.regularizers import l2
+#   from keras.constraints import maxnorm
+    model = Sequential()
+    model.add(Dropout(0.5, input_shape=[in_dim]))
+#   model.add(Dense(
+#       input_dim=in_dim, output_dim=20, activation='relu',
+#       W_regularizer=l2(0.01),
+#       ))
+#   model.add(Dropout(0.5))
+    model.add(Dense(
+        input_dim=in_dim,
+        output_dim=out_dim, activation='softmax',
+#       W_regularizer=l2(0.01),
+#       b_constraint=maxnorm(0),
+        ))
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+    return model
+
+
 class DNNModel(SupervisedW2VModel):
     supersample = True
     n_models = 5
@@ -301,26 +324,8 @@ class DNNModel(SupervisedW2VModel):
             self._build_fit_model(xs, ys) for _ in range(self.n_models)]
 
     def _build_fit_model(self, xs, ys):
-        os.environ['KERAS_BACKEND'] = 'tensorflow'
-        from keras.models import Sequential
-        from keras.layers.core import Dense, Dropout
-#       from keras.regularizers import l2
-#       from keras.constraints import maxnorm
-        model = Sequential()
         in_dim, out_dim = xs.shape[1], ys.shape[1]
-        model.add(Dropout(0.5, input_shape=[in_dim]))
-#       model.add(Dense(
-#           input_dim=in_dim, output_dim=20, activation='relu',
-#           W_regularizer=l2(0.01),
-#           ))
-#       model.add(Dropout(0.5))
-        model.add(Dense(
-            input_dim=in_dim,
-            output_dim=out_dim, activation='softmax',
-#           W_regularizer=l2(0.01),
-#           b_constraint=maxnorm(0),
-            ))
-        model.compile(loss='categorical_crossentropy', optimizer='adam')
+        model = build_dnn_model(in_dim, out_dim)
         nb_epoch = 200 if self.supersample else 1000
         model.fit(xs, ys, nb_epoch=nb_epoch, verbose=0)
         return model
@@ -393,7 +398,13 @@ class TextSKLearnModel(SupervisedModel):
         self.tfidf_transformer = TfidfTransformer()
         features = self.cv.fit_transform(xs)
         features = self.tfidf_transformer.fit_transform(features)
+        self.fit(features, ys)
+
+    def fit(self, features, ys):
         self.clf.fit(features, ys)
+
+    def predict(self, features):
+        return self.clf.predict(features)
 
     def _transform_ctx(self, ctx):
         before, word, after = ctx
@@ -407,7 +418,7 @@ class TextSKLearnModel(SupervisedModel):
         x = self._transform_ctx(x)
         features = self.cv.transform([x])
         features = self.tfidf_transformer.transform(features)
-        m_ans = self.senses[self.clf.predict(features)[0]]
+        m_ans = self.senses[self.predict(features)[0]]
         confidence = 0.0
         return (m_ans, confidence) if with_confidence else m_ans
 
@@ -431,6 +442,31 @@ class NaiveBayesModel(TextSKLearnModel):
 class LogModel(TextSKLearnModel):
     def get_classifier(self):
         return sklearn.linear_model.SGDClassifier(loss='log', penalty='l1')
+
+
+class DNNSKLearnModel(TextSKLearnModel):
+    n_models = 5
+
+    def get_classifier(self):
+        return None
+
+    def fit(self, features, ys):
+        features = features.toarray()
+        ys = np.array(ys)
+        onehot_ys = np.zeros([len(ys), len(self.senses)])
+        for idx in range(len(self.senses)):
+            onehot_ys[:,idx] = ys == idx
+        self.clfs = [
+            build_dnn_model(features.shape[1], len(self.senses))
+            for _ in range(self.n_models)]
+        for clf in self.clfs:
+            clf.fit(features, onehot_ys, verbose=0, nb_epoch=200)
+
+    def predict(self, features):
+        probs = [clf.predict(features.toarray(), verbose=0)[0]
+                 for clf in self.clfs]
+        probs = np.max(probs, axis=0)
+        return [probs.argmax()]
 
 
 class SupervisedWrapper(SupervisedW2VModel):
