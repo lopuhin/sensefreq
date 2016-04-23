@@ -37,7 +37,7 @@ def print_stats():
             senses=s,
         ) for w, s in stats.iteritems()]
     stats.sort(key=lambda w: w['count'], reverse=True)
-    with open('shad-list.txt', 'r') as f:
+    with open('semcor-list.txt', 'r') as f:
         only_words = {line.strip().decode('utf-8') for line in f}
     header = ['word', 'count', 'n_senses']
     print('\t'.join(header))
