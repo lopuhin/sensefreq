@@ -3,6 +3,7 @@ import os
 import itertools
 import argparse
 import codecs
+import gzip
 
 from utils import normalize
 
@@ -30,7 +31,8 @@ def main():
         if os.path.isdir(args.corpus) else [args.corpus]
     fn = line_contexts_iter if args.lines else contexts_iter
     for fname in filenames:
-        with open(fname, 'rb') as f:
+        open_fn = gzip.open if fname.endswith('.gz') else open
+        with open_fn(fname, 'rb') as f:
             for before, w, after in fn(f, words, window_size=args.window):
                 files[w].write(u'\t'.join([before, w, after]) + u'\n')
     for f in files.itervalues():
