@@ -70,7 +70,8 @@ def print_metrics(prefix, mt):
 
 
 def _print_clusters(word, clusters, n_contexts):
-    for c, elements in sorted(clusters.items(), key=lambda x: len(x[1])):
+    for c, elements in sorted(
+            clusters.items(), key=lambda x: len(x[1]), reverse=True):
         elements.sort(key=itemgetter(1))
         print()
         print('#%d: %.2f (%d)' % (c, len(elements) / n_contexts, len(elements)))
