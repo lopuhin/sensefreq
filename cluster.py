@@ -75,20 +75,20 @@ def _print_clusters(word, clusters, n_contexts):
         elements.sort(key=itemgetter(1))
         print()
         print('#%d: %.2f (%d)' % (c, len(elements) / n_contexts, len(elements)))
-        for w, count in _best_words(elements, word)[:10]:
-            print(count, w)
-        for ctx, dist in elements[:7]:
-            print('%.2f: %s' % (dist, ' '.join(ctx)))
-        print('...')
-        for ctx, dist in elements[-3:]:
-            print('%.2f: %s' % (dist, ' '.join(ctx)))
-        distances = [d for _, d in elements]
-        hist, bins = np.histogram(distances)
-        center = (bins[:-1] + bins[1:]) / 2
-        width = 0.8 * (bins[1] - bins[0])
-        plt.clf()
-        plt.bar(center, hist, width=width)
-        plt.show()
+        for w, count in _best_words(elements, word)[:5]:
+            print(w)
+      # for ctx, dist in elements[:7]:
+      #     print('%.2f: %s' % (dist, ' '.join(ctx)))
+      # print('...')
+      # for ctx, dist in elements[-3:]:
+      #     print('%.2f: %s' % (dist, ' '.join(ctx)))
+       #distances = [d for _, d in elements]
+       #hist, bins = np.histogram(distances)
+       #center = (bins[:-1] + bins[1:]) / 2
+       #width = 0.8 * (bins[1] - bins[0])
+       #plt.clf()
+       #plt.bar(center, hist, width=width)
+       #plt.show()
 
 
 def _best_words(elements, word):
