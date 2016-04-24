@@ -23,7 +23,7 @@ def cluster(context_vectors_filename, labeled_dir, n_runs=4, **kwargs):
         for f in os.listdir(context_vectors_filename):
             random.seed(1)
             w_metrics = defaultdict(list)
-            for __ in xrange(n_runs):
+            for _ in range(n_runs):
                 mt = _cluster(
                     os.path.join(context_vectors_filename, f), labeled_dir,
                     **kwargs)
@@ -37,7 +37,7 @@ def cluster(context_vectors_filename, labeled_dir, n_runs=4, **kwargs):
     else:
         random.seed(1)
         all_mt = defaultdict(list)
-        for __ in xrange(n_runs):
+        for _ in range(n_runs):
             mt = _cluster(context_vectors_filename, labeled_dir, **kwargs)
             for k, v in mt.items():
                 all_mt[k].append(v)
@@ -173,7 +173,7 @@ def build_context_vectors(contexts_filename, word, out_filename, **_):
         weights = load_weights(word)
         vectors = get_context_vectors(word, contexts_filename, weights)
         to_json = out_filename.endswith('.json')
-        to_lst = lambda x: map(float, x) if to_json else lambda x: x
+        to_lst = (lambda x: list(map(float, x))) if to_json else (lambda x: x)
         vectors = [(ctx, to_lst(v)) for ctx, v in vectors]
         print(len(vectors), 'contexts')
         save({'word': word, 'context_vectors': vectors}, out_filename,
@@ -194,7 +194,7 @@ def iter_contexts(contexts_filename):
     with open(contexts_filename, 'r') as f:
         seen = set()
         for line in f:
-            ctx = map(normalize, line.split())
+            ctx = list(map(normalize, line.split()))
             key = ' '.join(ctx)
             if key not in seen:
                 seen.add(key)
