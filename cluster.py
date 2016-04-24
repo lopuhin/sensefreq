@@ -8,7 +8,7 @@ import json
 
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import v_measure_score, adjusted_rand_score
+from sklearn.metrics import v_measure_score, adjusted_rand_score, pairwise
 
 from utils import load, save, lemmatize_s, STOPWORDS, avg_w_bounds, \
     normalize, w2v_vecs
@@ -55,7 +55,15 @@ def _cluster(context_vectors_filename, labeled_dir,
     if print_clusters:
         print()
         print(word)
+        centers = classifier._c.centres
         _print_clusters(word, clusters, n_contexts)
+        _print_cluster_sim(centers)
+        mapping = _merge_clusters(centers, 0.75)
+        print(mapping)
+        merged_clusters = defaultdict(list)
+        for sense_id, elements in clusters.items():
+            merged_clusters[mapping[sense_id]].extend(elements)
+        _print_clusters(word, merged_clusters, n_contexts)
     labeled_filename = os.path.join(labeled_dir, word + '.txt')
     mt = {}
     if os.path.isfile(labeled_filename):
@@ -71,12 +79,15 @@ def print_metrics(prefix, mt):
 
 def _print_clusters(word, clusters, n_contexts):
     for c, elements in sorted(
-            clusters.items(), key=lambda x: len(x[1]), reverse=True):
+           #clusters.items(), key=lambda x: len(x[1]), reverse=True):
+            clusters.items(), key=lambda x: x[0]):
         elements.sort(key=itemgetter(1))
-        print()
-        print('#%d: %.2f (%d)' % (c, len(elements) / n_contexts, len(elements)))
-        for w, count in _best_words(elements, word)[:5]:
-            print(w)
+       #print()
+       #print('#%d: %.2f (%d)' % (c, len(elements) / n_contexts, len(elements)))
+       #for w, count in _best_words(elements, word)[:5]:
+       #    print(w)
+        print(c, '{:.2f}'.format(len(elements) / n_contexts),
+              ' '.join(w for w, _ in _best_words(elements, word)[:5]))
       # for ctx, dist in elements[:7]:
       #     print('%.2f: %s' % (dist, ' '.join(ctx)))
       # print('...')
@@ -89,6 +100,37 @@ def _print_clusters(word, clusters, n_contexts):
        #plt.clf()
        #plt.bar(center, hist, width=width)
        #plt.show()
+
+
+def _merge_clusters(centers, threshold):
+    ''' Merge clusters that are closer then given threshold.
+    Return mapping: old clusters -> new clusters.
+    '''
+    sim_matrix = pairwise.cosine_similarity(centers, centers)
+    mapping = {i: i for i, _ in enumerate(centers)}
+    id_gen = len(mapping)
+    for i, row in enumerate(sim_matrix):
+        for j, sim in enumerate(row):
+            if i > j and sim >= threshold:
+                # merge (i, j)
+                new_id = id_gen
+                id_gen += 1
+                for id_old in [i, j]:
+                    old_new = mapping[id_old]
+                    for old, new in list(mapping.items()):
+                        if new == old_new:
+                            mapping[old] = new_id
+    remap = {new: i for i, new in enumerate(set(mapping.values()))}
+    return {old: remap[new] for old, new in mapping.items()}
+
+
+def _print_cluster_sim(centers):
+    sim_matrix = pairwise.cosine_similarity(centers, centers)
+    print('\t'.join('{}'.format(j) for j, _ in enumerate(sim_matrix)))
+    for i, row in enumerate(sim_matrix):
+        print('\t'.join(
+            ('{:.2f}'.format(x) if i < j else ' ')
+            for j, x in enumerate(row)), i, sep='\t')
 
 
 def _best_words(elements, word):
