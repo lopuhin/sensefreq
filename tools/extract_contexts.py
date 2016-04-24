@@ -35,7 +35,7 @@ def main():
         with open_fn(fname, 'rb') as f:
             for before, w, after in fn(f, words, window_size=args.window):
                 files[w].write(u'\t'.join([before, w, after]) + u'\n')
-    for f in files.itervalues():
+    for f in files.values():
         f.close()
 
 
