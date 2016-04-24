@@ -55,15 +55,16 @@ def _cluster(context_vectors_filename, labeled_dir,
     if print_clusters:
         print()
         print(word)
+        weights = load_weights(word)
         centers = classifier._c.centres
-        _print_clusters(word, clusters, n_contexts)
+        _print_clusters(word, clusters, n_contexts, weights)
         _print_cluster_sim(centers)
         mapping = _merge_clusters(centers, 0.75)
         print(mapping)
         merged_clusters = defaultdict(list)
         for sense_id, elements in clusters.items():
             merged_clusters[mapping[sense_id]].extend(elements)
-        _print_clusters(word, merged_clusters, n_contexts)
+        _print_clusters(word, merged_clusters, n_contexts, weights)
     labeled_filename = os.path.join(labeled_dir, word + '.txt')
     mt = {}
     if os.path.isfile(labeled_filename):
@@ -77,12 +78,12 @@ def print_metrics(prefix, mt):
                           for k, v in sorted(mt.items()))))
 
 
-def _print_clusters(word, clusters, n_contexts):
+def _print_clusters(word, clusters, n_contexts, weights):
     for c, elements in sorted(clusters.items(), key=lambda x: x[0]):
         elements.sort(key=itemgetter(1))
         print()
         print(c, '{:.2f}'.format(len(elements) / n_contexts),
-              ' '.join(w for w, _ in _best_words(elements, word)[:5]),
+              ' '.join(w for w, _ in _best_words(elements, word, weights)[:5]),
               sep='\t')
         for ctx, dist in elements[:7]:
             print('%.2f: %s' % (dist, ' '.join(ctx)))
@@ -129,11 +130,12 @@ def _print_cluster_sim(centers):
             for j, x in enumerate(row)), i, sep='\t')
 
 
-def _best_words(elements, word):
+def _best_words(elements, word, weights, min_weight=1.5):
     counts = defaultdict(int)
     for ctx, __ in elements:
         for w in ctx:
-            if w not in STOPWORDS and not w.isdigit() and w != word:
+            if w not in STOPWORDS and not w.isdigit() and w != word and (
+                    not weights or weights.get(w, 0) > min_weight):
                 counts[w] += 1
     return sorted(counts.items(), key=itemgetter(1), reverse=True)
 
