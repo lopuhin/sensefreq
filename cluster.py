@@ -87,7 +87,8 @@ def _print_clusters(word, clusters, n_contexts):
        #for w, count in _best_words(elements, word)[:5]:
        #    print(w)
         print(c, '{:.2f}'.format(len(elements) / n_contexts),
-              ' '.join(w for w, _ in _best_words(elements, word)[:5]))
+              ' '.join(w for w, _ in _best_words(elements, word)[:5]),
+              sep='\t')
       # for ctx, dist in elements[:7]:
       #     print('%.2f: %s' % (dist, ' '.join(ctx)))
       # print('...')
@@ -137,7 +138,7 @@ def _best_words(elements, word):
     counts = defaultdict(int)
     for ctx, __ in elements:
         for w in ctx:
-            if w not in STOPWORDS and w != word:
+            if w not in STOPWORDS and not w.isdigit() and w != word:
                 counts[w] += 1
     return sorted(counts.items(), key=itemgetter(1), reverse=True)
 
