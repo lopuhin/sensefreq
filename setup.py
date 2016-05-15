@@ -19,7 +19,7 @@ setup(
     author='Konstantin Lopukhin, Grigory Nosyrev',
     author_email='kostia.lopuhin@gmail.com',
     license='MIT license',
-    long_description=open(os.path.join(name, 'README.rst')).read(),
+    long_description=open('README.rst').read(),
     description="Word sense disambiguation library",
     url='https://github.com/lopuhin/sensefreq',
     zip_safe=False,
@@ -30,6 +30,11 @@ setup(
         'msgpack-rpc-python==0.4',
         'gensim',
     ],
+    entry_points={
+        'console_scripts': [
+            'w2v_server=rlwsd.w2v_server:main',
+        ],
+    },
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: MIT License',

@@ -53,7 +53,7 @@ class SupervisedW2VModel(SupervisedModel):
     supersample = False
 
     def __init__(self, train_data,
-            weights=None, excl_stopwords=False, verbose=False, window=None,
+            weights=None, excl_stopwords=False, verbose=False, window=10,
             w2v_weights=None, lemmatize=True):
         super().__init__(train_data)
         self.lemmatize = lemmatize

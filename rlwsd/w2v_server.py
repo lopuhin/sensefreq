@@ -43,8 +43,12 @@ class Word2VecServer(object):
         return self._total_count
 
 
-if __name__ == '__main__':
+def main():
     server = msgpackrpc.Server(Word2VecServer(sys.argv[1]))
     server.listen(msgpackrpc.Address('localhost', WORD2VEC_PORT))
     print('running...')
     server.start()
+
+
+if __name__ == '__main__':
+    main()

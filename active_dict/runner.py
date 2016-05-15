@@ -9,7 +9,8 @@ import sys
 from operator import itemgetter
 from collections import Counter
 
-from utils import avg, mystem
+from utils import avg
+from rlwsd.utils import mystem
 from active_dict.loader import get_ad_word
 from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
     SupervisedWrapper, sorted_senses, get_accuracy_estimate, get_mfs_baseline

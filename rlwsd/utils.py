@@ -68,5 +68,9 @@ def read_stopwords(filename):
     return stopwords
 
 
-root = os.path.dirname(__file__)
-STOPWORDS = read_stopwords(os.path.join(root, 'stopwords.txt'))
+ROOT = os.path.dirname(__file__)
+STOPWORDS = read_stopwords(os.path.join(ROOT, 'stopwords.txt'))
+
+
+def load_weights(word):
+    raise NotImplementedError  # TODO
