@@ -27,6 +27,8 @@ setup(
     install_requires=[
         'numpy',
         'pymystem3',
+        'msgpack-rpc-python==0.4',
+        'gensim',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
