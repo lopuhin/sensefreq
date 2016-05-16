@@ -11,6 +11,9 @@ from .utils import (
 from .w2v_client import w2v_vecs
 
 
+MODELS_ROOT = os.path.join(os.path.dirname(__file__), 'models')
+
+
 def context_vector(
         words,
         excl_stopwords=False, weights=None, weight_word=None):
@@ -50,15 +53,21 @@ class SupervisedModel:
     def get_train_accuracy(self, verbose=None):
         raise NotImplementedError
 
-    def save(self, folder, word):
+    def disambiguate(self, left_ctx, word, right_ctx):
+        """ Return sense id of the given context.
+        """
+        return self((left_ctx, word, right_ctx))
+
+    def save(self, word, folder=None):
         joblib.dump(self, self._model_filename(folder, word), compress=3)
 
     @classmethod
-    def load(cls, folder, word):
+    def load(cls, word, folder=None):
         return joblib.load(cls._model_filename(folder, word))
 
     @staticmethod
     def _model_filename(folder, word):
+        folder = folder or MODELS_ROOT
         return os.path.join(folder, word)
 
 
