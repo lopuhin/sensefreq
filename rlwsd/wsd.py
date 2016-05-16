@@ -1,7 +1,9 @@
 from collections import defaultdict
 from operator import itemgetter
+import os.path
 
 import numpy as np
+import joblib
 
 from .utils import (
     word_re, lemmatize_s, tokenize_s, v_closeness, STOPWORDS, unitvec,
@@ -47,6 +49,17 @@ class SupervisedModel:
 
     def get_train_accuracy(self, verbose=None):
         raise NotImplementedError
+
+    def save(self, folder, word):
+        joblib.dump(self, self._model_filename(folder, word), compress=3)
+
+    @classmethod
+    def load(cls, folder, word):
+        return joblib.load(cls._model_filename(folder, word))
+
+    @staticmethod
+    def _model_filename(folder, word):
+        return os.path.join(folder, word)
 
 
 class SupervisedW2VModel(SupervisedModel):
@@ -129,6 +142,7 @@ class SphericalModel(SupervisedW2VModel):
         self.sense_vectors = {ans: cvs.mean(axis=0)
             for ans, cvs in self.context_vectors.items()
             if cvs.any()}
+        del self.context_vectors  # not needed any more
 
     def __call__(self, x, c_ans=None, with_confidence=False):
         v = self.cv(x)
@@ -151,7 +165,8 @@ class SphericalModel(SupervisedW2VModel):
             closeness = sorted(map(itemgetter(1), ans_closeness), reverse=True)
             confidence = closeness[0] - closeness[1] if len(closeness) >= 2 \
                          else 1.0
-        return (m_ans, confidence) if with_confidence else m_ans
+            return m_ans, confidence
+        return m_ans
 
 
 def print_verbose_repr(words, w_vectors, w_weights, sense_vectors=None):

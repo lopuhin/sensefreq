@@ -26,6 +26,7 @@ setup(
     packages=[name],
     install_requires=[
         'numpy',
+        'joblib',
         'pymystem3',
         'msgpack-rpc-python==0.4',
         'gensim',

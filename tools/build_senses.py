@@ -13,9 +13,8 @@ def build_senses(word, ad_root, out):
     ad_word_data = get_ad_word(word, ad_root)
     weights = load_weights(word, root=ad_root)
     train_data = get_ad_train_data(word, ad_word_data)
-    print(train_data)
     model = SphericalModel(train_data, weights=weights)
-    import IPython; IPython.embed()
+    model.save(out, word)
 
 
 def main():
@@ -27,6 +26,7 @@ def main():
     with open(args.words) as f:
         for line in f:
             word = line.strip()
+            print(word)
             build_senses(word, ad_root=args.ad_root, out=args.out)
 
 
