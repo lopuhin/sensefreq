@@ -19,9 +19,11 @@ class Word2VecServer(object):
     def vec(self, w):
         w = w.decode('utf-8')
         try:
-            return map(float, self.model[w])
+            v = self.model[w]
         except KeyError:
             return None
+        else:
+            return [float(x) for x in v]
 
     def count(self, w):
         w = w.decode('utf-8')
