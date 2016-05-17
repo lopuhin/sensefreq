@@ -44,8 +44,9 @@ def context_vector(
 class SupervisedModel:
     confidence_threshold = 1.0  # override
 
-    def __init__(self, train_data):
+    def __init__(self, train_data, senses=None):
         self.train_data = train_data
+        self.senses = senses
 
     def __call__(self, x, c_ans=None, with_confidence=False):
         raise NotImplementedError
@@ -76,14 +77,14 @@ class SupervisedW2VModel(SupervisedModel):
 
     def __init__(self, train_data,
             weights=None, excl_stopwords=False, verbose=False, window=10,
-            w2v_weights=None, lemmatize=True):
-        super().__init__(train_data)
+            w2v_weights=None, lemmatize=True, senses=None):
+        super().__init__(train_data, senses=senses)
         self.lemmatize = lemmatize
-        self.examples = defaultdict(list)
+        examples = defaultdict(list)
         for x, ans in self.train_data:
             n = sum(len(part.split()) for part in x) if self.supersample else 1
             for _ in range(n):
-                self.examples[ans].append(x)
+                examples[ans].append(x)
         self.verbose = verbose
         self.window = window
         self.excl_stopwords = excl_stopwords
@@ -92,10 +93,10 @@ class SupervisedW2VModel(SupervisedModel):
         self.sense_vectors = None
         self.context_vectors = {
             ans: np.array([cv for cv in map(self.cv, xs) if cv is not None])
-            for ans, xs in self.examples.items()}
-        if self.examples:
+            for ans, xs in examples.items()}
+        if examples:
             self.dominant_sense = max(
-                ((ans, len(ex)) for ans, ex in self.examples.items()),
+                ((ans, len(ex)) for ans, ex in examples.items()),
                 key=itemgetter(1))[0]
 
     def _get_before_word_after(self, ctx):
@@ -151,7 +152,6 @@ class SphericalModel(SupervisedW2VModel):
         self.sense_vectors = {ans: cvs.mean(axis=0)
             for ans, cvs in self.context_vectors.items()
             if cvs.any()}
-        del self.context_vectors  # not needed any more
 
     def __call__(self, x, c_ans=None, with_confidence=False):
         v = self.cv(x)

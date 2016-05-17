@@ -20,8 +20,8 @@ import matplotlib.patches as mpatches
 from rlwsd.utils import word_re, v_closeness, sorted_senses
 from rlwsd.wsd import (
     SupervisedW2VModel, SupervisedModel, SphericalModel, context_vector)
-from utils import lemmatize_s, avg, jensen_shannon_divergence
-from semeval2007 import load_semeval2007
+from rs.utils import lemmatize_s, avg, jensen_shannon_divergence
+from rs.semeval2007 import load_semeval2007
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):

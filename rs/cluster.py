@@ -12,10 +12,10 @@ from sklearn.metrics import v_measure_score, adjusted_rand_score, pairwise
 
 from rlwsd.utils import STOPWORDS, normalize, lemmatize_s
 from rlwsd.w2v_client import w2v_vecs
-from utils import load, save, avg_w_bounds
-from supervised import get_labeled_ctx, load_weights
-import cluster_methods
-from cluster_methods import context_vector
+from rs.utils import load, save, avg_w_bounds
+from rs.supervised import get_labeled_ctx, load_weights
+from rs import cluster_methods
+from rs.cluster_methods import context_vector
 
 
 def cluster(context_vectors_filename, labeled_dir, n_runs=4, **kwargs):

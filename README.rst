@@ -37,7 +37,12 @@ must be loaded separately::
     >>> import rlwsd
     >>> model = rlwsd.SphericalModel.load('альбом')
     >>> model.senses
-    TODO
+    {'1': {'meaning': 'Вещь в виде большой тетради ...',
+           'name': 'альбом 1'},
+     '2': {'meaning': 'Книга тематически связанных изобразительных материалов ...',
+           'name': 'альбом 2.1'},
+     '3': {'meaning': 'Собрание музыкальных произведений ...',
+           'name': 'альбом 2.2'}}
     >>> model.disambiguate('она задумчиво листала', 'альбом', 'с фотографиями')
-    TODO
+    '2'
 

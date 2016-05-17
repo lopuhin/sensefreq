@@ -9,10 +9,10 @@ import sklearn.cluster
 
 from rlwsd.utils import unitvec, word_re, v_closeness, lemmatize_s
 from rlwsd.wsd import context_vector as _context_vector
-from utils import batches
-from active_dict.loader import get_ad_word
-from supervised import load_weights
-import kmeans
+from rs.utils import batches
+from rs.active_dict.loader import get_ad_word
+from rs.supervised import load_weights
+from rs import kmeans
 
 
 def context_vector(word, ctx, **kwargs):

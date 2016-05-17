@@ -9,13 +9,13 @@ import sys
 from operator import itemgetter
 from collections import Counter
 
-from utils import avg
+from rs.utils import avg
 from rlwsd.utils import mystem
-from active_dict.loader import get_ad_word
-from supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
+from rs.active_dict.loader import get_ad_word
+from rs.supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
     SupervisedWrapper, sorted_senses, get_accuracy_estimate, get_mfs_baseline
-from cluster import get_context_vectors
-import cluster_methods, supervised
+from rs.cluster import get_context_vectors
+from rs import cluster_methods, supervised
 
 
 def train_model(word, ad_word_data, ad_root, method=None, **model_params):

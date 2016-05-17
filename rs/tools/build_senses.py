@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 import argparse
 
-from active_dict.loader import get_ad_word
-from active_dict.runner import get_ad_train_data
 from rlwsd.wsd import SphericalModel
-from supervised import load_weights
+from rs.active_dict.loader import get_ad_word
+from rs.active_dict.runner import get_ad_train_data
+from rs.supervised import load_weights
 
 
 def build_senses(word, ad_root, out=None):
@@ -13,7 +13,12 @@ def build_senses(word, ad_root, out=None):
     ad_word_data = get_ad_word(word, ad_root)
     weights = load_weights(word, root=ad_root)
     train_data = get_ad_train_data(word, ad_word_data)
-    model = SphericalModel(train_data, weights=weights)
+    senses = {s['id']: {'name': s['name'], 'meaning': s['meaning']}
+              for s in ad_word_data['meanings']}
+    model = SphericalModel(train_data, weights=weights, senses=senses)
+    # Not needed after training
+    del model.context_vectors
+    del model.train_data
     model.save(word, folder=out)
 
 
