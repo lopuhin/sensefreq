@@ -14,6 +14,12 @@ from .w2v_client import w2v_vecs
 MODELS_ROOT = os.path.join(os.path.dirname(__file__), 'models')
 
 
+def list_words():
+    """ List all words that have models built for them.
+    """
+    return [name for name in sorted(os.listdir(MODELS_ROOT)) if '.' not in name]
+
+
 def context_vector(
         words,
         excl_stopwords=False, weights=None, weight_word=None):

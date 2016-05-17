@@ -46,3 +46,14 @@ must be loaded separately::
     >>> model.disambiguate('она задумчиво листала', 'альбом', 'с фотографиями')
     '2'
 
+You can also get a list of all words with models::
+
+    >>> import rlwsd
+    >>> rlwsd.list_words()
+    ['абрикос',
+     'абсурд',
+     'авангард',
+     ...
+     'гусь',
+     'гуща']
+
