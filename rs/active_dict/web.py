@@ -9,9 +9,9 @@ from operator import itemgetter
 import tornado.ioloop
 from tornado.web import url, RequestHandler, Application
 
-from utils import avg
-from active_dict.loader import get_ad_word
-from active_dict.runner import load_ipm
+from rs.utils import avg
+from rs.active_dict.loader import get_ad_word
+from rs.active_dict.runner import load_ipm
 
 
 class BaseHandler(RequestHandler):

@@ -4,7 +4,7 @@ import argparse
 import os.path
 import random
 
-from active_dict.loader import get_ad_word
+from rs.active_dict.loader import get_ad_word
 
 
 def main():
