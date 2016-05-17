@@ -30,6 +30,8 @@ setup(
         'pymystem3',
         'msgpack-rpc-python==0.4',
         'gensim',
+        'requests',
+        'clint',
     ],
     entry_points={
         'console_scripts': [

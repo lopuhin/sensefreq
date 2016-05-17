@@ -23,9 +23,14 @@ The package currently works only on CPython 3.4+. Install with pip::
     pip3 install rlwsd
 
 The package requires models that are not hosted on PyPI and most be
-downloaded separately (about X Gb)::
+downloaded separately (about 2.5 Gb total)::
 
     python3 -m rlwsd.download
+
+Models are re-downloaded even if they are already present.
+In case of problems (download does not finish, etc.) you can download models
+manually from **TODO**
+and extract them into the ``models`` folder inside ``rlwsd`` (package) folder.
 
 
 Usage
