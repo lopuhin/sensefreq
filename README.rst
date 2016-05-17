@@ -5,8 +5,6 @@ This repository contains scripts and expriments related to the
 `Sense frequencies project <http://sensefreq.ruslang.ru>`_, and an ``rlwsd``
 python package for WSD (word sense disambiguation) for Russian language.
 
-.. contents::
-
 
 rlwsd package
 -------------
@@ -62,3 +60,8 @@ You can also get a list of all words with models::
      'гусь',
      'гуща']
 
+
+License
+~~~~~~~
+
+License is MIT
