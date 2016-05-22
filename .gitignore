@@ -1,3 +1,6 @@
 *.pyc
 *.txt
+*.egg-info
 venv
+.DS_Store
+rlwsd/models/

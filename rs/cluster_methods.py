@@ -7,11 +7,12 @@ import numpy as np
 import scipy.cluster.vq
 import sklearn.cluster
 
-from utils import unitvec, word_re, lemmatize_s, v_closeness, \
-    context_vector as _context_vector, batches
-from active_dict.loader import get_ad_word
-from supervised import load_weights
-import kmeans
+from rlwsd.utils import unitvec, word_re, v_closeness, lemmatize_s
+from rlwsd.wsd import context_vector as _context_vector
+from rs.utils import batches
+from rs.active_dict.loader import get_ad_word
+from rs.supervised import load_weights
+from rs import kmeans
 
 
 def context_vector(word, ctx, **kwargs):
