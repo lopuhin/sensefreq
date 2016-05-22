@@ -32,5 +32,3 @@ def w2v_vecs(w_list):
 
 def w2v_total_count():
     return _w2v_client().call('total_count')
-
-

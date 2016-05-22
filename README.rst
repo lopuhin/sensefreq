@@ -13,6 +13,7 @@ This package can perform WSD for Russian nouns described in the
 of Active Dictionary of Russian (currently, only the first volume is published
 with letters "А" - "Г").
 
+
 Installation
 ~~~~~~~~~~~~
 
@@ -61,8 +62,9 @@ You can also get a list of all words with models::
      'гуща']
 
 
-By default word2vec model is loaded once, one the first call to ``.disambiguate``
-method, which takes noticeable time. There is an option to load word2vec
+A large word2vec model is used internally. By default it is loaded once,
+one the first call to ``.disambiguate`` method, which takes noticeable time.
+There is an option to load word2vec
 model in a separate process by running ``w2v-server`` command, which starts
 a server, and exporting ``W2VSRV`` environment variable with any non-empty value::
 
@@ -72,6 +74,9 @@ a server, and exporting ``W2VSRV`` environment variable with any non-empty value
     # in the second terminal window
     $ export W2VSRV=yes
     $ python
+
+In this way you can leave the ``w2v-server`` running and save time on word2vec
+model reloads.
 
 
 License
