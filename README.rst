@@ -21,13 +21,13 @@ The package currently works only on CPython 3.4+. Install with pip::
     pip3 install rlwsd
 
 The package requires models that are not hosted on PyPI and most be
-downloaded separately (about 2.5 Gb total)::
+downloaded separately (about 2.3 Gb total)::
 
     python3 -m rlwsd.download
 
 Models are re-downloaded even if they are already present.
 In case of problems (download does not finish, etc.) you can download models
-manually from **TODO**
+manually from ``rlwsd.download.MODELS_URL``
 and extract them into the ``models`` folder inside ``rlwsd`` (package) folder.
 
 
@@ -59,6 +59,19 @@ You can also get a list of all words with models::
      ...
      'гусь',
      'гуща']
+
+
+By default word2vec model is loaded once, one the first call to ``.disambiguate``
+method, which takes noticeable time. There is an option to load word2vec
+model in a separate process by running ``w2v-server`` command, which starts
+a server, and exporting ``W2VSRV`` environment variable with any non-empty value::
+
+    # in the first terminal window
+    $ w2v-server
+    running...
+    # in the second terminal window
+    $ export W2VSRV=yes
+    $ python
 
 
 License

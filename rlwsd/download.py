@@ -5,7 +5,7 @@ from clint.textui import progress
 import requests
 
 
-MODELS_URL = ''
+MODELS_URL = 'https://s3-eu-west-1.amazonaws.com/sensefreq/models.tar.gz'
 
 
 def download():

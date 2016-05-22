@@ -5,6 +5,9 @@ import numpy as np
 from pymystem3 import Mystem
 
 
+MODELS_ROOT = os.path.join(os.path.dirname(__file__), 'models')
+
+
 word_re = re.compile(r'\w+', re.U)
 digit_re = re.compile(r'\d')
 

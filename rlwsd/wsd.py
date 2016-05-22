@@ -7,11 +7,9 @@ import joblib
 
 from .utils import (
     word_re, lemmatize_s, tokenize_s, v_closeness, STOPWORDS, unitvec,
-    bold_if, bool_color, magenta, blue, sorted_senses, sense_sort_key)
+    bold_if, bool_color, magenta, blue, sorted_senses, sense_sort_key,
+    MODELS_ROOT)
 from .w2v_client import w2v_vecs
-
-
-MODELS_ROOT = os.path.join(os.path.dirname(__file__), 'models')
 
 
 def list_words():

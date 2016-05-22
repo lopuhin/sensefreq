@@ -35,7 +35,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'w2v_server=rlwsd.w2v_server:main',
+            'w2v-server=rlwsd.w2v_server:main',
         ],
     },
     classifiers=[

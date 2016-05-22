@@ -1,7 +1,9 @@
+import os
+
 import msgpackrpc
 import numpy as np
 
-from .w2v_server import WORD2VEC_PORT
+from .w2v_server import Word2VecServer, WORD2VEC_PORT
 
 
 _word2vec_client = None
@@ -10,9 +12,12 @@ _word2vec_client = None
 def _w2v_client():
     global _word2vec_client
     if _word2vec_client is None:
-        _word2vec_client = msgpackrpc.Client(
-                msgpackrpc.Address('localhost', WORD2VEC_PORT),
-                timeout=None)
+        if os.environ.get('W2VSRV'):
+            _word2vec_client = msgpackrpc.Client(
+                    msgpackrpc.Address('localhost', WORD2VEC_PORT),
+                    timeout=None)
+        else:
+            _word2vec_client = Word2VecServer()
     return _word2vec_client
 
 
