@@ -23,6 +23,8 @@ setup(
     description='Word sense disambiguation library',
     url='https://github.com/lopuhin/sensefreq',
     packages=[name],
+    zip_safe=False,
+    include_package_data=True,
     install_requires=[
         'numpy',
         'joblib',
