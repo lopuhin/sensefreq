@@ -34,6 +34,8 @@ def parse_ad_word(data_or_word_filename, with_contexts=True):
         data = json.load(f)
         if 'word' in data and 'meanings' in data:
             return data
+    if 'СЛОВО' in data:
+        return _old_parse_ad_word(data, with_contexts=with_contexts)
     return {
         'word': data['word'],
         'pos': data.get('pos'),
@@ -92,6 +94,46 @@ def _normalize(s, rm_snips=False):
 assert _normalize(
     'Русская и <Мережковского>, [...] фотографии хором (А. Чудаков)',
     rm_snips=True) == 'Русская и Мережковского,  фотографии хором'
+
+
+def _old_parse_ad_word(data, with_contexts=True):
+    return {
+        'word': data['СЛОВО'],
+        'pos': data.get('ЧАСТЬ РЕЧИ'),
+        'meanings': [{
+            'id': str(i + 1),
+            'name': m['НАЗВАНИЕ'],
+            'meaning': m['ЗНАЧЕНИЕ'],
+            'contexts': _old_get_contexts(m) if with_contexts else None,
+            } for i, m in enumerate(data['ЗНАЧЕНИЯ'])]
+    }
+
+
+def _old_get_contexts(m):
+    contexts = []
+    for key in ['ПРИМЕРЫ', 'ИЛЛЮСТРАЦИИ', 'ДЕР', 'АНАЛ', 'СИН',
+                'СОЧЕТАЕМОСТЬ']:
+        contexts.extend(m.get(key, []))
+    meaning = m['ЗНАЧЕНИЕ']
+    control = m.get('УПРАВЛЕНИЕ', '')
+    if '\n' in meaning and not control:
+        meaning, control = meaning.split('\n', 1)
+    meaning = re.sub(r'\s[А-Я]\d\b', '', # remove "A1" etc
+              # meaning usually has useful examples in []
+              re.sub(r'[\[\]]', '', meaning))
+    contexts.append(meaning)
+    contexts.extend(
+        ex.split(':')[1].strip().rstrip('.')
+        for ex in control.split('\n') if ':' in ex)
+    return list(filter(None, [_old_normalize(c).strip() for c in contexts]))
+
+
+def _old_normalize(s):
+    """ Remove [...] - snips or references, and (...) - authors.
+    """
+    r1 = re.compile(r'\([^)]*\)', re.U)
+    r2 = re.compile(r'\[[^\]]*\]', re.U)
+    return r1.sub('', r2.sub('', s)).replace('\n', ' ').replace('\r', ' ')
 
 
 def print_word(word_filename):
