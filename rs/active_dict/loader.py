@@ -35,47 +35,63 @@ def parse_ad_word(data_or_word_filename, with_contexts=True):
         if 'word' in data and 'meanings' in data:
             return data
     return {
-        'word': data['СЛОВО'],
-        'pos': data.get('ЧАСТЬ РЕЧИ'),
+        'word': data['word'],
+        'pos': data.get('pos'),
         'meanings': [{
             'id': str(i + 1),
-            'name': m['НАЗВАНИЕ'],
-            'meaning': m['ЗНАЧЕНИЕ'],
+            'name': m['lexeme'],
+            'meaning': m['definition'],
             'contexts': _get_contexts(m) if with_contexts else None,
-            } for i, m in enumerate(data['ЗНАЧЕНИЯ'])]
+            } for i, m in enumerate(data.get('subentry', []))]
     }
 
 
 def _get_contexts(m):
     contexts = []
-    for key in ['ПРИМЕРЫ', 'ИЛЛЮСТРАЦИИ', 'ДЕР', 'АНАЛ', 'СИН',
-                'СОЧЕТАЕМОСТЬ']:
-        contexts.extend(m.get(key, []))
-    meaning = m['ЗНАЧЕНИЕ']
-    control = m.get('УПРАВЛЕНИЕ', '')
-    if '\n' in meaning and not control:
-        meaning, control = meaning.split('\n', 1)
+    for key in ['examples', 'illustrations', 'derivates', 'analogs',
+                'synonyms', 'collocations']:
+        for ctx in m.get(key, []):
+            if key == 'illustrations':
+                rm_snips = True
+                sep = '. '
+            else:
+                rm_snips = False
+                sep = ';'
+            ctx = _normalize(ctx, rm_snips=rm_snips)
+            contexts.extend(ctx.split(sep))
+    meaning = m['definition']
     meaning = re.sub(r'\s[А-Я]\d\b', '', # remove "A1" etc
               # meaning usually has useful examples in []
               re.sub(r'[\[\]]', '', meaning))
-    contexts.append(meaning)
-    contexts.extend(
-        ex.split(':')[1].strip().rstrip('.')
-        for ex in control.split('\n') if ':' in ex)
+    contexts.append(_normalize(meaning))
+    for e in m.get('government', []):
+        contexts.extend(_normalize(e['example']).split(';'))
     return list(filter(None, [_normalize(c).strip() for c in contexts]))
 
 
-def _normalize(s):
-    ''' Remove [...] - snips or references, and (...) - authors.
-    '''
-    r1 = re.compile(r'\([^)]*\)', re.U)
-    r2 = re.compile(r'\[[^\]]*\]', re.U)
-    return r1.sub('', r2.sub('', s)).replace('\n', ' ').replace('\r', ' ')
+def _normalize(s, rm_snips=False):
+    """ Remove [...] - snips or references, and (...) - authors.
+    """
+    subs = []
+    if rm_snips:
+        subs.extend([
+            re.compile(r'\[[^\]]*\]', re.U),
+            re.compile(r'\([^)]*\)', re.U),
+        ])
+    repls = [('\n', ' '), ('\r', ' ')]
+    erase = '<>()’‘[]'
+    for sub in subs:
+        s = sub.sub('', s)
+    for x, y in repls:
+        s = s.replace(x, y)
+    for x in erase:
+        s = s.replace(x, '')
+    return s.strip().rstrip('.')
 
 
 assert _normalize(
-    'Русская и Мережковского, [...] фотографии хором (А. Чудаков)') == \
-    'Русская и Мережковского,  фотографии хором '
+    'Русская и <Мережковского>, [...] фотографии хором (А. Чудаков)',
+    rm_snips=True) == 'Русская и Мережковского,  фотографии хором'
 
 
 def print_word(word_filename):
