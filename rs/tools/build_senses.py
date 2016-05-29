@@ -26,7 +26,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('ad_root')
     parser.add_argument('words')
-    parser.add_argument('--out')
+    parser.add_argument('out')
     args = parser.parse_args()
     with open(args.words) as f:
         for line in f:
