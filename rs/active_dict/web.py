@@ -214,6 +214,7 @@ def main():
     )
     application.settings['ad_root'] = args.ad_root.rstrip(os.sep)
     application.listen(args.port)
+    print('Started on port {}'.format(args.port))
     tornado.ioloop.IOLoop.current().start()
 
 
