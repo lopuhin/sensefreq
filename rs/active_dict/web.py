@@ -209,7 +209,7 @@ def main():
         url(r'/w/([^/]+)/(.*)', WordHandler, name='word'),
         url(r'/pos/(.*?)/', PosListHandler, name='pos_list'),
         ],
-        static_path='./active_dict/static',
+        static_path='./rs/active_dict/static',
         **vars(args)
     )
     application.settings['ad_root'] = args.ad_root.rstrip(os.sep)
