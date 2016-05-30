@@ -142,7 +142,7 @@ def summary(ad_root, ctx_dir):
                     ans: dict(
                         meaning=meaning_by_id[ans],
                         freq=cnt / len(result['contexts']))
-                    for ans, cnt in counts.iteritems()},
+                    for ans, cnt in counts.items()},
                 'estimate': result.get('estimate'),
                 'is_homonym': w_meta.get('is_homonym', False),
                 'ipm': word_ipm.get(word, 0.0),
@@ -166,19 +166,24 @@ def _print_errors(test_accuracy, answers, ad_word_data, senses):
     ad_senses = {m['id']: m['meaning'] for m in ad_word_data['meanings']}
     for sid, meaning in sorted_senses(senses):
         print()
-        print(sid, meaning)
         if sid in ad_senses:
-            print(ad_senses[sid])
+            print(sid, ad_senses[sid])
         else:
+            print(sid, meaning)
             print('Missing in AD!')
     assert set(ad_senses).issubset(senses)
     print('\ncorrect: %.2f\n' % test_accuracy)
-    error_kinds = Counter((ans, model_ans)
-                          for _, ans, model_ans in errors)
+    error_kinds = Counter((ans, model_ans) for _, ans, model_ans in errors)
     print('ans\tmodel\terrors')
     for (ans, model_ans), count in \
-            sorted(error_kinds.iteritems(), key=itemgetter(1), reverse=True):
+            sorted(error_kinds.items(), key=itemgetter(1), reverse=True):
         print('%s\t%s\t%s' % (ans, model_ans, count))
+    print('\n')
+    print('\t'.join(['ans', 'model_ans', 'ok?', 'left', 'word', 'right']))
+    for (left, word, right), ans, model_ans in answers:
+        print('\t'.join([ans, model_ans, 'error' if ans == model_ans else 'ok',
+                         left, word, right]))
+    print('\n')
 
 
 def get_ad_train_data(word, ad_word_data):
@@ -212,6 +217,7 @@ def main():
     arg('--max-contexts', type=int, default=2000,
         help='(for run) max number of contexts in sample')
     arg('--verbose', action='store_true')
+    arg('--print-errors', action='store_true')
     arg('--labeled-root')
     arg('--no-weights', action='store_true')
     arg('--w2v-weights', action='store_true')
@@ -219,7 +225,7 @@ def main():
     arg('--method', default='SphericalModel')
     args = parser.parse_args()
     params = {k: getattr(args, k) for k in [
-        'ad_root', 'window', 'verbose', 'labeled_root',
+        'ad_root', 'window', 'verbose', 'print_errors', 'labeled_root',
         'no_weights', 'w2v_weights', 'method']}
     params['lemmatize'] = not args.no_lemm
     if args.action == 'evaluate':
