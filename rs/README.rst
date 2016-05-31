@@ -12,7 +12,7 @@ and a list of words. File structure::
 
 Build new models::
 
-    ./rs/tools/build_senses.py ad-root words.txt models/
+    ./rs/tools/build_senses.py ad-root ad-root/words.txt models/
 
 The models will be in ``models/`` folder
 (this name is important for the archive step). Now put word2vec model in this
@@ -51,7 +51,8 @@ Corpus may be in a ``gz`` archive::
 
 Next, build weight files:
 
-**TODO**
+    ./rs/tools/build_weights.py ad-root/contexts/ ad-root/cdict/
+
 
 Getting contexts sample
 -----------------------

@@ -39,12 +39,14 @@ def parse_ad_word(data_or_word_filename, with_contexts=True):
     return {
         'word': data['word'],
         'pos': data.get('pos'),
-        'meanings': [{
+        'meanings': [
+            {
             'id': str(i + 1),
             'name': m['lexeme'],
             'meaning': m['definition'],
             'contexts': _get_contexts(m) if with_contexts else None,
-            } for i, m in enumerate(data.get('subentry', []))]
+            } for i, m in enumerate(data.get('subentry', []))
+            if set(m.keys()) != {'lexeme'}]
     }
 
 
