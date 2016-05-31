@@ -4,7 +4,7 @@ import argparse
 import math
 from collections import defaultdict
 
-from utils import w2v_counts, w2v_total_count
+from rlwsd.w2v_client import w2v_counts, w2v_total_count
 
 
 def main():
