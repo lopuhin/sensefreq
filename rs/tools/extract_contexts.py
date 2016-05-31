@@ -2,10 +2,9 @@
 import os
 import itertools
 import argparse
-import codecs
 import gzip
 
-from utils import normalize
+from rlwsd.utils import normalize
 
 
 def main():
@@ -19,13 +18,13 @@ def main():
     parser.add_argument('--window', type=int, default=12)
     args = parser.parse_args()
     if args.words:
-        words = args.words.decode('utf-8').split(',')
-    else:
-        with codecs.open(args.wordlist, 'rb', 'utf-8') as f:
+        words = args.words.split(',')
+    elif args.wordlist:
+        with open(args.wordlist) as f:
             words = [line.strip() for line in f]
-    files = {
-        w: codecs.open(os.path.join(args.output, w + '.txt'), 'wb', 'utf-8')
-        for w in words}
+    else:
+        parser.error('Specify either --words or --wordlist')
+    files = {w: open(os.path.join(args.output, w + '.txt'), 'w') for w in words}
     filenames = [
         os.path.join(args.corpus, fname) for fname in os.listdir(args.corpus)]\
         if os.path.isdir(args.corpus) else [args.corpus]
@@ -34,30 +33,34 @@ def main():
         open_fn = gzip.open if fname.endswith('.gz') else open
         with open_fn(fname, 'rb') as f:
             for before, w, after in fn(f, words, window_size=args.window):
-                files[w].write(u'\t'.join([before, w, after]) + u'\n')
+                files[w].write('\t'.join([before, w, after]) + '\n')
     for f in files.values():
         f.close()
 
 
 def contexts_iter(f, words, window_size):
     corpus_iter = (w for line in f for w in line.decode('utf-8').split())
+    canonical_words = {w: w for w in words}
+    for w in words:
+        canonical_words[w.replace('ё', 'е')] = w
     while True:
         # do not care if we miss some context with low prob.
         chunk = list(itertools.islice(corpus_iter, 100000))
         if not chunk:
             break
-        join = lambda chunk: u' '.join(map(normalize, chunk))
+        join = lambda s, e: ' '.join(map(normalize, chunk[s:e]))
         for idx, w in enumerate(chunk):
-            if w in words:
-                before = join(chunk[max(0, idx - window_size) : idx])
-                after = join(chunk[idx + 1 : idx + window_size + 1])
-                yield before, w, after
+            canonical_w = canonical_words.get(w)
+            if canonical_w:
+                before = join(max(0, idx - window_size), idx)
+                after = join(idx + 1, idx + window_size + 1)
+                yield before, canonical_w, after
 
 
 def line_contexts_iter(f, words, window_size):
     for line in f:
-        join = u' '.join
-        chunk = line.decode('utf-8').split()
+        join = ' '.join
+        chunk = line.split()
         for idx, w in enumerate(chunk):
             if w in words:
                 before = join(chunk[max(0, idx - window_size) : idx])
