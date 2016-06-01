@@ -57,6 +57,8 @@ def evaluate_word(word, ad_root, labeled_root,
         evaluate(model, test_data)
     if tsne:
         show_tsne(model, answers, senses, word)
+        # train_data = get_ad_train_data(word, ad_word_data)
+        # show_tsne(model, [(x, ans, ans) for x, ans in train_data], senses, word)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
     return mfs_baseline, model.get_train_accuracy(verbose=False), \
