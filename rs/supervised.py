@@ -456,7 +456,12 @@ def show_tsne(model, answers, senses, word):
     vectors = [model.cv(x) for x, _, _ in answers]
     distances = cdist(vectors, vectors, 'cosine')
     distances[distances < 0] = 0
-    ts = TSNE(2, metric='precomputed')
+    kwargs = {}
+    marker_size = 8
+    if len(answers) <= 100:
+        kwargs.update(dict(perplexity=10, method='exact', learning_rate=200))
+        marker_size = 16
+    ts = TSNE(2, metric='precomputed', **kwargs)
     reduced_vecs = ts.fit_transform(distances)
     colors = list('rgbcmyk') + ['orange', 'purple', 'gray']
     ans_colors = {ans: colors[int(ans) - 1] for ans in senses}
@@ -469,7 +474,8 @@ def show_tsne(model, answers, senses, word):
         color = ans_colors[ans]
         seen_answers.add(ans)
         marker = 'o' # if ans == model_ans else 'x'
-        plt.plot(rv[0], rv[1], marker=marker, color=color, markersize=8)
+        plt.plot(rv[0], rv[1],
+                 marker=marker, color=color, markersize=marker_size)
     plt.axes().get_xaxis().set_visible(False)
     plt.axes().get_yaxis().set_visible(False)
     legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
