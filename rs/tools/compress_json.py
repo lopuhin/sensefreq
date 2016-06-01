@@ -15,7 +15,7 @@ def main():
             with open(path, 'r') as f:
                 data = json.load(f)
             with open(path, 'w') as f:
-                f.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+                f.write(json.dumps(data, ensure_ascii=False))
 
 
 if __name__ == '__main__':
