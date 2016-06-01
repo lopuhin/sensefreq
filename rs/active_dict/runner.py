@@ -13,7 +13,8 @@ from rs.utils import avg
 from rlwsd.utils import mystem
 from rs.active_dict.loader import get_ad_word
 from rs.supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
-    SupervisedWrapper, sorted_senses, get_accuracy_estimate, get_mfs_baseline
+    SupervisedWrapper, sorted_senses, get_accuracy_estimate, get_mfs_baseline, \
+    show_tsne
 from rs.cluster import get_context_vectors
 from rs import cluster_methods, supervised
 
@@ -43,8 +44,8 @@ def train_model(word, ad_word_data, ad_root, method=None, **model_params):
     return model
 
 
-def evaluate_word(word, ad_root, labeled_root, print_errors=False,
-                  **model_params):
+def evaluate_word(word, ad_root, labeled_root,
+                  print_errors=False, tsne=False, **model_params):
     senses, test_data = get_labeled_ctx(
         os.path.join(labeled_root, word + '.txt'))
     mfs_baseline = get_mfs_baseline(test_data)
@@ -54,6 +55,8 @@ def evaluate_word(word, ad_root, labeled_root, print_errors=False,
     if not model: return
     test_accuracy, max_freq_error, js_div, estimate, answers = \
         evaluate(model, test_data)
+    if tsne:
+        show_tsne(model, answers, senses, word)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
     return mfs_baseline, model.get_train_accuracy(verbose=False), \
@@ -219,6 +222,7 @@ def main():
         help='(for run) max number of contexts in sample')
     arg('--verbose', action='store_true')
     arg('--print-errors', action='store_true')
+    arg('--tsne', action='store_true')
     arg('--labeled-root')
     arg('--no-weights', action='store_true')
     arg('--w2v-weights', action='store_true')
@@ -229,10 +233,8 @@ def main():
         'ad_root', 'window', 'verbose', 'no_weights', 'w2v_weights', 'method']}
     params['lemmatize'] = not args.no_lemm
     if args.action == 'evaluate':
-        params.update({
-            'labeled_root': args.labeled_root,
-            'print_errors': args.print_errors,
-        })
+        params.update({k: getattr(args, k) for k in [
+            'labeled_root', 'print_errors', 'tsne']})
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
         if os.path.exists(args.word_or_filename):

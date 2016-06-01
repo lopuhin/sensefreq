@@ -9,6 +9,7 @@ import argparse
 from operator import itemgetter
 
 import numpy as np
+from scipy.spatial.distance import cdist
 from sklearn.mixture import GMM
 from sklearn.manifold import TSNE
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
@@ -452,9 +453,16 @@ def load_weights(word, root='.', lemmatize=True):
 
 
 def show_tsne(model, answers, senses, word):
-    ts = TSNE(2, metric='cosine')
     vectors = [model.cv(x) for x, _, _ in answers]
-    reduced_vecs = ts.fit_transform(vectors)
+    distances = cdist(vectors, vectors, 'cosine')
+    distances[distances < 0] = 0
+    kwargs = {}
+    marker_size = 8
+    if len(answers) <= 100:
+        kwargs.update(dict(perplexity=10, method='exact', learning_rate=200))
+        marker_size = 16
+    ts = TSNE(2, metric='precomputed', **kwargs)
+    reduced_vecs = ts.fit_transform(distances)
     colors = list('rgbcmyk') + ['orange', 'purple', 'gray']
     ans_colors = {ans: colors[int(ans) - 1] for ans in senses}
     seen_answers = set()
@@ -465,12 +473,13 @@ def show_tsne(model, answers, senses, word):
     for (_, ans, model_ans), rv in zip(answers, reduced_vecs):
         color = ans_colors[ans]
         seen_answers.add(ans)
-        marker = 'o' if ans == model_ans else 'x'
-        plt.plot(rv[0], rv[1], marker=marker, color=color, markersize=8)
+        marker = 'o' # if ans == model_ans else 'x'
+        plt.plot(rv[0], rv[1],
+                 marker=marker, color=color, markersize=marker_size)
     plt.axes().get_xaxis().set_visible(False)
     plt.axes().get_yaxis().set_visible(False)
     legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
-        for ans, (label, _) in senses.items() if ans in seen_answers]
+        for ans, label in senses.items() if ans in seen_answers]
     plt.legend(handles=legend)
     plt.title(word)
     filename = word + '.pdf'
@@ -548,7 +557,9 @@ def main():
             accuracy, max_freq_error, _js_div, estimate, answers = evaluate(
                 model, test_data)
             if args.tsne:
-                show_tsne(model, answers, senses, word)
+                show_tsne(model, answers,
+                          senses={s: label for s, (label, _) in senses.items()},
+                          word=word)
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
             test_accuracy.append(accuracy)
