@@ -468,12 +468,12 @@ def show_tsne(model, answers, senses, word):
     for (_, ans, model_ans), rv in zip(answers, reduced_vecs):
         color = ans_colors[ans]
         seen_answers.add(ans)
-        marker = 'o' if ans == model_ans else 'x'
+        marker = 'o' # if ans == model_ans else 'x'
         plt.plot(rv[0], rv[1], marker=marker, color=color, markersize=8)
     plt.axes().get_xaxis().set_visible(False)
     plt.axes().get_yaxis().set_visible(False)
     legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
-        for ans, (label, _) in senses.items() if ans in seen_answers]
+        for ans, label in senses.items() if ans in seen_answers]
     plt.legend(handles=legend)
     plt.title(word)
     filename = word + '.pdf'
@@ -551,7 +551,9 @@ def main():
             accuracy, max_freq_error, _js_div, estimate, answers = evaluate(
                 model, test_data)
             if args.tsne:
-                show_tsne(model, answers, senses, word)
+                show_tsne(model, answers,
+                          senses={s: label for s, (label, _) in senses.items()},
+                          word=word)
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
             test_accuracy.append(accuracy)
