@@ -2,51 +2,60 @@
 
 {% block content %}
 
-<h1>Sense frequencies with Russian Active Dictionary</h1>
+<div class="hero-unit">
 
-<h3>Corpora</h3>
+    <h1>Sense Frequencies</h1>
+    <h3>Based on Russian Active Dictionary</h3>
 
-<ul>
-    {% for ctx_path in context_paths %}
-    <li>
-    <a href="{{ handler.reverse_url('words', ctx_path) }}">
-        {{ ctx_path }}</a>
-    </li>
-    {% end %}
-</ul>
 
-<h3>Compare corpora</h3>
+    <h2>Corpora</h2>
 
-<ul>
-    {% for ctx_path_1 in context_paths %}
-    {% for ctx_path_2 in context_paths %}
-    {% if ctx_path_1 < ctx_path_2 %}
-    <li>
-    <a href="{{ handler.reverse_url('compare', ctx_path_1, ctx_path_2) }}">
-        {{ ctx_path_1 }} with {{ ctx_path_2 }}</a>
-    </li>
-    {% end %}
-    {% end %}
-    {% end %}
-</ul>
+    <ul>
+        {% for ctx_path in context_paths %}
+        <li>
+            <a href="{{ handler.reverse_url('words', ctx_path) }}">
+                {{ ctx_path }}</a>
+        </li>
+        {% end %}
+    </ul>
 
-<h3>Downloads</h3>
 
-<ul>
-    <li>
-        <a href="https://github.com/lopuhin/sensefreq">Source code.</a>
-        Includes installation instructions and data to download.
-    </li>
-</ul>
+    <h2>Compare corpora</h2>
 
-<h3>Publications</h3>
+    <ul>
+        {% for ctx_path_1 in context_paths %}
+        {% for ctx_path_2 in context_paths %}
+        {% if ctx_path_1 < ctx_path_2 %}
+        <li>
+            <a href="{{ handler.reverse_url('compare', ctx_path_1, ctx_path_2) }}">
+                {{ ctx_path_1 }} with {{ ctx_path_2 }}</a>
+        </li>
+        {% end %}
+        {% end %}
+        {% end %}
+    </ul>
 
-<ul>
-    <li>
-        <a href="{{ root }}Automated_Word_Sense_Frequency_Estimation_for_Russian_Nouns_Lopukhina_et_al.pdf">
-            Automated Word Sense Frequency Estimation for Russian Nouns, 2016.</a>
-        Anastasiya Lopukhina, Konstantin Lopukhin, Grigory Nosyrev.
-    </li>
-</ul>
+
+    <h2>Downloads</h2>
+
+    <ul>
+        <li>
+            <a href="https://github.com/lopuhin/sensefreq">Source code.</a>
+            Includes installation instructions and data to download.
+        </li>
+    </ul>
+
+
+    <h2>Publications</h2>
+
+    <ul>
+        <li>
+            <a href="{{ root }}Automated_Word_Sense_Frequency_Estimation_for_Russian_Nouns_Lopukhina_et_al.pdf">
+                Automated Word Sense Frequency Estimation for Russian Nouns, 2016.</a>
+            Anastasiya Lopukhina, Konstantin Lopukhin, Grigory Nosyrev.
+        </li>
+    </ul>
+
+</div>
 
 {% end %}
