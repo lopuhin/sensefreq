@@ -9,6 +9,7 @@ import argparse
 from operator import itemgetter
 
 import numpy as np
+from scipy.spatial.distance import cdist
 from sklearn.mixture import GMM
 from sklearn.manifold import TSNE
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
@@ -452,9 +453,11 @@ def load_weights(word, root='.', lemmatize=True):
 
 
 def show_tsne(model, answers, senses, word):
-    ts = TSNE(2, metric='cosine')
     vectors = [model.cv(x) for x, _, _ in answers]
-    reduced_vecs = ts.fit_transform(vectors)
+    distances = cdist(vectors, vectors, 'cosine')
+    distances[distances < 0] = 0
+    ts = TSNE(2, metric='precomputed')
+    reduced_vecs = ts.fit_transform(distances)
     colors = list('rgbcmyk') + ['orange', 'purple', 'gray']
     ans_colors = {ans: colors[int(ans) - 1] for ans in senses}
     seen_answers = set()
