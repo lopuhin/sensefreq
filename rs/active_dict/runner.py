@@ -119,7 +119,8 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
         json.dump({
             'word': word,
             'contexts': result,
-            'estimate': get_accuracy_estimate(confidences),
+            'estimate': get_accuracy_estimate(
+                confidences, model.confidence_threshold),
             }, f)
     return True
 
@@ -130,7 +131,7 @@ def summary(ad_root, ctx_dir):
     for filename in os.listdir(ctx_dir):
         if not filename.endswith('.json') or filename == 'summary.json':
             continue
-        with open(os.path.join(ctx_dir, filename), 'rb') as f:
+        with open(os.path.join(ctx_dir, filename), 'r') as f:
             result = json.load(f)
             word = result['word']
             w_meta = get_ad_word(word, ad_root)
@@ -147,7 +148,7 @@ def summary(ad_root, ctx_dir):
                 'is_homonym': w_meta.get('is_homonym', False),
                 'ipm': word_ipm.get(word, 0.0),
             }
-    with open(os.path.join(ctx_dir, 'summary.json'), 'wb') as f:
+    with open(os.path.join(ctx_dir, 'summary.json'), 'w') as f:
         json.dump(all_freqs, f)
 
 
@@ -208,7 +209,7 @@ def get_ad_train_data(word, ad_word_data):
 def main():
     parser = argparse.ArgumentParser()
     arg = parser.add_argument
-    arg('action', help='run|summary|evaluate')
+    arg('action', choices=['run', 'summary', 'evaluate'])
     arg('ad_root')
     arg('word_or_filename')
     arg('--window', type=int, default=10)
@@ -225,10 +226,13 @@ def main():
     arg('--method', default='SphericalModel')
     args = parser.parse_args()
     params = {k: getattr(args, k) for k in [
-        'ad_root', 'window', 'verbose', 'print_errors', 'labeled_root',
-        'no_weights', 'w2v_weights', 'method']}
+        'ad_root', 'window', 'verbose', 'no_weights', 'w2v_weights', 'method']}
     params['lemmatize'] = not args.no_lemm
     if args.action == 'evaluate':
+        params.update({
+            'labeled_root': args.labeled_root,
+            'print_errors': args.print_errors,
+        })
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
         if os.path.exists(args.word_or_filename):
@@ -239,8 +243,6 @@ def main():
         run_on_words(args.word_or_filename, **params)
     elif args.action == 'summary':
         summary(args.ad_root, args.word_or_filename)
-    else:
-        parser.error('unknown action "{}"'.format(args.action))
 
 
 if __name__ == '__main__':

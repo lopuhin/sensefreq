@@ -70,5 +70,7 @@ and can span sentences.
 Building resulting sense frequency files
 ----------------------------------------
 
-**TODO**
+The last argument is the path to the folder with contexts sampled from corpora::
 
+    ./rs/active_dict/runner.py run ad-root/ ad-root/ruTenTen/
+    ./rs/active_dict/runner.py summary ad-root/ ad-root/ruTenTen/
