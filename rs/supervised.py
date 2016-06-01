@@ -453,12 +453,13 @@ def load_weights(word, root='.', lemmatize=True):
 
 
 def show_tsne(model, answers, senses, word):
-    vectors = [model.cv(x) for x, _, _ in answers]
+    vectors = np.array([v for v in (model.cv(x) for x, _, _ in answers)
+                        if v is not None])
     distances = cdist(vectors, vectors, 'cosine')
     distances[distances < 0] = 0
     kwargs = {}
     marker_size = 8
-    if len(answers) <= 100:
+    if len(answers) <= 150:
         kwargs.update(dict(perplexity=10, method='exact', learning_rate=200))
         marker_size = 16
     ts = TSNE(2, metric='precomputed', **kwargs)
