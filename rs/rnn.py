@@ -113,6 +113,7 @@ def main():
     parser.add_argument('--window', type=int, default=10)
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--n-epochs', type=int, default=1)
+    parser.add_argument('--save')
     args = parser.parse_args()
 
     model = build_model(
@@ -120,6 +121,7 @@ def main():
         embedding_size=args.embedding_size,
         hidden_size=args.hidden_size,
         window=args.window)
+
     n_tokens, words = get_features(args.corpus, n_features=args.n_features)
     model.fit_generator(
         generator=data_gen(
@@ -130,6 +132,9 @@ def main():
             batch_size=args.batch_size),
         samples_per_epoch=n_tokens,
         nb_epoch=args.n_epochs)
+
+    if args.save:
+        model.save_weights(args.save, overwrite=True)
 
 
 if __name__ == '__main__':
