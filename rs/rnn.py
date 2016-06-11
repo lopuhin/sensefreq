@@ -42,13 +42,15 @@ def get_features(corpus: str, *, n_features: int) -> (int, List[str]):
     return result
 
 
-def data_gen(corpus, *, words: [str],
-             n_features: int, window: int, batch_size: int)\
+def data_gen(corpus, *, words: [str], n_features: int, window: int,
+             batch_size: int, random_masking: bool)\
         -> Iterator[Dict[str, np.ndarray]]:
-    # PAD = 0
+    PAD = 0
+    PAD_WORD = '<PAD>'
     UNK = 1
     words = words[:n_features - 2]  # for UNK and PAD
     idx_to_word = {word: idx for idx, word in enumerate(words, 2)}
+    idx_to_word[PAD_WORD] = PAD
 
     def to_arr(contexts: List[(List[str], List[str], str)], idx: int)\
             -> np.ndarray:
@@ -63,12 +65,13 @@ def data_gen(corpus, *, words: [str],
         batch = []
         for word in corpus_reader(corpus):
             buffer.append(word)
-            # TODO - add random padding?
             # TODO - some shuffling?
             if len(buffer) > 2 * window:
                 left = buffer[-2 * window - 1 : -window - 1]
                 output = buffer[-window - 1 : -window]
                 right = buffer[-window:]
+                if random_masking:
+                    left, right = random_mask(left, right, PAD_WORD)
                 batch.append((left, right, output))
             if len(batch) == batch_size:
                 yield dict(
@@ -79,6 +82,19 @@ def data_gen(corpus, *, words: [str],
                 batch[:] = []
             if len(buffer) > buffer_max_size:
                 buffer[: -2 * window] = []
+
+
+def random_mask(left: List[str], right: List[str], pad: str)\
+        -> (np.ndarray, np.ndarray):
+    n_left = n_right = 0
+    w = len(left)
+    assert len(right) == w
+    while not (n_left or n_right):
+        n_left, n_right = [np.random.randint(w + 1) for _ in range(2)]
+    left[: w - n_left] = [pad] * (w - n_left)
+    right[n_right:] = [pad] * (w - n_right)
+    assert len(left) == len(right) == w
+    return left, right
 
 
 def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
@@ -113,6 +129,7 @@ def main():
     parser.add_argument('--window', type=int, default=10)
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--n-epochs', type=int, default=1)
+    parser.add_argument('--random-masking', action='store_true')
     parser.add_argument('--save')
     args = parser.parse_args()
 
@@ -129,7 +146,8 @@ def main():
             words=words,
             window=args.window,
             n_features=args.n_features,
-            batch_size=args.batch_size),
+            batch_size=args.batch_size,
+            random_masking=args.random_masking),
         samples_per_epoch=n_tokens,
         nb_epoch=args.n_epochs)
 
