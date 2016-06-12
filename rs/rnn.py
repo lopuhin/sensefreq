@@ -4,10 +4,8 @@ from collections import Counter, defaultdict
 import os.path
 import pickle
 
-from keras.models import Graph
-from keras.layers.core import Dense, Dropout
-from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM
+from keras.models import Model
+from keras.layers import Dense, Dropout, Input, Embedding, LSTM, merge
 import numpy as np
 
 
@@ -74,12 +72,10 @@ def data_gen(corpus, *, words: [str], n_features: int, window: int,
                     left, right = random_mask(left, right, PAD_WORD)
                 batch.append((left, right, output))
             if len(batch) == batch_size:
-                yield dict(
-                    left=to_arr(batch, 0),
-                    right=to_arr(batch, 1),
-                    output=to_arr(batch, 2)[:,0],
-                )
+                left, right = to_arr(batch, 0), to_arr(batch, 0)
+                output = to_arr(batch, 2)[:,0]
                 batch[:] = []
+                yield [left, right], output
             if len(buffer) > buffer_max_size:
                 buffer[: -2 * window] = []
 
@@ -98,23 +94,18 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 
 
 def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
-                window: int) -> Graph:
+                window: int) -> Model:
     print('Building model...', end=' ', flush=True)
-    # TODO - use "non-legacy" way (?)
-    model = Graph()
-    model.add_input(name='left', input_shape=(window,), dtype='int')
-    model.add_input(name='right', input_shape=(window,), dtype='int')
+    left = Input(name='left', shape=(window,), dtype='int32')
+    right = Input(name='right', shape=(window,), dtype='int32')
     embedding = Embedding(
         n_features, embedding_size, input_length=window, mask_zero=True)
-    model.add_node(embedding, name='left_embedding', input='left')
-    model.add_node(embedding, name='right_embedding', input='right')
-    model.add_node(LSTM(hidden_size), name='forward', input='left_embedding')
-    model.add_node(LSTM(hidden_size, go_backwards=True),
-                   name='backward', input='right_embedding')
-    model.add_node(Dropout(0.5), name='dropout', inputs=['forward', 'backward'])
-    model.add_node(Dense(n_features, activation='softmax'),
-                   name='softmax', input='dropout')
-    model.add_output(name='output', input='softmax')
+    forward = LSTM(hidden_size)(embedding(left))
+    backward = LSTM(hidden_size, go_backwards=True)(embedding(right))
+    hidden_out = merge([forward, backward], mode='concat', concat_axis=-1)
+    dropout = Dropout(0.5)(hidden_out)
+    output = Dense(n_features, activation='softmax')(dropout)
+    model = Model(input=[left, right], output=output)
     model.compile(loss='sparse_categorical_crossentropy', optimizer='rmsprop')
     print('done')
     return model
