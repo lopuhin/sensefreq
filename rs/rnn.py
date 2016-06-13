@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 from collections import Counter
+import contextlib
 import os.path
 import pickle
 from typing import List, Iterator, Dict, Tuple
@@ -25,14 +26,13 @@ def get_features(corpus: str, *, n_features: int) -> (int, List[str]):
     if os.path.exists(cached_filename):
         with open(cached_filename, 'rb') as f:
             return pickle.load(f)
-    print('Getting words...', end=' ', flush=True)
-    counts = Counter(corpus_reader(corpus))
-    words = [w for w, _ in counts.most_common(n_features)]
-    n_tokens = sum(counts.values())
-    result = n_tokens, words
-    with open(cached_filename, 'wb') as f:
-        pickle.dump(result, f)
-    print('done')
+    with printing_done('Getting words...'):
+        counts = Counter(corpus_reader(corpus))
+        words = [w for w, _ in counts.most_common(n_features)]
+        n_tokens = sum(counts.values())
+        result = n_tokens, words
+        with open(cached_filename, 'wb') as f:
+            pickle.dump(result, f)
     return result
 
 
@@ -91,7 +91,6 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 
 def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
                 window: int, dropout: bool, rec_unit: str) -> Model:
-    print('Building model...', end=' ', flush=True)
     left = Input(name='left', shape=(window,), dtype='int32')
     right = Input(name='right', shape=(window,), dtype='int32')
     embedding = Embedding(
@@ -107,6 +106,13 @@ def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
     model.compile(loss='sparse_categorical_crossentropy', optimizer='rmsprop')
     print('done')
     return model
+
+
+@contextlib.contextmanager
+def printing_done(msg):
+    print(msg, end=' ', flush=True)
+    yield
+    print('done')
 
 
 def main():
@@ -126,14 +132,15 @@ def main():
     args = parser.parse_args()
     print(vars(args))
 
-    model = build_model(
-        n_features=args.n_features,
-        embedding_size=args.embedding_size,
-        hidden_size=args.hidden_size,
-        rec_unit=args.rec_unit,
-        window=args.window,
-        dropout=args.dropout,
-    )
+    with printing_done('Building model...'):
+        model = build_model(
+            n_features=args.n_features,
+            embedding_size=args.embedding_size,
+            hidden_size=args.hidden_size,
+            rec_unit=args.rec_unit,
+            window=args.window,
+            dropout=args.dropout,
+        )
 
     n_tokens, words = get_features(args.corpus, n_features=args.n_features)
     model.fit_generator(
