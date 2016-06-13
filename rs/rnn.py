@@ -1,17 +1,13 @@
 #!/usr/bin/env python
 import argparse
-from collections import Counter, defaultdict
+from collections import Counter
 import os.path
 import pickle
+from typing import List, Iterator, Dict, Tuple
 
 from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Embedding, LSTM, merge
 import numpy as np
-
-
-# FIXME - use real types
-List = Iterator = Dict = defaultdict(int)
-Any = None
 
 
 def corpus_reader(corpus: str) -> Iterator[str]:
@@ -50,7 +46,7 @@ def data_gen(corpus, *, words: [str], n_features: int, window: int,
     idx_to_word = {word: idx for idx, word in enumerate(words, 2)}
     idx_to_word[PAD_WORD] = PAD
 
-    def to_arr(contexts: List[(List[str], List[str], str)], idx: int)\
+    def to_arr(contexts: List[Tuple[List[str], List[str], str]], idx: int)\
             -> np.ndarray:
         return np.array(
             [[idx_to_word.get(w, UNK) for w in context[idx]]
