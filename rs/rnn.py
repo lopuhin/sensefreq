@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 import argparse
 from collections import Counter
-import contextlib
+from itertools import islice
 import os.path
 import pickle
 from typing import List, Iterator, Dict, Tuple
 
+from keras.callbacks import ModelCheckpoint
 from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge
 import numpy as np
+
+from rs.rnn_utils import printing_done, repeat_iter
 
 
 def corpus_reader(corpus: str) -> Iterator[str]:
@@ -37,11 +40,11 @@ def get_features(corpus: str, *, n_features: int) -> (int, List[str]):
 
 
 def data_gen(corpus, *, words: [str], n_features: int, window: int,
-             batch_size: int, random_masking: bool)\
-        -> Iterator[Dict[str, np.ndarray]]:
+             batch_size: int, random_masking: bool
+             ) -> Iterator[Dict[str, np.ndarray]]:
     PAD = 0
-    PAD_WORD = '<PAD>'
     UNK = 1
+    PAD_WORD = '<PAD>'
     words = words[:n_features - 2]  # for UNK and PAD
     idx_to_word = {word: idx for idx, word in enumerate(words, 2)}
     idx_to_word[PAD_WORD] = PAD
@@ -54,26 +57,25 @@ def data_gen(corpus, *, words: [str], n_features: int, window: int,
             dtype=np.int32)
 
     buffer_max_size = 10000
-    while True:
-        buffer = []
-        batch = []
-        for word in corpus_reader(corpus):
-            buffer.append(word)
-            # TODO - some shuffling?
-            if len(buffer) > 2 * window:
-                left = buffer[-2 * window - 1 : -window - 1]
-                output = buffer[-window - 1 : -window]
-                right = buffer[-window:]
-                if random_masking:
-                    left, right = random_mask(left, right, PAD_WORD)
-                batch.append((left, right, output))
-            if len(batch) == batch_size:
-                left, right = to_arr(batch, 0), to_arr(batch, 0)
-                output = to_arr(batch, 2)[:,0]
-                batch[:] = []
-                yield [left, right], output
-            if len(buffer) > buffer_max_size:
-                buffer[: -2 * window] = []
+    buffer = []
+    batch = []
+    for word in corpus_reader(corpus):
+        buffer.append(word)
+        # TODO - some shuffling?
+        if len(buffer) > 2 * window:
+            left = buffer[-2 * window - 1 : -window - 1]
+            output = buffer[-window - 1 : -window]
+            right = buffer[-window:]
+            if random_masking:
+                left, right = random_mask(left, right, PAD_WORD)
+            batch.append((left, right, output))
+        if len(batch) == batch_size:
+            left, right = to_arr(batch, 0), to_arr(batch, 0)
+            output = to_arr(batch, 2)[:,0]
+            batch[:] = []
+            yield [left, right], output
+        if len(buffer) > buffer_max_size:
+            buffer[: -2 * window] = []
 
 
 def random_mask(left: List[str], right: List[str], pad: str)\
@@ -104,15 +106,7 @@ def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
     output = Dense(n_features, activation='softmax')(hidden_out)
     model = Model(input=[left, right], output=output)
     model.compile(loss='sparse_categorical_crossentropy', optimizer='rmsprop')
-    print('done')
     return model
-
-
-@contextlib.contextmanager
-def printing_done(msg):
-    print(msg, end=' ', flush=True)
-    yield
-    print('done')
 
 
 def main():
@@ -127,7 +121,8 @@ def main():
     parser.add_argument('--n-epochs', type=int, default=1)
     parser.add_argument('--random-masking', action='store_true')
     parser.add_argument('--dropout', action='store_true')
-    parser.add_argument('--epoch-size', type=int)
+    parser.add_argument('--epoch-batches', type=int)
+    parser.add_argument('--valid-batches', type=int, default=100)
     parser.add_argument('--save')
     args = parser.parse_args()
     print(vars(args))
@@ -143,20 +138,27 @@ def main():
         )
 
     n_tokens, words = get_features(args.corpus, n_features=args.n_features)
-    model.fit_generator(
-        generator=data_gen(
-            args.corpus,
-            words=words,
-            window=args.window,
-            n_features=args.n_features,
-            batch_size=args.batch_size,
-            random_masking=args.random_masking
-        ),
-        samples_per_epoch=args.epoch_size or n_tokens,
-        nb_epoch=args.n_epochs)
-
+    data = lambda : data_gen(
+        args.corpus,
+        words=words,
+        window=args.window,
+        n_features=args.n_features,
+        batch_size=args.batch_size,
+        random_masking=args.random_masking,
+    )
+    validation_data = lambda : islice(data(), args.valid_batches)
+    train_data = lambda : islice(data(), args.valid_batches, None)
+    callbacks = []
     if args.save:
-        model.save_weights(args.save, overwrite=True)
+        callbacks.append(ModelCheckpoint(args.save, save_best_only=True))
+    model.fit_generator(
+        generator=repeat_iter(train_data),
+        samples_per_epoch=args.epoch_batches * args.batch_size or n_tokens,
+        nb_epoch=args.n_epochs,
+        validation_data=repeat_iter(validation_data),
+        nb_val_samples=args.valid_batches * args.batch_size,
+        callbacks=callbacks,
+    )
 
 
 if __name__ == '__main__':
