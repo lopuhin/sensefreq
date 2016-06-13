@@ -7,7 +7,6 @@ import pickle
 from typing import List, Iterator, Dict, Tuple
 
 from keras.models import Model
-from keras import callbacks
 from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge
 import numpy as np
 
@@ -105,20 +104,8 @@ def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
     output = Dense(n_features, activation='softmax')(hidden_out)
     model = Model(input=[left, right], output=output)
     model.compile(loss='sparse_categorical_crossentropy', optimizer='rmsprop')
+    print('done')
     return model
-
-
-class SaveEach(callbacks.Callback):
-    def __init__(self, each_batch, filepath):
-        self.each_batch = each_batch
-        self.filepath = filepath
-        super(SaveEach, self).__init__()
-
-    def on_batch_end(self, batch, logs={}):
-        if batch and batch % self.each_batch == 0:
-            with printing_done('Saving model...'):
-                self.model.save_weights(self.filepath, overwrite=True)
-        super(SaveEach, self).on_batch_end(batch, logs)
 
 
 @contextlib.contextmanager
@@ -142,7 +129,6 @@ def main():
     parser.add_argument('--dropout', action='store_true')
     parser.add_argument('--epoch-size', type=int)
     parser.add_argument('--save')
-    parser.add_argument('--save-each', type=int, default=10000)
     args = parser.parse_args()
     print(vars(args))
 
@@ -156,9 +142,6 @@ def main():
             dropout=args.dropout,
         )
 
-    callbacks = []
-    if args.save and args.save_each:
-        callbacks.append(SaveEach(args.save_each, args.save))
     n_tokens, words = get_features(args.corpus, n_features=args.n_features)
     model.fit_generator(
         generator=data_gen(
@@ -170,10 +153,7 @@ def main():
             random_masking=args.random_masking
         ),
         samples_per_epoch=args.epoch_size or n_tokens,
-        nb_epoch=args.n_epochs,
-        callbacks=callbacks,
-        validation_data=None,
-    )
+        nb_epoch=args.n_epochs)
 
     if args.save:
         model.save_weights(args.save, overwrite=True)
