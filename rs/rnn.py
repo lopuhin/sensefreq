@@ -123,6 +123,7 @@ def main():
     parser.add_argument('--dropout', action='store_true')
     parser.add_argument('--epoch-batches', type=int)
     parser.add_argument('--valid-batches', type=int, default=100)
+    parser.add_argument('--valid-corpus')
     parser.add_argument('--save')
     args = parser.parse_args()
     print(vars(args))
@@ -138,16 +139,21 @@ def main():
         )
 
     n_tokens, words = get_features(args.corpus, n_features=args.n_features)
-    data = lambda : data_gen(
-        args.corpus,
+    data = lambda corpus: data_gen(
+        corpus,
         words=words,
         window=args.window,
         n_features=args.n_features,
         batch_size=args.batch_size,
         random_masking=args.random_masking,
     )
-    validation_data = lambda : islice(data(), args.valid_batches)
-    train_data = lambda : islice(data(), args.valid_batches, None)
+    if args.valid_corpus:
+        train_data = lambda: data(args.corpus)
+        validation_data = lambda: islice(
+            data(args.valid_corpus), args.valid_batches)
+    else:
+        train_data = lambda: islice(data(args.corpus), args.valid_batches, None)
+        validation_data = lambda: islice(data(args.corpus), args.valid_batches)
     callbacks = []
     if args.save:
         callbacks.append(ModelCheckpoint(args.save, save_best_only=True))
