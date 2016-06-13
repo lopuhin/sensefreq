@@ -6,7 +6,7 @@ import pickle
 from typing import List, Iterator, Dict, Tuple
 
 from keras.models import Model
-from keras.layers import Dense, Dropout, Input, Embedding, LSTM, merge
+from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge
 import numpy as np
 
 
@@ -90,14 +90,15 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 
 
 def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
-                window: int, dropout: bool) -> Model:
+                window: int, dropout: bool, rec_unit: str) -> Model:
     print('Building model...', end=' ', flush=True)
     left = Input(name='left', shape=(window,), dtype='int32')
     right = Input(name='right', shape=(window,), dtype='int32')
     embedding = Embedding(
         n_features, embedding_size, input_length=window, mask_zero=True)
-    forward = LSTM(hidden_size)(embedding(left))
-    backward = LSTM(hidden_size, go_backwards=True)(embedding(right))
+    rec_fn = {'lstm': LSTM, 'gru': GRU}[rec_unit]
+    forward = rec_fn(hidden_size)(embedding(left))
+    backward = rec_fn(hidden_size, go_backwards=True)(embedding(right))
     hidden_out = merge([forward, backward], mode='concat', concat_axis=-1)
     if dropout:
         hidden_out = Dropout(0.5)(hidden_out)
@@ -114,11 +115,13 @@ def main():
     parser.add_argument('--n-features', type=int, default=50000)
     parser.add_argument('--embedding-size', type=int, default=128)
     parser.add_argument('--hidden-size', type=int, default=64)
+    parser.add_argument('--rec-unit', choices=['lstm', 'gru'], default='lstm')
     parser.add_argument('--window', type=int, default=10)
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--n-epochs', type=int, default=1)
     parser.add_argument('--random-masking', action='store_true')
     parser.add_argument('--dropout', action='store_true')
+    parser.add_argument('--epoch-size', type=int)
     parser.add_argument('--save')
     args = parser.parse_args()
     print(vars(args))
@@ -127,6 +130,7 @@ def main():
         n_features=args.n_features,
         embedding_size=args.embedding_size,
         hidden_size=args.hidden_size,
+        rec_unit=args.rec_unit,
         window=args.window,
         dropout=args.dropout,
     )
@@ -141,7 +145,7 @@ def main():
             batch_size=args.batch_size,
             random_masking=args.random_masking
         ),
-        samples_per_epoch=n_tokens,
+        samples_per_epoch=args.epoch_size or n_tokens,
         nb_epoch=args.n_epochs)
 
     if args.save:
