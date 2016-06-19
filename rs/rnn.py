@@ -128,10 +128,19 @@ def main():
     parser.add_argument('--dropout', action='store_true')
     parser.add_argument('--epoch-batches', type=int)
     parser.add_argument('--valid-batches', type=int)
+    parser.add_argument('--threads', type=int)
     parser.add_argument('--valid-corpus')
     parser.add_argument('--save')
     args = parser.parse_args()
     print(vars(args))
+
+    if args.threads:
+        # assume tensorflow
+        import tensorflow as tf
+        sess = tf.Session(
+            config=tf.ConfigProto(intra_op_parallelism_threads=args.threads))
+        from keras import backend as K
+        K.set_session(sess)
 
     with printing_done('Building model...'):
         model = build_model(
