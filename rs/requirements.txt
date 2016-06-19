@@ -7,7 +7,6 @@ msgpack-rpc-python==0.4
 scikit-learn>=0.16.0
 pyamg
 tornado>=4.2
-matplotlib==1.4.3
+matplotlib
 tensorflow
-keras
-typing
+keras==1.0.3
