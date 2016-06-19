@@ -110,7 +110,7 @@ def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
         hidden_out = Dropout(0.5)(hidden_out)
     output = Dense(n_features, activation='softmax')(hidden_out)
     model = Model(input=[left, right], output=output)
-    model.compile(loss='sparse_categorical_crossentropy', optimizer='rmsprop')
+    model.compile(loss='sparse_categorical_crossentropy', optimizer='adam')
     return model
 
 
