@@ -6,6 +6,7 @@ import random
 from collections import defaultdict, Counter
 import itertools
 import argparse
+import json
 from operator import itemgetter
 
 import numpy as np
@@ -23,6 +24,7 @@ from rlwsd.wsd import (
     SupervisedW2VModel, SupervisedModel, SphericalModel, context_vector)
 from rs.utils import lemmatize_s, avg, jensen_shannon_divergence
 from rs.semeval2007 import load_semeval2007
+from rs import rnn
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -83,7 +85,7 @@ def get_labeled_ctx(filename):
     return senses, w_d
 
 
-class WordsOrderMixin:
+class WordsOrderMixin(SupervisedW2VModel):
     def cv(self, ctx):
         before, word, after = self._get_before_word_after(ctx)
         pad_left = self.window - len(before)
@@ -176,7 +178,6 @@ def get_w2v_xs_ys(senses, context_vectors, one_hot):
 
 
 def build_dnn_model(in_dim, out_dim):
-    os.environ['KERAS_BACKEND'] = 'tensorflow'
     from keras.models import Sequential
     from keras.layers.core import Dense, Dropout
 #   from keras.regularizers import l2
@@ -232,6 +233,27 @@ class DNNModel(SupervisedW2VModel):
             confidence = sorted_probs[0] - sorted_probs[1] \
                          if len(sorted_probs) >= 2 else 1.0
         return (m_ans, confidence) if with_confidence else m_ans
+
+
+class RNNMixin(SupervisedW2VModel):
+    def __init__(self, *args, **kwargs):
+        super(RNNMixin, self).__init__(*args, **kwargs)
+        model_path = 'rnn_model'  # TODO - where do we get it?
+        with open(model_path + '.json') as f:
+            rnn_params = json.load(f)
+        corpus = rnn_params.pop('corpus')
+        n_features = rnn_params['n_features']
+        _, words = rnn.get_features(corpus, n_features=n_features)
+        self.rnn_model = rnn.build_model(**rnn_params)
+        self.rnn_model.load_weights(model_path)
+        self.vectorizer = rnn.Vectorizer(words, n_features)
+
+    def cv(self, x):
+        before, word, after = self._get_before_word_after(x)
+        left, right = self.vectorizer(before), self.vectorizer(after)
+        out = self.rnn_model.predict([[left, right]])
+        # TODO - really we want a different output
+        # (make model with several outputs, maybe? but how do we set the loss?)
 
 
 class DNNModelOrder(WordsOrderMixin, DNNModel):

@@ -39,22 +39,27 @@ def get_features(corpus: str, *, n_features: int) -> (int, List[str]):
     return result
 
 
-def data_gen(corpus, *, words: [str], n_features: int, window: int,
-             batch_size: int, random_masking: bool
-             ) -> Iterator[Dict[str, np.ndarray]]:
+class Vectorizer:
     PAD = 0
     UNK = 1
     PAD_WORD = '<PAD>'
-    words = words[:n_features - 2]  # for UNK and PAD
-    idx_to_word = {word: idx for idx, word in enumerate(words, 2)}
-    idx_to_word[PAD_WORD] = PAD
 
-    def to_arr(contexts: List[Tuple[List[str], List[str], str]], idx: int)\
-            -> np.ndarray:
-        return np.array(
-            [[idx_to_word.get(w, UNK) for w in context[idx]]
-             for context in contexts],
-            dtype=np.int32)
+    def __init__(self, words: [str], n_features: int):
+        words = words[:n_features - 2]  # for UNK and PAD
+        self.idx_to_word = {word: idx for idx, word in enumerate(words, 2)}
+        self.idx_to_word[self.PAD_WORD] = self.PAD
+
+    def __call__(self, context: List[str]) -> List[int]:
+        return [self.idx_to_word.get(w, self.UNK) for w in context]
+
+
+def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
+             batch_size: int, random_masking: bool
+             ) -> Iterator[Dict[str, np.ndarray]]:
+
+    def to_arr(contexts, idx: int) -> np.ndarray:
+        return np.array([vectorizer(ctx[idx]) for ctx in contexts],
+                        dtype=np.int32)
 
     buffer_max_size = 10000
     buffer = []
@@ -67,7 +72,7 @@ def data_gen(corpus, *, words: [str], n_features: int, window: int,
             output = buffer[-window - 1 : -window]
             right = buffer[-window:]
             if random_masking:
-                left, right = random_mask(left, right, PAD_WORD)
+                left, right = random_mask(left, right, Vectorizer.PAD_WORD)
             batch.append((left, right, output))
         if len(batch) == batch_size:
             left, right = to_arr(batch, 0), to_arr(batch, 0)
@@ -139,11 +144,11 @@ def main():
         )
 
     n_tokens, words = get_features(args.corpus, n_features=args.n_features)
+    vectorizer = Vectorizer(words, args.n_features)
     data = lambda corpus: data_gen(
         corpus,
-        words=words,
+        vectorizer=vectorizer,
         window=args.window,
-        n_features=args.n_features,
         batch_size=args.batch_size,
         random_masking=args.random_masking,
     )
