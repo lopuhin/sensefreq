@@ -122,7 +122,7 @@ def main():
     parser.add_argument('--random-masking', action='store_true')
     parser.add_argument('--dropout', action='store_true')
     parser.add_argument('--epoch-batches', type=int)
-    parser.add_argument('--valid-batches', type=int, default=100)
+    parser.add_argument('--valid-batches', type=int)
     parser.add_argument('--valid-corpus')
     parser.add_argument('--save')
     args = parser.parse_args()
@@ -149,20 +149,30 @@ def main():
     )
     if args.valid_corpus:
         train_data = lambda: data(args.corpus)
-        validation_data = lambda: islice(
-            data(args.valid_corpus), args.valid_batches)
+        validation_data = lambda: (
+            islice(data(args.valid_corpus), args.valid_batches)
+            if args.valid_batches else data(args.valid_corpus))
     else:
+        if not args.valid_batches:
+            parser.error('--valid-batches is required without --valid-corpus')
+        # take first valid_batches for validation, and rest for training
         train_data = lambda: islice(data(args.corpus), args.valid_batches, None)
         validation_data = lambda: islice(data(args.corpus), args.valid_batches)
+    if args.valid_batches:
+        nb_val_samples = args.valid_batches * args.batch_size
+    else:
+        nb_val_samples = sum(len(y) for _, y in validation_data())
     callbacks = []
     if args.save:
         callbacks.append(ModelCheckpoint(args.save, save_best_only=True))
     model.fit_generator(
         generator=repeat_iter(train_data),
-        samples_per_epoch=args.epoch_batches * args.batch_size or n_tokens,
+        samples_per_epoch=
+            (args.epoch_batches * args.batch_size) if args.epoch_batches
+            else n_tokens,
         nb_epoch=args.n_epochs,
         validation_data=repeat_iter(validation_data),
-        nb_val_samples=args.valid_batches * args.batch_size,
+        nb_val_samples=nb_val_samples,
         callbacks=callbacks,
     )
 
