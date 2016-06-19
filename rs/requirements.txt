@@ -10,3 +10,4 @@ tornado>=4.2
 matplotlib
 tensorflow
 keras==1.0.3
+h5py
