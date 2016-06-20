@@ -8,7 +8,7 @@ import argparse
 import codecs
 import json
 
-from utils import open_xz
+from rs.utils import smart_open
 
 
 def main():
@@ -31,12 +31,12 @@ def main():
         os.path.join(args.corpus, fname) for fname in os.listdir(args.corpus)]\
         if os.path.isdir(args.corpus) else [args.corpus]
     for fname in filenames:
-        with open_xz(fname, 'rb') as f:
+        with smart_open(fname, 'rb') as f:
             for w, item in contexts_iter(
                     f, words, window_size=args.window):
                 files[w].write(
                     json.dumps(item, ensure_ascii=False) + u'\n')
-    for f in files.itervalues():
+    for f in files.values():
         f.close()
 
 

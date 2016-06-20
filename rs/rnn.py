@@ -15,16 +15,17 @@ from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge
 import numpy as np
 
+from rs.utils import smart_open
 from rs.rnn_utils import printing_done, repeat_iter
 
 
 def corpus_reader(corpus: str) -> Iterator[str]:
-    """ Iterate over words in corpus.
+    """ Iterate over words in corpus, which is assumed to be tokenized
+    (and also lemmatized if needed).
     """
-    # assume lemmatized and tokenized corpus
-    with open(corpus) as f:
+    with smart_open(corpus, 'rb') as f:
         for line in f:
-            for word in line.strip().split():
+            for word in line.decode('utf8').strip().split():
                 yield word
 
 

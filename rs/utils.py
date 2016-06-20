@@ -125,7 +125,7 @@ def jensen_shannon_divergence(a, b):
     return 0.5 * np.sum(xlogy(a, a / m) + xlogy(b, b / m), axis=0)
 
 
-def open_xz(filename, mode):
+def smart_open(filename, mode):
     if filename.endswith('.xz'):
         inp = lzma.open(filename, mode)
     else:
