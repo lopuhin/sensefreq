@@ -2,11 +2,13 @@
 import argparse
 from collections import Counter
 from itertools import islice
+import json
 import os
 import pickle
 import multiprocessing
 from typing import List, Iterator, Dict, Tuple
 
+import h5py
 os.environ['KERAS_BACKEND'] = os.environ.get('KERAS_BACKEND', 'tensorflow')
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model
@@ -52,7 +54,8 @@ class Vectorizer:
         self.idx_to_word[self.PAD_WORD] = self.PAD
 
     def __call__(self, context: List[str]) -> List[int]:
-        return [self.idx_to_word.get(w, self.UNK) for w in context]
+        return np.array([self.idx_to_word.get(w, self.UNK) for w in context],
+                        dtype=np.int32)
 
 
 def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
@@ -60,8 +63,7 @@ def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
              ) -> Iterator[Dict[str, np.ndarray]]:
 
     def to_arr(contexts, idx: int) -> np.ndarray:
-        return np.array([vectorizer(ctx[idx]) for ctx in contexts],
-                        dtype=np.int32)
+        return np.array([vectorizer(ctx[idx]) for ctx in contexts])
 
     buffer_max_size = 10000
     buffer = []
@@ -98,8 +100,9 @@ def random_mask(left: List[str], right: List[str], pad: str)\
     return left, right
 
 
-def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
-                window: int, dropout: bool, rec_unit: str) -> Model:
+def build_model(n_features: int, embedding_size: int, hidden_size: int,
+                window: int, dropout: bool, rec_unit: str,
+                output_hidden: bool=False) -> Model:
     left = Input(name='left', shape=(window,), dtype='int32')
     right = Input(name='right', shape=(window,), dtype='int32')
     embedding = Embedding(
@@ -108,12 +111,23 @@ def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
     forward = rec_fn(hidden_size)(embedding(left))
     backward = rec_fn(hidden_size, go_backwards=True)(embedding(right))
     hidden_out = merge([forward, backward], mode='concat', concat_axis=-1)
+    if output_hidden:
+        return Model(input=[left, right], output=hidden_out)
     if dropout:
         hidden_out = Dropout(0.5)(hidden_out)
     output = Dense(n_features, activation='softmax')(hidden_out)
     model = Model(input=[left, right], output=output)
     model.compile(loss='sparse_categorical_crossentropy', optimizer='adam')
     return model
+
+
+def strip_last_layer(filename):
+    """ Strip last layer to load model built with output_hidden=True.
+    """
+    with h5py.File(filename, 'r+') as f:
+        last_layer = f.attrs['layer_names'][-1]
+        del f[last_layer]
+        f.attrs['layer_names'] = f.attrs['layer_names'][:-1]
 
 
 def main():
@@ -147,7 +161,7 @@ def main():
         print('Using {} threads'.format(args.threads))
 
     with printing_done('Building model...'):
-        model = build_model(
+        model_params = dict(
             n_features=args.n_features,
             embedding_size=args.embedding_size,
             hidden_size=args.hidden_size,
@@ -155,6 +169,15 @@ def main():
             window=args.window,
             dropout=args.dropout,
         )
+        model = build_model(**model_params)
+        if args.save:
+            model_params.update(dict(
+                weights=os.path.abspath(args.save),
+                corpus=os.path.abspath(args.corpus),
+                n_features=args.n_features,
+            ))
+            with open(args.save + '.json', 'w') as f:
+                json.dump(model_params, f, indent=True)
 
     n_tokens, words = get_features(args.corpus, n_features=args.n_features)
     vectorizer = Vectorizer(words, args.n_features)

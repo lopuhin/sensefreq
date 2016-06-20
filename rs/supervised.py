@@ -45,11 +45,11 @@ def get_ans_test_train(filename, n_train=None, test_ratio=None):
 
 
 def get_labeled_ctx(filename):
-    ''' Read results from file with labeled data.
+    """ Read results from file with labeled data.
     Skip undefined or "other" senses.
     If there are two annotators, return only contexts
     where both annotators agree on the meaning and it is defined.
-    '''
+    """
     w_d = []
     with open(filename, 'r') as f:
         senses = {}
@@ -235,25 +235,31 @@ class DNNModel(SupervisedW2VModel):
         return (m_ans, confidence) if with_confidence else m_ans
 
 
-class RNNMixin(SupervisedW2VModel):
+class RNNModel(SupervisedW2VModel):
     def __init__(self, *args, **kwargs):
-        super(RNNMixin, self).__init__(*args, **kwargs)
-        model_path = 'rnn_model'  # TODO - where do we get it?
-        with open(model_path + '.json') as f:
+        model_path = 'rnn_model.json'  # TODO - where do we get it?
+        with open(model_path) as f:
             rnn_params = json.load(f)
+        weights = rnn_params.pop('weights')
         corpus = rnn_params.pop('corpus')
         n_features = rnn_params['n_features']
         _, words = rnn.get_features(corpus, n_features=n_features)
-        self.rnn_model = rnn.build_model(**rnn_params)
-        self.rnn_model.load_weights(model_path)
+        self.rnn_model = rnn.build_model(output_hidden=True, **rnn_params)
+        self.rnn_model.load_weights(weights)
         self.vectorizer = rnn.Vectorizer(words, n_features)
+        kwargs['window'] = rnn_params['window']
+        super().__init__(*args, **kwargs)
 
     def cv(self, x):
         before, word, after = self._get_before_word_after(x)
         left, right = self.vectorizer(before), self.vectorizer(after)
-        out = self.rnn_model.predict([[left, right]])
-        # TODO - really we want a different output
-        # (make model with several outputs, maybe? but how do we set the loss?)
+        PAD = self.vectorizer.PAD
+        if len(left) < self.window:
+            left = np.concatenate([[PAD] * (self.window - len(left)), left])
+        if len(right) < self.window:
+            right = np.concatenate([right, [PAD] * (self.window - len(right))])
+        out, = self.rnn_model.predict([np.array([left]), np.array([right])])
+        return out
 
 
 class DNNModelOrder(WordsOrderMixin, DNNModel):
@@ -379,8 +385,8 @@ class DNNSKLearnModel(TextSKLearnModel):
 
 
 class SupervisedWrapper(SupervisedW2VModel):
-    ''' Supervised wrapper around cluster.Method.
-    '''
+    """ Supervised wrapper around cluster.Method.
+    """
     def __init__(self, model, **kwargs):
         self.model = model
         super(SupervisedWrapper, self).__init__(train_data=[], **kwargs)
@@ -534,6 +540,7 @@ def main():
         semeval2007_data = load_semeval2007(args.path)
         filenames = list(semeval2007_data)
     else:
+        semeval2007_data = None
         if os.path.isdir(args.path):
             filenames = [os.path.join(args.path, f) for f in os.listdir(args.path)
                         if f.endswith('.txt')]
@@ -563,6 +570,7 @@ def main():
            #    word, len(senses), len(test_data), len(train_data)))
             mfs_baseline = get_mfs_baseline(test_data + train_data)
         else:
+            train_data, test_data = None, None
             mfs_baseline = get_mfs_baseline(get_labeled_ctx(filename)[1])
         for i in range(args.n_runs):
             random.seed(i)
