@@ -2,10 +2,12 @@
 import argparse
 from collections import Counter
 from itertools import islice
-import os.path
+import os
 import pickle
+import multiprocessing
 from typing import List, Iterator, Dict, Tuple
 
+os.environ['KERAS_BACKEND'] = os.environ.get('KERAS_BACKEND', 'tensorflow')
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge
@@ -116,21 +118,22 @@ def build_model(*, n_features: int, embedding_size: int, hidden_size: int,
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('corpus')
-    parser.add_argument('--n-features', type=int, default=50000)
-    parser.add_argument('--embedding-size', type=int, default=128)
-    parser.add_argument('--hidden-size', type=int, default=64)
-    parser.add_argument('--rec-unit', choices=['lstm', 'gru'], default='lstm')
-    parser.add_argument('--window', type=int, default=10)
-    parser.add_argument('--batch-size', type=int, default=16)
-    parser.add_argument('--n-epochs', type=int, default=1)
-    parser.add_argument('--random-masking', action='store_true')
-    parser.add_argument('--dropout', action='store_true')
-    parser.add_argument('--epoch-batches', type=int)
-    parser.add_argument('--valid-batches', type=int)
-    parser.add_argument('--threads', type=int)
-    parser.add_argument('--valid-corpus')
-    parser.add_argument('--save')
+    arg = parser.add_argument
+    arg('corpus')
+    arg('--n-features', type=int, default=50000)
+    arg('--embedding-size', type=int, default=128)
+    arg('--hidden-size', type=int, default=64)
+    arg('--rec-unit', choices=['lstm', 'gru'], default='lstm')
+    arg('--window', type=int, default=10)
+    arg('--batch-size', type=int, default=16)
+    arg('--n-epochs', type=int, default=1)
+    arg('--random-masking', action='store_true')
+    arg('--dropout', action='store_true')
+    arg('--epoch-batches', type=int)
+    arg('--valid-batches', type=int)
+    arg('--threads', type=int, default=min(8, multiprocessing.cpu_count()))
+    arg('--valid-corpus')
+    arg('--save')
     args = parser.parse_args()
     print(vars(args))
 
@@ -141,6 +144,7 @@ def main():
             config=tf.ConfigProto(intra_op_parallelism_threads=args.threads))
         from keras import backend as K
         K.set_session(sess)
+        print('Using {} threads'.format(args.threads))
 
     with printing_done('Building model...'):
         model = build_model(
