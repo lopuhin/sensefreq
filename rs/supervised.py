@@ -180,7 +180,7 @@ def get_w2v_xs_ys(senses, context_vectors, one_hot):
 def build_dnn_model(in_dim, out_dim):
     from keras.models import Sequential
     from keras.layers.core import Dense, Dropout
-#   from keras.regularizers import l2
+    from keras.regularizers import l2
 #   from keras.constraints import maxnorm
     model = Sequential()
     model.add(Dropout(0.5, input_shape=[in_dim]))
@@ -192,7 +192,7 @@ def build_dnn_model(in_dim, out_dim):
     model.add(Dense(
         input_dim=in_dim,
         output_dim=out_dim, activation='softmax',
-#       W_regularizer=l2(0.01),
+        W_regularizer=l2(0.01),
 #       b_constraint=maxnorm(0),
         ))
     model.compile(loss='categorical_crossentropy', optimizer='adam')
@@ -201,6 +201,7 @@ def build_dnn_model(in_dim, out_dim):
 
 class DNNModel(SupervisedW2VModel):
     supersample = True
+    nb_epoch = 1000
     n_models = 5
     confidence_threshold = 0.17
 
@@ -214,8 +215,7 @@ class DNNModel(SupervisedW2VModel):
     def _build_fit_model(self, xs, ys):
         in_dim, out_dim = xs.shape[1], ys.shape[1]
         model = build_dnn_model(in_dim, out_dim)
-        nb_epoch = 200 if self.supersample else 1000
-        model.fit(xs, ys, nb_epoch=nb_epoch, verbose=0)
+        model.fit(xs, ys, nb_epoch=self.nb_epoch, verbose=1)
         return model
 
     def __call__(self, x, c_ans=None, with_confidence=False):
@@ -235,9 +235,13 @@ class DNNModel(SupervisedW2VModel):
         return (m_ans, confidence) if with_confidence else m_ans
 
 
-class RNNModel(SupervisedW2VModel):
+class RNNModel(DNNModel):
+    n_models = 1
+    supersample = True
+    nb_epoch = 40
+
     def __init__(self, *args, **kwargs):
-        model_path = 'rnn_model.json'  # TODO - where do we get it?
+        model_path = 'rnn.json'  # TODO - where do we get it?
         with open(model_path) as f:
             rnn_params = json.load(f)
         weights = rnn_params.pop('weights')

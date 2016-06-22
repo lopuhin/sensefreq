@@ -157,6 +157,7 @@ def main():
 
     if args.threads and os.environ.get('KERAS_BACKEND') == 'tensorflow':
         import tensorflow as tf
+        # TODO - use device_filters to limit to cpu
         sess = tf.Session(
             config=tf.ConfigProto(intra_op_parallelism_threads=args.threads))
         K.set_session(sess)
