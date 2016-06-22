@@ -13,6 +13,7 @@ os.environ['KERAS_BACKEND'] = os.environ.get('KERAS_BACKEND', 'tensorflow')
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge
+from keras import backend as K
 import numpy as np
 
 from rs.utils import smart_open
@@ -152,12 +153,10 @@ def main():
     args = parser.parse_args()
     print(vars(args))
 
-    if args.threads:
-        # assume tensorflow
+    if args.threads and os.environ.get('KERAS_BACKEND') == 'tensorflow':
         import tensorflow as tf
         sess = tf.Session(
             config=tf.ConfigProto(intra_op_parallelism_threads=args.threads))
-        from keras import backend as K
         K.set_session(sess)
         print('Using {} threads'.format(args.threads))
 
