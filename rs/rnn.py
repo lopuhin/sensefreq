@@ -13,6 +13,7 @@ os.environ['KERAS_BACKEND'] = os.environ.get('KERAS_BACKEND', 'tensorflow')
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge
+from keras.optimizers import SGD
 from keras import backend as K
 import numpy as np
 
@@ -119,7 +120,8 @@ def build_model(n_features: int, embedding_size: int, hidden_size: int,
         hidden_out = Dropout(0.5)(hidden_out)
     output = Dense(n_features, activation='softmax')(hidden_out)
     model = Model(input=[left, right], output=output)
-    model.compile(loss='sparse_categorical_crossentropy', optimizer='adam')
+    sgd = SGD(lr=1.0, decay=1e-6)  #, momentum=0.9, nesterov=True)
+    model.compile(loss='sparse_categorical_crossentropy', optimizer=sgd)
     return model
 
 
