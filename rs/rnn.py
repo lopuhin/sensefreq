@@ -150,6 +150,8 @@ def main():
     arg('--threads', type=int, default=min(8, multiprocessing.cpu_count()))
     arg('--valid-corpus')
     arg('--save')
+    arg('--resume')
+    arg('--resume-epoch', type=int)
     args = parser.parse_args()
     print(vars(args))
 
@@ -206,8 +208,20 @@ def main():
     callbacks = []
     if args.save:
         callbacks.append(ModelCheckpoint(args.save, save_best_only=True))
+
+    data_generator = repeat_iter(train_data)
+    if args.resume:
+        model.load_weights(args.resume)
+        if args.resume_epoch and args.resume_epoch > 1 and args.epoch_batches:
+            with printing_done(
+                    'Skipping {} epochs...'.format(args.resume_epoch - 1)):
+                # rewind generator to specified position
+                for idx, _ in enumerate(data_generator):
+                    if idx == args.epoch_batches * (args.resume_epoch - 1):
+                        break
+
     model.fit_generator(
-        generator=repeat_iter(train_data),
+        generator=data_generator,
         samples_per_epoch=
             (args.epoch_batches * args.batch_size) if args.epoch_batches
             else n_tokens,
