@@ -9,7 +9,6 @@ import multiprocessing
 from typing import List, Iterator, Dict, Tuple
 
 import h5py
-os.environ['KERAS_BACKEND'] = os.environ.get('KERAS_BACKEND', 'tensorflow')
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge
@@ -111,8 +110,9 @@ def build_model(n_features: int, embedding_size: int, hidden_size: int,
     embedding = Embedding(
         n_features, embedding_size, input_length=window, mask_zero=True)
     rec_fn = {'lstm': LSTM, 'gru': GRU}[rec_unit]
-    forward = rec_fn(hidden_size)(embedding(left))
-    backward = rec_fn(hidden_size, go_backwards=True)(embedding(right))
+    rec_params = dict(output_dim=hidden_size, consume_less='mem')
+    forward = rec_fn(**rec_params)(embedding(left))
+    backward = rec_fn(go_backwards=True, **rec_params)(embedding(right))
     hidden_out = merge([forward, backward], mode='concat', concat_axis=-1)
     if output_hidden:
         return Model(input=[left, right], output=hidden_out)
