@@ -215,7 +215,7 @@ class DNNModel(SupervisedW2VModel):
     def _build_fit_model(self, xs, ys):
         in_dim, out_dim = xs.shape[1], ys.shape[1]
         model = build_dnn_model(in_dim, out_dim)
-        model.fit(xs, ys, nb_epoch=self.nb_epoch, verbose=1)
+        model.fit(xs, ys, nb_epoch=self.nb_epoch, verbose=0)
         return model
 
     def __call__(self, x, c_ans=None, with_confidence=False):
@@ -581,10 +581,9 @@ def main():
             if not args.semeval2007:
                 senses, test_data, train_data = \
                     get_ans_test_train(filename, n_train=args.n_train)
-           #if i == 0:
-           #    print('%s: %d senses' % (word, len(senses)))
-           #    print('%d test samples, %d train samples' % (
-           #        len(test_data), len(train_data)))
+            if not test_data or not train_data:
+                print('No train or test data for {}, skipping'.format(word))
+                continue
             model = model_class(
                 train_data, weights=weights, verbose=args.verbose,
                 window=args.window, w2v_weights=args.w2v_weights,
@@ -606,15 +605,17 @@ def main():
         mfs_baselines.append(mfs_baseline)
         avg_fmt = lambda x: '%.2f' % avg(x)
         #if args.n_runs > 1: avg_fmt = avg_w_bounds
-        print(u'%s\t%d\t%.2f\t%s\t%s\t%s\t%s' % (
-            word.ljust(wjust), len(senses), mfs_baseline,
-            avg_fmt(train_accuracy),
-            avg_fmt(test_accuracy),
-            avg_fmt(word_freq_errors),
-            avg_fmt(estimates)))
-    print('%s\t\t%.3f\t\t%.3f\t%.3f' % (
-        'Avg.'.ljust(wjust),
-        avg(mfs_baselines), avg(accuracies), avg(freq_errors)))
+        if train_accuracy:
+            print(u'%s\t%d\t%.2f\t%s\t%s\t%s\t%s' % (
+                word.ljust(wjust), len(senses), mfs_baseline,
+                avg_fmt(train_accuracy),
+                avg_fmt(test_accuracy),
+                avg_fmt(word_freq_errors),
+                avg_fmt(estimates)))
+    if accuracies:
+        print('%s\t\t%.3f\t\t%.3f\t%.3f' % (
+            'Avg.'.ljust(wjust),
+            avg(mfs_baselines), avg(accuracies), avg(freq_errors)))
     if len(filenames) == 1:
         print('\n'.join('%s: %s' % (ans, s)
                         for ans, (s, _) in sorted_senses(senses)))
