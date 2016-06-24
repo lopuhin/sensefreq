@@ -67,7 +67,7 @@ class Vectorizer:
 
 def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
              batch_size: int, random_masking: bool
-             ) -> Iterator[Dict[str, np.ndarray]]:
+             ) -> Iterator[Tuple[List[np.ndarray], np.ndarray]]:
 
     def to_arr(contexts, idx: int) -> np.ndarray:
         return np.array([vectorizer(ctx[idx]) for ctx in contexts])
