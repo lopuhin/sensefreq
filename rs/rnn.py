@@ -52,12 +52,17 @@ class Vectorizer:
 
     def __init__(self, words: [str], n_features: int):
         words = words[:n_features - 2]  # for UNK and PAD
-        self.idx_to_word = {word: idx for idx, word in enumerate(words, 2)}
-        self.idx_to_word[self.PAD_WORD] = self.PAD
+        self.word_idx = {word: idx for idx, word in enumerate(words, 2)}
+        self.word_idx[self.PAD_WORD] = self.PAD
 
     def __call__(self, context: List[str]) -> List[int]:
-        return np.array([self.idx_to_word.get(w, self.UNK) for w in context],
+        return np.array([self.word_idx.get(w, self.UNK) for w in context],
                         dtype=np.int32)
+
+    def with_ids(self, ctx: List[str]):
+        return ' '.join(
+            '{}[{}]'.format(w, self.word_idx[w] if w in self.word_idx else '-')
+            for w in ctx)
 
 
 def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
