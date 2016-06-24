@@ -119,11 +119,11 @@ def build_model(n_features: int, embedding_size: int, hidden_size: int,
     forward = rec_fn(**rec_params)(embedding(left))
     backward = rec_fn(go_backwards=True, **rec_params)(embedding(right))
     hidden_out = merge([forward, backward], mode='concat', concat_axis=-1)
-    if output_hidden:
-        return Model(input=[left, right], output=hidden_out)
     if dropout:
         hidden_out = Dropout(0.5)(hidden_out)
     hidden_out = Dense(hidden_size, activation='relu')(hidden_out)
+    if output_hidden:
+        return Model(input=[left, right], output=hidden_out)
     output = Dense(n_features, activation='softmax')(hidden_out)
     model = Model(input=[left, right], output=output)
     sgd = SGD(lr=1.0, decay=1e-6)  #, momentum=0.9, nesterov=True)
