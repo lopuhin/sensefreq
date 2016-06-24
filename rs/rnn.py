@@ -6,7 +6,7 @@ import json
 import os
 import pickle
 import multiprocessing
-from typing import List, Iterator, Dict, Tuple
+from typing import List, Iterator, Tuple
 
 import h5py
 from keras.callbacks import ModelCheckpoint
@@ -17,7 +17,7 @@ from keras import backend as K
 import numpy as np
 
 from rs.utils import smart_open
-from rs.rnn_utils import printing_done, repeat_iter
+from rs.rnn_utils import printing_done, repeat_iter, HierarchicalSoftmax
 
 
 def corpus_reader(corpus: str) -> Iterator[str]:
@@ -124,7 +124,8 @@ def build_model(n_features: int, embedding_size: int, hidden_size: int,
     hidden_out = Dense(hidden_size, activation='relu')(hidden_out)
     if output_hidden:
         return Model(input=[left, right], output=hidden_out)
-    output = Dense(n_features, activation='softmax')(hidden_out)
+   #output = Dense(n_features, activation='softmax')(hidden_out)
+    output = HierarchicalSoftmax(n_features)(hidden_out)
     model = Model(input=[left, right], output=output)
     sgd = SGD(lr=1.0, decay=1e-6)  #, momentum=0.9, nesterov=True)
     model.compile(loss='sparse_categorical_crossentropy', optimizer=sgd)
