@@ -89,7 +89,7 @@ def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
             left, right = to_arr(batch, 0), to_arr(batch, 0)
             output = to_arr(batch, 2)[:,0]
             batch[:] = []
-            yield [left, right], output
+            yield [left, right, output], output
         if len(buffer) > buffer_max_size:
             buffer[: -2 * window] = []
 
@@ -112,6 +112,7 @@ def build_model(n_features: int, embedding_size: int, hidden_size: int,
                 output_hidden: bool=False) -> Model:
     left = Input(name='left', shape=(window,), dtype='int32')
     right = Input(name='right', shape=(window,), dtype='int32')
+    target = Input(name='target', shape=(1,), dtype='int32')
     embedding = Embedding(
         n_features, embedding_size, input_length=window, mask_zero=True)
     rec_fn = {'lstm': LSTM, 'gru': GRU}[rec_unit]
@@ -125,8 +126,8 @@ def build_model(n_features: int, embedding_size: int, hidden_size: int,
     if output_hidden:
         return Model(input=[left, right], output=hidden_out)
    #output = Dense(n_features, activation='softmax')(hidden_out)
-    output = HierarchicalSoftmax(n_features)(hidden_out)
-    model = Model(input=[left, right], output=output)
+    output = HierarchicalSoftmax(n_features)([hidden_out, target])
+    model = Model(input=[left, right, target], output=output)
     sgd = SGD(lr=1.0, decay=1e-6)  #, momentum=0.9, nesterov=True)
     model.compile(loss='sparse_categorical_crossentropy', optimizer=sgd)
     return model

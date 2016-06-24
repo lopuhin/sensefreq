@@ -31,28 +31,39 @@ class HierarchicalSoftmax(Layer):
         super(HierarchicalSoftmax, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.input_spec = [InputSpec(shape=input_shape)]
+        self.input_spec = [InputSpec(shape=shape) for shape in input_shape]
         input_dim = self.input_spec[0].shape[-1]
         self.W1 = self.init((input_dim, self.n_classes),
                             name='{}_W1'.format(self.name))
         self.b1 = K.zeros((self.n_classes,), name='{}_b1'.format(self.name))
-        self.W2 = self.init(
-            (self.n_classes, input_dim, self.n_outputs_per_class),
-            name='{}_W2'.format(self.name))
+        self.W2 = self.init((self.n_classes, input_dim, self.n_outputs_per_class),
+                            name='{}_W2'.format(self.name))
         self.b2 = K.zeros((self.n_classes, self.n_outputs_per_class),
                           name='{}_b2'.format(self.name))
-
         self.trainable_weights = [self.W1, self.b1, self.W2, self.b2]
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0], self.output_dim)
+       #return (input_shape[0][0], self.output_dim)
+        return (input_shape[0][0], 1)
 
     def call(self, X, mask=None):
-        # TODO - target?
-        Y = h_softmax(X, K.shape(X)[0], self.output_dim,
+
+        x = X[0]
+        target = X[1].flatten() if self.trainable else None
+
+        Y = h_softmax(x, K.shape(x)[0], self.output_dim,
                       self.n_classes, self.n_outputs_per_class,
-                      self.W1, self.b1, self.W2, self.b2)
-        return Y
+                      self.W1, self.b1, self.W2, self.b2, target)
+
+        # FIXME - ooook,
+        # when target is specified, only the corresponding outputs are computed and
+        # the returned tensor has thus shape (batch_size, 1).
+        # But what do we do with it next to compute loss?
+        # For loss we need full distribution, right?
+
+        output_dim = 1 if self.trainable else self.output_dim
+        y = K.reshape(Y, (-1, output_dim))
+        return y
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
