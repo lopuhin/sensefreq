@@ -118,6 +118,7 @@ def build_model(n_features: int, embedding_size: int, hidden_size: int,
         return Model(input=[left, right], output=hidden_out)
     if dropout:
         hidden_out = Dropout(0.5)(hidden_out)
+    hidden_out = Dense(hidden_size, activation='relu')(hidden_out)
     output = Dense(n_features, activation='softmax')(hidden_out)
     model = Model(input=[left, right], output=output)
     sgd = SGD(lr=1.0, decay=1e-6)  #, momentum=0.9, nesterov=True)
