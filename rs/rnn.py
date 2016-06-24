@@ -165,11 +165,13 @@ def main():
 
     if args.threads and os.environ.get('KERAS_BACKEND') == 'tensorflow':
         import tensorflow as tf
-        # TODO - use device_filters to limit to cpu
-        sess = tf.Session(
-            config=tf.ConfigProto(intra_op_parallelism_threads=args.threads))
-        K.set_session(sess)
-        print('Using {} threads'.format(args.threads))
+        tf_config = tf.ConfigProto()
+        tf_config.allow_soft_placement = True
+        tf_config.gpu_options.allow_growth = True
+        if args.threads:
+            tf_config.intra_op_parallelism_threads = args.threads
+            print('Using {} threads'.format(args.threads))
+        K.set_session(tf.Session(config=tf_config))
 
     with printing_done('Building model...'):
         model_params = dict(
