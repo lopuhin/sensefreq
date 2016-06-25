@@ -11,7 +11,8 @@ from typing import List, Iterator, Dict, Tuple
 import h5py
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model
-from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge
+from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge, \
+    Lambda, Reshape
 from keras.optimizers import SGD
 from keras import backend as K
 import numpy as np
@@ -75,21 +76,22 @@ def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
     buffer_max_size = 10000
     buffer = []
     batch = []
-    for word in corpus_reader(corpus):
-        buffer.append(word)
+    for w in corpus_reader(corpus):
+        buffer.append(w)
         # TODO - some shuffling?
         if len(buffer) > 2 * window:
             left = buffer[-2 * window - 1 : -window - 1]
-            output = buffer[-window - 1 : -window]
+            word = buffer[-window - 1 : -window]
             right = buffer[-window:]
             if random_masking:
                 left, right = random_mask(left, right, Vectorizer.PAD_WORD)
-            batch.append((left, right, output))
+            batch.append((left, right, word))
         if len(batch) == batch_size:
             left, right = to_arr(batch, 0), to_arr(batch, 0)
-            output = to_arr(batch, 2)[:,0]
+            word = to_arr(batch, 2)[:,0]
             batch[:] = []
-            yield [left, right], output
+            # TODO - negative sampling!
+            yield [left, right, word], np.array([1.] * batch_size)
         if len(buffer) > buffer_max_size:
             buffer[: -2 * window] = []
 
@@ -112,8 +114,10 @@ def build_model(n_features: int, embedding_size: int, hidden_size: int,
                 output_hidden: bool=False) -> Model:
     left = Input(name='left', shape=(window,), dtype='int32')
     right = Input(name='right', shape=(window,), dtype='int32')
+    word = Input(name='word', shape=(1,), dtype='int32')
     embedding = Embedding(
         n_features, embedding_size, input_length=window, mask_zero=True)
+    word_embedding = Embedding(n_features, embedding_size, input_length=1)
     rec_fn = {'lstm': LSTM, 'gru': GRU}[rec_unit]
     rec_params = dict(output_dim=hidden_size, consume_less='mem')
     forward = rec_fn(**rec_params)(embedding(left))
@@ -121,13 +125,17 @@ def build_model(n_features: int, embedding_size: int, hidden_size: int,
     hidden_out = merge([forward, backward], mode='concat', concat_axis=-1)
     if dropout:
         hidden_out = Dropout(0.5)(hidden_out)
-    hidden_out = Dense(hidden_size, activation='relu')(hidden_out)
+    hidden_out = Dense(embedding_size, activation='relu')(hidden_out)
     if output_hidden:
         return Model(input=[left, right], output=hidden_out)
-    output = Dense(n_features, activation='softmax')(hidden_out)
-    model = Model(input=[left, right], output=output)
+    cos_distance = merge(
+        [hidden_out, K.batch_flatten(word_embedding(word))],
+        mode='cos', dot_axes=1)
+    cos_distance = Reshape((1,))(cos_distance)
+    cos_similarity = Lambda(lambda x: 1 - x)(cos_distance)
+    model = Model(input=[left, right, word], output=cos_similarity)
     sgd = SGD(lr=1.0, decay=1e-6)  #, momentum=0.9, nesterov=True)
-    model.compile(loss='sparse_categorical_crossentropy', optimizer=sgd)
+    model.compile(loss='binary_crossentropy', optimizer=sgd)
     return model
 
 
