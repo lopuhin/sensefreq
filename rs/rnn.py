@@ -178,20 +178,12 @@ def main():
 #   arg('--dropout', action='store_true')
     arg('--epoch-batches', type=int)
     arg('--valid-batches', type=int)
-    arg('--threads', type=int, default=min(8, multiprocessing.cpu_count()))
     arg('--valid-corpus')
     arg('--save')
     arg('--resume')
 #   arg('--resume-epoch', type=int)
     args = parser.parse_args()
     print(vars(args))
-
-    tf_config = tf.ConfigProto()
-    tf_config.allow_soft_placement = True
-    tf_config.gpu_options.allow_growth = True
-    if args.threads:
-        tf_config.intra_op_parallelism_threads = args.threads
-        print('Using {} threads'.format(args.threads))
 
     with printing_done('Building model...'):
         model_params = dict(
@@ -251,6 +243,9 @@ def main():
                     if idx == args.epoch_batches * (args.resume_epoch - 1):
                         break
 
+    tf_config = tf.ConfigProto()
+    # tf_config.allow_soft_placement = True
+    # tf_config.gpu_options.allow_growth = True
     with tf.Session(config=tf_config) as sess:
         sess.run(tf.initialize_all_variables())
         # TODO - validation
