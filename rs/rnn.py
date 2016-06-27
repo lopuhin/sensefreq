@@ -11,6 +11,7 @@ from typing import List, Iterator, Tuple
 import tensorflow as tf
 from tensorflow.python.ops import array_ops, variable_scope
 import numpy as np
+import progressbar
 
 from rs.utils import smart_open
 from rs.rnn_utils import printing_done, repeat_iter
@@ -235,6 +236,8 @@ def main():
         nb_val_samples = args.valid_batches * args.batch_size
     else:
         nb_val_samples = sum(len(y) for _, y in validation_data())
+    samples_per_epoch = \
+        args.epoch_batches * args.batch_size if args.epoch_batches else n_tokens
 
     assert not args.save and not args.resume, 'TODO'
 
@@ -252,6 +255,17 @@ def main():
         sess.run(tf.initialize_all_variables())
         # TODO - validation
         losses = []
+        make_pb = lambda : progressbar.ProgressBar(
+            max_value=samples_per_epoch,
+            widgets=[
+                progressbar.DynamicMessage('loss'), ', ',
+                progressbar.FileTransferSpeed(unit='ex', prefixes=['']), ', ',
+                progressbar.SimpleProgress(), ',',
+                progressbar.Percentage(), ' ',
+                progressbar.Bar(), ' ',
+                progressbar.AdaptiveETA(),
+            ]).start()
+        bar = make_pb()
         for idx, ((left, right), output) in enumerate(data_generator):
             feed_dict = {
                 model.left_input: left,
@@ -260,9 +274,10 @@ def main():
             }
             _, loss = sess.run([model.train, model.loss], feed_dict=feed_dict)
             losses.append(loss)
-            if idx % 100 == 0:
-                print(idx, np.mean(losses))
-                losses = []
+            bar.update(idx * args.batch_size, loss=np.mean(losses[-500:]))
+            if idx == samples_per_epoch:
+                bar.finish()
+                bar = make_pb()
 
 
 if __name__ == '__main__':

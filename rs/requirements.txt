@@ -11,3 +11,4 @@ matplotlib
 tensorflow
 keras==1.0.3
 h5py
+progressbar2
