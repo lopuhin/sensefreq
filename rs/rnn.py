@@ -105,22 +105,20 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 
 class Model:
     def __init__(self, n_features: int, embedding_size: int, hidden_size: int,
-                 window: int, dropout: bool, rec_unit: str,
-                 output_hidden: bool=False):
+                 window: int):
         # Inputs and outputs
-        left_input = tf.placeholder(
+        self.left_input = tf.placeholder(
             tf.int32, shape=[None, window], name='left')
-        right_input = tf.placeholder(
+        self.right_input = tf.placeholder(
             tf.int32, shape=[None, window], name='right')
-        label = tf.placeholder(np.int32, shape=[None], name='label')
+        self.label = tf.placeholder(np.int32, shape=[None], name='label')
 
         # Embeddings
         embedding = tf.Variable(
             tf.random_uniform([n_features, embedding_size], -1.0, 1.0))
-        left_embedding = tf.nn.embedding_lookup(embedding, left_input)
+        left_embedding = tf.nn.embedding_lookup(embedding, self.left_input)
         right_embedding = tf.nn.embedding_lookup(
-            embedding,
-            tf.reverse(right_input, dims=[False, True]))
+            embedding, tf.reverse(self.right_input, dims=[False, True]))
 
         # LSTM
         left_rnn = self.rnn('left_rnn', left_embedding,
@@ -137,25 +135,25 @@ class Model:
             tf.truncated_normal([n_features, output_size],
                                 stddev=1. / np.sqrt(embedding_size)))
         nce_biaces = tf.Variable(tf.zeros([n_features]))
-        loss = tf.reduce_mean(
+        self.loss = tf.reduce_mean(
             tf.nn.nce_loss(
                 weights=nce_weights,
                 biases=nce_biaces,
                 inputs=output,
-                labels=tf.one_hot(label, n_features),
+                labels=tf.expand_dims(self.label, 1),
                 num_sampled=100,
                 num_classes=n_features,
             ))
-        optimizer = (
+        self.train = (
             tf.train.GradientDescentOptimizer(learning_rate=1.0)
-            .minimize(loss))
+            .minimize(self.loss))
 
     def rnn(self, scope: str, input, *, window: int, hidden_size: int):
-        # TODO - get rid of the warning
         batch_size = array_ops.shape(input)[0]
         output = None
         with variable_scope.variable_scope(scope) as varscope:
-            cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_size)
+            cell = tf.nn.rnn_cell.BasicLSTMCell(
+                hidden_size, state_is_tuple=True)
             state = cell.zero_state(batch_size, tf.float32)
             for idx in range(window):
                 if idx > 0:
@@ -171,19 +169,19 @@ def main():
     arg('--n-features', type=int, default=50000)
     arg('--embedding-size', type=int, default=128)
     arg('--hidden-size', type=int, default=64)
-    arg('--rec-unit', choices=['lstm', 'gru'], default='lstm')
+#   arg('--rec-unit', choices=['lstm', 'gru'], default='lstm')
     arg('--window', type=int, default=10)
     arg('--batch-size', type=int, default=16)
     arg('--n-epochs', type=int, default=1)
     arg('--random-masking', action='store_true')
-    arg('--dropout', action='store_true')
+#   arg('--dropout', action='store_true')
     arg('--epoch-batches', type=int)
     arg('--valid-batches', type=int)
     arg('--threads', type=int, default=min(8, multiprocessing.cpu_count()))
     arg('--valid-corpus')
     arg('--save')
     arg('--resume')
-    arg('--resume-epoch', type=int)
+#   arg('--resume-epoch', type=int)
     args = parser.parse_args()
     print(vars(args))
 
@@ -199,9 +197,9 @@ def main():
             n_features=args.n_features,
             embedding_size=args.embedding_size,
             hidden_size=args.hidden_size,
-            rec_unit=args.rec_unit,
+#           rec_unit=args.rec_unit,
             window=args.window,
-            dropout=args.dropout,
+#           dropout=args.dropout,
         )
         model = Model(**model_params)
         if args.save:
@@ -212,9 +210,6 @@ def main():
             ))
             with open(args.save + '.json', 'w') as f:
                 json.dump(model_params, f, indent=True)
-
-    with tf.Session(config=tf_config) as sess:
-        pass
 
     n_tokens, words = get_features(args.corpus, n_features=args.n_features)
     vectorizer = Vectorizer(words, args.n_features)
@@ -240,13 +235,11 @@ def main():
         nb_val_samples = args.valid_batches * args.batch_size
     else:
         nb_val_samples = sum(len(y) for _, y in validation_data())
-    callbacks = []
-    if args.save:
-        callbacks.append(ModelCheckpoint(args.save, save_best_only=True))
+
+    assert not args.save and not args.resume, 'TODO'
 
     data_generator = repeat_iter(train_data)
     if args.resume:
-        model.load_weights(args.resume)
         if args.resume_epoch and args.resume_epoch > 1 and args.epoch_batches:
             with printing_done(
                     'Skipping {} epochs...'.format(args.resume_epoch - 1)):
@@ -255,16 +248,21 @@ def main():
                     if idx == args.epoch_batches * (args.resume_epoch - 1):
                         break
 
-    model.fit_generator(
-        generator=data_generator,
-        samples_per_epoch=
-            (args.epoch_batches * args.batch_size) if args.epoch_batches
-            else n_tokens,
-        nb_epoch=args.n_epochs,
-        validation_data=repeat_iter(validation_data),
-        nb_val_samples=nb_val_samples,
-        callbacks=callbacks,
-    )
+    with tf.Session(config=tf_config) as sess:
+        sess.run(tf.initialize_all_variables())
+        # TODO - validation
+        losses = []
+        for idx, ((left, right), output) in enumerate(data_generator):
+            feed_dict = {
+                model.left_input: left,
+                model.right_input: right,
+                model.label: output,
+            }
+            _, loss = sess.run([model.train, model.loss], feed_dict=feed_dict)
+            losses.append(loss)
+            if idx % 100 == 0:
+                print(idx, np.mean(losses))
+                losses = []
 
 
 if __name__ == '__main__':
