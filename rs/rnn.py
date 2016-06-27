@@ -6,14 +6,10 @@ import json
 import os
 import pickle
 import multiprocessing
-from typing import List, Iterator, Dict, Tuple
+from typing import List, Iterator, Tuple
 
-import h5py
-from keras.callbacks import ModelCheckpoint
-from keras.models import Model
-from keras.layers import Dense, Dropout, Input, Embedding, LSTM, GRU, merge
-from keras.optimizers import SGD
-from keras import backend as K
+import tensorflow as tf
+from tensorflow.python.ops import array_ops, variable_scope
 import numpy as np
 
 from rs.utils import smart_open
@@ -107,37 +103,65 @@ def random_mask(left: List[str], right: List[str], pad: str)\
     return left, right
 
 
-def build_model(n_features: int, embedding_size: int, hidden_size: int,
-                window: int, dropout: bool, rec_unit: str,
-                output_hidden: bool=False) -> Model:
-    left = Input(name='left', shape=(window,), dtype='int32')
-    right = Input(name='right', shape=(window,), dtype='int32')
-    embedding = Embedding(
-        n_features, embedding_size, input_length=window, mask_zero=True)
-    rec_fn = {'lstm': LSTM, 'gru': GRU}[rec_unit]
-    rec_params = dict(output_dim=hidden_size, consume_less='mem')
-    forward = rec_fn(**rec_params)(embedding(left))
-    backward = rec_fn(go_backwards=True, **rec_params)(embedding(right))
-    hidden_out = merge([forward, backward], mode='concat', concat_axis=-1)
-    if dropout:
-        hidden_out = Dropout(0.5)(hidden_out)
-    hidden_out = Dense(hidden_size, activation='relu')(hidden_out)
-    if output_hidden:
-        return Model(input=[left, right], output=hidden_out)
-    output = Dense(n_features, activation='softmax')(hidden_out)
-    model = Model(input=[left, right], output=output)
-    sgd = SGD(lr=1.0, decay=1e-6)  #, momentum=0.9, nesterov=True)
-    model.compile(loss='sparse_categorical_crossentropy', optimizer=sgd)
-    return model
+class Model:
+    def __init__(self, n_features: int, embedding_size: int, hidden_size: int,
+                 window: int, dropout: bool, rec_unit: str,
+                 output_hidden: bool=False):
+        # Inputs and outputs
+        left_input = tf.placeholder(
+            tf.int32, shape=[None, window], name='left')
+        right_input = tf.placeholder(
+            tf.int32, shape=[None, window], name='right')
+        label = tf.placeholder(np.int32, shape=[None], name='label')
 
+        # Embeddings
+        embedding = tf.Variable(
+            tf.random_uniform([n_features, embedding_size], -1.0, 1.0))
+        left_embedding = tf.nn.embedding_lookup(embedding, left_input)
+        right_embedding = tf.nn.embedding_lookup(
+            embedding,
+            tf.reverse(right_input, dims=[False, True]))
 
-def strip_last_layer(filename):
-    """ Strip last layer to load model built with output_hidden=True.
-    """
-    with h5py.File(filename, 'r+') as f:
-        last_layer = f.attrs['layer_names'][-1]
-        del f[last_layer]
-        f.attrs['layer_names'] = f.attrs['layer_names'][:-1]
+        # LSTM
+        left_rnn = self.rnn('left_rnn', left_embedding,
+                            window=window, hidden_size=hidden_size)
+        right_rnn = self.rnn('right_rnn', right_embedding,
+                             window=window, hidden_size=hidden_size)
+
+        # Merge left and right LSTM
+        output = tf.concat(1, [left_rnn, right_rnn])
+
+        # Output NCE softmax
+        output_size = 2 * hidden_size  # TODO - additional dim reduction layer
+        nce_weights = tf.Variable(
+            tf.truncated_normal([n_features, output_size],
+                                stddev=1. / np.sqrt(embedding_size)))
+        nce_biaces = tf.Variable(tf.zeros([n_features]))
+        loss = tf.reduce_mean(
+            tf.nn.nce_loss(
+                weights=nce_weights,
+                biases=nce_biaces,
+                inputs=output,
+                labels=tf.one_hot(label, n_features),
+                num_sampled=100,
+                num_classes=n_features,
+            ))
+        optimizer = (
+            tf.train.GradientDescentOptimizer(learning_rate=1.0)
+            .minimize(loss))
+
+    def rnn(self, scope: str, input, *, window: int, hidden_size: int):
+        # TODO - get rid of the warning
+        batch_size = array_ops.shape(input)[0]
+        output = None
+        with variable_scope.variable_scope(scope) as varscope:
+            cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_size)
+            state = cell.zero_state(batch_size, tf.float32)
+            for idx in range(window):
+                if idx > 0:
+                    varscope.reuse_variables()
+                output, state = cell(input[:, idx, :], state)
+        return output
 
 
 def main():
@@ -163,15 +187,12 @@ def main():
     args = parser.parse_args()
     print(vars(args))
 
-    if args.threads and os.environ.get('KERAS_BACKEND') == 'tensorflow':
-        import tensorflow as tf
-        tf_config = tf.ConfigProto()
-        tf_config.allow_soft_placement = True
-        tf_config.gpu_options.allow_growth = True
-        if args.threads:
-            tf_config.intra_op_parallelism_threads = args.threads
-            print('Using {} threads'.format(args.threads))
-        K.set_session(tf.Session(config=tf_config))
+    tf_config = tf.ConfigProto()
+    tf_config.allow_soft_placement = True
+    tf_config.gpu_options.allow_growth = True
+    if args.threads:
+        tf_config.intra_op_parallelism_threads = args.threads
+        print('Using {} threads'.format(args.threads))
 
     with printing_done('Building model...'):
         model_params = dict(
@@ -182,7 +203,7 @@ def main():
             window=args.window,
             dropout=args.dropout,
         )
-        model = build_model(**model_params)
+        model = Model(**model_params)
         if args.save:
             model_params.update(dict(
                 weights=os.path.abspath(args.save),
@@ -191,6 +212,9 @@ def main():
             ))
             with open(args.save + '.json', 'w') as f:
                 json.dump(model_params, f, indent=True)
+
+    with tf.Session(config=tf_config) as sess:
+        pass
 
     n_tokens, words = get_features(args.corpus, n_features=args.n_features)
     vectorizer = Vectorizer(words, args.n_features)
