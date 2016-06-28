@@ -176,39 +176,54 @@ class Model:
                 output, state = cell(input[:, idx, :], state)
         return output
 
-    def make_progressbar(self, max_value: int):
-        return progressbar.ProgressBar(
-            max_value=max_value,
-            widgets=[
-                progressbar.DynamicMessage('loss'), ', ',
-                progressbar.FileTransferSpeed(unit='ex', prefixes=['']), ', ',
-                progressbar.SimpleProgress(), ',',
-                progressbar.Percentage(), ' ',
-                progressbar.Bar(), ' ',
-                progressbar.AdaptiveETA(),
-            ]).start()
-
-    def train(self, sess, data, *, samples_per_epoch: int, batch_size: int):
-        # TODO - validation
+    def train(self, sess, *, train_data_iter, valid_data,
+              n_epochs: int, samples_per_epoch: int, batch_size: int):
+        bar = make_progressbar(samples_per_epoch)
         losses = []
-        bar = self.make_progressbar(samples_per_epoch)
+        epoch = 0
         progress = 0
-        for (left, right), output in data:
-            feed_dict = {
-                self.left_input: left,
-                self.right_input: right,
-                self.label: output,
-            }
-            _, loss = sess.run([self.train_op, self.loss], feed_dict=feed_dict)
+        for item in train_data_iter:
+            _, loss = sess.run([self.train_op, self.loss],
+                               feed_dict=self.feed_dict(item))
             losses.append(loss)
             progress += batch_size
-            if progress >= samples_per_epoch:
+            if progress < samples_per_epoch:
+                bar.update(progress, loss=np.mean(losses[-500:]))
+            else:
                 progress = 0
+                epoch += 1
                 losses = []
                 bar.finish()
-                bar = self.make_progressbar(samples_per_epoch)
-            else:
-                bar.update(progress, loss=np.mean(losses[-500:]))
+                print('Epoch {}, valid loss: {:.3f}'.format(
+                    epoch, self.get_valid_loss(sess, valid_data)))
+                if epoch >= n_epochs:
+                    break
+                bar = make_progressbar(samples_per_epoch)
+
+    def get_valid_loss(self, sess, valid_data):
+        return np.mean([sess.run(self.loss, feed_dict=self.feed_dict(item))
+                        for item in valid_data()])
+
+    def feed_dict(self, item):
+        (left, right), output = item
+        return {
+            self.left_input: left,
+            self.right_input: right,
+            self.label: output,
+        }
+
+
+def make_progressbar(max_value: int):
+    return progressbar.ProgressBar(
+        max_value=max_value,
+        widgets=[
+            progressbar.DynamicMessage('loss'), ', ',
+            progressbar.FileTransferSpeed(unit='ex', prefixes=['']), ', ',
+            progressbar.SimpleProgress(), ',',
+            progressbar.Percentage(), ' ',
+            progressbar.Bar(), ' ',
+            progressbar.AdaptiveETA(),
+        ]).start()
 
 
 def main():
@@ -265,7 +280,7 @@ def main():
     )
     if args.valid_corpus:
         train_data = lambda: data(args.corpus)
-        validation_data = lambda: (
+        valid_data = lambda: (
             islice(data(args.valid_corpus), args.valid_batches)
             if args.valid_batches else data(args.valid_corpus))
     else:
@@ -273,23 +288,19 @@ def main():
             parser.error('--valid-batches is required without --valid-corpus')
         # take first valid_batches for validation, and rest for training
         train_data = lambda: islice(data(args.corpus), args.valid_batches, None)
-        validation_data = lambda: islice(data(args.corpus), args.valid_batches)
-    if args.valid_batches:
-        nb_val_samples = args.valid_batches * args.batch_size
-    else:
-        nb_val_samples = sum(len(y) for _, y in validation_data())
+        valid_data = lambda: islice(data(args.corpus), args.valid_batches)
     samples_per_epoch = \
         args.epoch_batches * args.batch_size if args.epoch_batches else n_tokens
 
     assert not args.save and not args.resume, 'TODO'
 
-    data_generator = repeat_iter(train_data)
+    train_data_iter = repeat_iter(train_data)
     if args.resume:
         if args.resume_epoch and args.resume_epoch > 1 and args.epoch_batches:
             with printing_done(
                     'Skipping {} epochs...'.format(args.resume_epoch - 1)):
                 # rewind generator to specified position
-                for idx, _ in enumerate(data_generator):
+                for idx, _ in enumerate(train_data_iter):
                     if idx == args.epoch_batches * (args.resume_epoch - 1):
                         break
 
@@ -300,7 +311,9 @@ def main():
         sess.run(tf.initialize_all_variables())
         model.train(
             sess=sess,
-            data=data_generator,
+            train_data_iter=train_data_iter,
+            valid_data=valid_data,
+            n_epochs=args.n_epochs,
             samples_per_epoch=samples_per_epoch,
             batch_size=args.batch_size,
         )
