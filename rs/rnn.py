@@ -106,7 +106,7 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 
 class Model:
     def __init__(self, n_features: int, embedding_size: int, hidden_size: int,
-                 window: int, loss: str):
+                 window: int, rec_unit: str, loss: str):
         # Inputs and outputs
         self.left_input = tf.placeholder(
             tf.int32, shape=[None, window], name='left')
@@ -122,9 +122,9 @@ class Model:
             embedding, tf.reverse(self.right_input, dims=[False, True]))
 
         # LSTM
-        left_rnn = self.rnn('left_rnn', left_embedding,
+        left_rnn = self.rnn('left_rnn', left_embedding, rec_unit,
                             window=window, hidden_size=hidden_size)
-        right_rnn = self.rnn('right_rnn', right_embedding,
+        right_rnn = self.rnn('right_rnn', right_embedding, rec_unit,
                              window=window, hidden_size=hidden_size)
 
         # Merge left and right LSTM
@@ -157,12 +157,18 @@ class Model:
             tf.train.GradientDescentOptimizer(learning_rate=1.0)
             .minimize(self.loss))
 
-    def rnn(self, scope: str, input, *, window: int, hidden_size: int):
+    def rnn(self, scope: str, input, rec_unit: str, *,
+            window: int, hidden_size: int):
         batch_size = array_ops.shape(input)[0]
         output = None
         with variable_scope.variable_scope(scope) as varscope:
-            cell = tf.nn.rnn_cell.BasicLSTMCell(
-                hidden_size, state_is_tuple=True)
+            if rec_unit == 'lstm':
+                cell = tf.nn.rnn_cell.BasicLSTMCell(
+                    hidden_size, state_is_tuple=True)
+            elif rec_unit == 'gru':
+                cell = tf.nn.rnn_cell.GRUCell(hidden_size)
+            else:
+                raise ValueError('unknown cell type: {}'.format(rec_unit))
             state = cell.zero_state(batch_size, tf.float32)
             for idx in range(window):
                 if idx > 0:
@@ -178,7 +184,7 @@ def main():
     arg('--n-features', type=int, default=50000)
     arg('--embedding-size', type=int, default=128)
     arg('--hidden-size', type=int, default=64)
-#   arg('--rec-unit', choices=['lstm', 'gru'], default='lstm')
+    arg('--rec-unit', choices=['lstm', 'gru'], default='lstm')
     arg('--loss', choices=['softmax', 'nce'], default='nce')
     arg('--window', type=int, default=10)
     arg('--batch-size', type=int, default=16)
@@ -199,7 +205,7 @@ def main():
             n_features=args.n_features,
             embedding_size=args.embedding_size,
             hidden_size=args.hidden_size,
-#           rec_unit=args.rec_unit,
+            rec_unit=args.rec_unit,
             loss=args.loss,
             window=args.window,
 #           dropout=args.dropout,
