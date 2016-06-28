@@ -153,7 +153,7 @@ class Model:
         else:
             raise ValueError('unexpected loss: {}'.format(loss))
         self.loss = tf.reduce_mean(losses)
-        self.train = (
+        self.train_op = (
             tf.train.GradientDescentOptimizer(learning_rate=1.0)
             .minimize(self.loss))
 
@@ -176,6 +176,40 @@ class Model:
                 output, state = cell(input[:, idx, :], state)
         return output
 
+    def make_progressbar(self, max_value: int):
+        return progressbar.ProgressBar(
+            max_value=max_value,
+            widgets=[
+                progressbar.DynamicMessage('loss'), ', ',
+                progressbar.FileTransferSpeed(unit='ex', prefixes=['']), ', ',
+                progressbar.SimpleProgress(), ',',
+                progressbar.Percentage(), ' ',
+                progressbar.Bar(), ' ',
+                progressbar.AdaptiveETA(),
+            ]).start()
+
+    def train(self, sess, data, *, samples_per_epoch: int, batch_size: int):
+        # TODO - validation
+        losses = []
+        bar = self.make_progressbar(samples_per_epoch)
+        progress = 0
+        for (left, right), output in data:
+            feed_dict = {
+                self.left_input: left,
+                self.right_input: right,
+                self.label: output,
+            }
+            _, loss = sess.run([self.train_op, self.loss], feed_dict=feed_dict)
+            losses.append(loss)
+            progress += batch_size
+            if progress >= samples_per_epoch:
+                progress = 0
+                losses = []
+                bar.finish()
+                bar = self.make_progressbar(samples_per_epoch)
+            else:
+                bar.update(progress, loss=np.mean(losses[-500:]))
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -196,7 +230,7 @@ def main():
     arg('--valid-corpus')
     arg('--save')
     arg('--resume')
-#   arg('--resume-epoch', type=int)
+    arg('--resume-epoch', type=int)
     args = parser.parse_args()
     print(vars(args))
 
@@ -264,31 +298,12 @@ def main():
     # tf_config.gpu_options.allow_growth = True
     with tf.Session(config=tf_config) as sess:
         sess.run(tf.initialize_all_variables())
-        # TODO - validation
-        losses = []
-        make_pb = lambda : progressbar.ProgressBar(
-            max_value=samples_per_epoch,
-            widgets=[
-                progressbar.DynamicMessage('loss'), ', ',
-                progressbar.FileTransferSpeed(unit='ex', prefixes=['']), ', ',
-                progressbar.SimpleProgress(), ',',
-                progressbar.Percentage(), ' ',
-                progressbar.Bar(), ' ',
-                progressbar.AdaptiveETA(),
-            ]).start()
-        bar = make_pb()
-        for idx, ((left, right), output) in enumerate(data_generator):
-            feed_dict = {
-                model.left_input: left,
-                model.right_input: right,
-                model.label: output,
-            }
-            _, loss = sess.run([model.train, model.loss], feed_dict=feed_dict)
-            losses.append(loss)
-            bar.update(idx * args.batch_size, loss=np.mean(losses[-500:]))
-            if idx == samples_per_epoch:
-                bar.finish()
-                bar = make_pb()
+        model.train(
+            sess=sess,
+            data=data_generator,
+            samples_per_epoch=samples_per_epoch,
+            batch_size=args.batch_size,
+        )
 
 
 if __name__ == '__main__':
