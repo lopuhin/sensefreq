@@ -135,27 +135,28 @@ class Model:
         softmax_weights = tf.Variable(
             tf.truncated_normal([n_features, output_size],
                                 stddev=1. / np.sqrt(embedding_size)))
-        softmaxe_biaces = tf.Variable(tf.zeros([n_features]))
+        softmax_biaces = tf.Variable(tf.zeros([n_features]))
+        logits = tf.matmul(output, tf.transpose(softmax_weights)) + \
+                 softmax_biaces
+        self.loss = tf.reduce_mean(
+            tf.nn.sparse_softmax_cross_entropy_with_logits(
+                logits=logits, labels=self.label))
         if loss == 'softmax':
-            logits = tf.matmul(output, tf.transpose(softmax_weights)) + \
-                     softmaxe_biaces
-            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(
-                logits=logits, labels=self.label)
+            self.train_loss = self.loss
         elif loss == 'nce':
-            losses = tf.nn.nce_loss(
+            self.train_loss = tf.reduce_mean(tf.nn.nce_loss(
                 weights=softmax_weights,
-                biases=softmaxe_biaces,
+                biases=softmax_biaces,
                 inputs=output,
                 labels=tf.expand_dims(self.label, 1),
                 num_sampled=100,
                 num_classes=n_features,
-            )
+            ))
         else:
             raise ValueError('unexpected loss: {}'.format(loss))
-        self.loss = tf.reduce_mean(losses)
         self.train_op = (
             tf.train.GradientDescentOptimizer(learning_rate=1.0)
-            .minimize(self.loss))
+            .minimize(self.train_loss))
 
     def rnn(self, scope: str, input, rec_unit: str, *,
             window: int, hidden_size: int):
@@ -183,7 +184,7 @@ class Model:
         epoch = 0
         progress = 0
         for item in train_data_iter:
-            _, loss = sess.run([self.train_op, self.loss],
+            _, loss = sess.run([self.train_op, self.train_loss],
                                feed_dict=self.feed_dict(item))
             losses.append(loss)
             progress += batch_size
