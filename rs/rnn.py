@@ -106,7 +106,7 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 
 class Model:
     def __init__(self, n_features: int, embedding_size: int, hidden_size: int,
-                 window: int, rec_unit: str, loss: str):
+                 window: int, nce_sample: int, rec_unit: str, loss: str):
         # Inputs and outputs
         self.left_input = tf.placeholder(
             tf.int32, shape=[None, window], name='left')
@@ -149,7 +149,7 @@ class Model:
                 biases=softmax_biaces,
                 inputs=output,
                 labels=tf.expand_dims(self.label, 1),
-                num_sampled=100,
+                num_sampled=nce_sample,
                 num_classes=n_features,
             ))
         else:
@@ -236,6 +236,7 @@ def main():
     arg('--hidden-size', type=int, default=64)
     arg('--rec-unit', choices=['lstm', 'gru'], default='lstm')
     arg('--loss', choices=['softmax', 'nce'], default='nce')
+    arg('--nce-sample', type=int, default=1024)
     arg('--window', type=int, default=10)
     arg('--batch-size', type=int, default=16)
     arg('--n-epochs', type=int, default=1)
@@ -258,6 +259,7 @@ def main():
             rec_unit=args.rec_unit,
             loss=args.loss,
             window=args.window,
+            nce_sample=args.nce_sample,
 #           dropout=args.dropout,
         )
         model = Model(**model_params)
