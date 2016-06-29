@@ -106,7 +106,8 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 
 class Model:
     def __init__(self, n_features: int, embedding_size: int, hidden_size: int,
-                 window: int, nce_sample: int, rec_unit: str, loss: str):
+                 window: int, nce_sample: int, rec_unit: str, loss: str,
+                 lr: float):
         # Inputs and outputs
         self.left_input = tf.placeholder(
             tf.int32, shape=[None, window], name='left')
@@ -155,7 +156,7 @@ class Model:
         else:
             raise ValueError('unexpected loss: {}'.format(loss))
         self.train_op = (
-            tf.train.GradientDescentOptimizer(learning_rate=1.0)
+            tf.train.GradientDescentOptimizer(learning_rate=lr)
             .minimize(self.train_loss))
 
     def rnn(self, scope: str, input, rec_unit: str, *,
@@ -231,6 +232,7 @@ def main():
     arg('--nce-sample', type=int, default=1024)
     arg('--window', type=int, default=10)
     arg('--batch-size', type=int, default=16)
+    arg('--lr', type=float, default=1.0)
     arg('--n-epochs', type=int, default=1)
     arg('--random-masking', action='store_true')
 #   arg('--dropout', action='store_true')
@@ -252,6 +254,7 @@ def main():
             loss=args.loss,
             window=args.window,
             nce_sample=args.nce_sample,
+            lr=args.lr,
 #           dropout=args.dropout,
         )
         model = Model(**model_params)
