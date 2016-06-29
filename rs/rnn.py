@@ -177,29 +177,21 @@ class Model:
                 output, state = cell(input[:, idx, :], state)
         return output
 
-    def train(self, sess, *, train_data_iter, valid_data,
-              n_epochs: int, samples_per_epoch: int, batch_size: int):
-        bar = make_progressbar(samples_per_epoch)
+    def train_epoch(self, sess, *, train_data_iter, samples_per_epoch: int,
+                    batch_size: int):
         losses = []
-        epoch = 0
         progress = 0
+        bar = make_progressbar(samples_per_epoch)
         for item in train_data_iter:
             _, loss = sess.run([self.train_op, self.train_loss],
                                feed_dict=self.feed_dict(item))
             losses.append(loss)
-            progress += batch_size
+            progress += len(item[-1])
             if progress < samples_per_epoch:
                 bar.update(progress, loss=np.mean(losses[-500:]))
             else:
-                progress = 0
-                epoch += 1
-                losses = []
                 bar.finish()
-                print('Epoch {}, valid loss: {:.3f}'.format(
-                    epoch, self.get_valid_loss(sess, valid_data)))
-                if epoch >= n_epochs:
-                    break
-                bar = make_progressbar(samples_per_epoch)
+                break
 
     def get_valid_loss(self, sess, valid_data):
         return np.mean([sess.run(self.loss, feed_dict=self.feed_dict(item))
@@ -295,8 +287,6 @@ def main():
     samples_per_epoch = \
         args.epoch_batches * args.batch_size if args.epoch_batches else n_tokens
 
-    assert not args.save and not args.resume, 'TODO'
-
     train_data_iter = repeat_iter(train_data)
     if args.resume:
         if args.resume_epoch and args.resume_epoch > 1 and args.epoch_batches:
@@ -307,19 +297,24 @@ def main():
                     if idx == args.epoch_batches * (args.resume_epoch - 1):
                         break
 
+
     tf_config = tf.ConfigProto()
     # tf_config.allow_soft_placement = True
     # tf_config.gpu_options.allow_growth = True
     with tf.Session(config=tf_config) as sess:
         sess.run(tf.initialize_all_variables())
-        model.train(
-            sess=sess,
-            train_data_iter=train_data_iter,
-            valid_data=valid_data,
-            n_epochs=args.n_epochs,
-            samples_per_epoch=samples_per_epoch,
-            batch_size=args.batch_size,
-        )
+        saver = tf.train.Saver() if args.save else None
+        for epoch in range(1, args.n_epochs + 1):
+            model.train_epoch(
+                sess=sess,
+                train_data_iter=train_data_iter,
+                samples_per_epoch=samples_per_epoch,
+                batch_size=args.batch_size,
+            )
+            print('Epoch {}, valid loss: {:.3f}'.format(
+                epoch, model.get_valid_loss(sess, valid_data)))
+            if args.save:
+                saver.save(sess, args.save)
 
 
 if __name__ == '__main__':
