@@ -5,7 +5,7 @@ from itertools import islice
 import json
 import os
 import pickle
-import multiprocessing
+import math
 from typing import List, Iterator, Tuple
 
 import tensorflow as tf
@@ -236,8 +236,8 @@ def main():
     arg('--n-epochs', type=int, default=1)
     arg('--random-masking', action='store_true')
 #   arg('--dropout', action='store_true')
-    arg('--epoch-batches', type=int)
-    arg('--valid-batches', type=int)
+    arg('--epoch-size', type=int)
+    arg('--valid-size', type=int)
     arg('--valid-corpus')
     arg('--save')
     arg('--resume')
@@ -276,30 +276,29 @@ def main():
         batch_size=args.batch_size,
         random_masking=args.random_masking,
     )
+    valid_batches = (math.ceil(args.valid_size / args.batch_size)
+                     if args.valid_size else None)
     if args.valid_corpus:
         train_data = lambda: data(args.corpus)
-        valid_data = lambda: (
-            islice(data(args.valid_corpus), args.valid_batches)
-            if args.valid_batches else data(args.valid_corpus))
+        valid_data = lambda: (islice(data(args.valid_corpus), valid_batches)
+                              if valid_batches else data(args.valid_corpus))
     else:
-        if not args.valid_batches:
-            parser.error('--valid-batches is required without --valid-corpus')
+        if not valid_batches:
+            parser.error('--valid-size is required without --valid-corpus')
         # take first valid_batches for validation, and rest for training
-        train_data = lambda: islice(data(args.corpus), args.valid_batches, None)
-        valid_data = lambda: islice(data(args.corpus), args.valid_batches)
-    samples_per_epoch = \
-        args.epoch_batches * args.batch_size if args.epoch_batches else n_tokens
+        train_data = lambda: islice(data(args.corpus), valid_batches, None)
+        valid_data = lambda: islice(data(args.corpus), valid_batches)
 
     train_data_iter = repeat_iter(train_data)
     if args.resume:
-        if args.resume_epoch and args.resume_epoch > 1 and args.epoch_batches:
+        if args.resume_epoch and args.resume_epoch > 1 and args.epoch_size:
+            epoch_batches = math.ceil(args.epoch_size / args.batch_size)
             with printing_done(
                     'Skipping {} epochs...'.format(args.resume_epoch - 1)):
                 # rewind generator to specified position
                 for idx, _ in enumerate(train_data_iter):
-                    if idx == args.epoch_batches * (args.resume_epoch - 1):
+                    if idx == epoch_batches * (args.resume_epoch - 1):
                         break
-
 
     tf_config = tf.ConfigProto()
     # tf_config.allow_soft_placement = True
@@ -311,7 +310,7 @@ def main():
             model.train_epoch(
                 sess=sess,
                 train_data_iter=train_data_iter,
-                samples_per_epoch=samples_per_epoch,
+                samples_per_epoch=args.epoch_size or n_tokens,
                 batch_size=args.batch_size,
             )
             print('Epoch {}, valid loss: {:.3f}'.format(
