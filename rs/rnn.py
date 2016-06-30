@@ -155,9 +155,13 @@ class Model:
             ))
         else:
             raise ValueError('unexpected loss: {}'.format(loss))
+        # tf.scalar_summary('loss', self.loss)
+        tf.scalar_summary('train_loss', self.train_loss)
+        self.summary_op = tf.merge_all_summaries()
+        self.step = tf.Variable(0, name='global_step', trainable=False)
         self.train_op = (
             tf.train.GradientDescentOptimizer(learning_rate=lr)
-            .minimize(self.train_loss))
+            .minimize(self.train_loss, global_step=self.step))
 
     def rnn(self, scope: str, input, rec_unit: str, *,
             window: int, hidden_size: int):
@@ -179,13 +183,15 @@ class Model:
         return output
 
     def train_epoch(self, sess, *, train_data_iter, samples_per_epoch: int,
-                    batch_size: int):
+                    summary_writer: tf.train.SummaryWriter):
         losses = []
         progress = 0
         bar = make_progressbar(samples_per_epoch)
         for item in train_data_iter:
-            _, loss = sess.run([self.train_op, self.train_loss],
-                               feed_dict=self.feed_dict(item))
+            _, summary, step, loss = sess.run(
+                [self.train_op, self.summary_op, self.step, self.train_loss],
+                feed_dict=self.feed_dict(item))
+            summary_writer.add_summary(summary, step)
             losses.append(loss)
             progress += len(item[-1])
             if progress < samples_per_epoch:
@@ -305,13 +311,18 @@ def main():
     # tf_config.gpu_options.allow_growth = True
     with tf.Session(config=tf_config) as sess:
         sess.run(tf.initialize_all_variables())
-        saver = tf.train.Saver() if args.save else None
+        if args.save:
+            saver = tf.train.Saver()
+            summary_writer = tf.train.SummaryWriter(
+                args.save + '_summaries', flush_secs=10)
+        else:
+            saver = summary_writer = None
         for epoch in range(1, args.n_epochs + 1):
             model.train_epoch(
                 sess=sess,
                 train_data_iter=train_data_iter,
                 samples_per_epoch=args.epoch_size or n_tokens,
-                batch_size=args.batch_size,
+                summary_writer=summary_writer,
             )
             print('Epoch {}, valid loss: {:.3f}'.format(
                 epoch, model.get_valid_loss(sess, valid_data)))
