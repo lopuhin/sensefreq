@@ -9,6 +9,8 @@ import argparse
 import json
 from operator import itemgetter
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
 from scipy.spatial.distance import cdist
 from sklearn.mixture import GMM
@@ -16,8 +18,7 @@ from sklearn.manifold import TSNE
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 import sklearn.linear_model
 import sklearn.naive_bayes
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+import tensorflow as tf
 
 from rlwsd.utils import word_re, v_closeness, sorted_senses
 from rlwsd.wsd import (
@@ -248,8 +249,10 @@ class RNNModel(DNNModel):
         corpus = rnn_params.pop('corpus')
         n_features = rnn_params['n_features']
         _, words = rnn.get_features(corpus, n_features=n_features)
-        self.rnn_model = rnn.build_model(output_hidden=True, **rnn_params)
-        self.rnn_model.load_weights(weights)
+        self.rnn_model = rnn.Model(**rnn_params)
+        self.sess = tf.Session()
+        saver = tf.train.Saver()
+        saver.restore(self.sess, weights)
         self.vectorizer = rnn.Vectorizer(words, n_features)
         kwargs['window'] = rnn_params['window']
         super().__init__(*args, **kwargs)
@@ -262,8 +265,9 @@ class RNNModel(DNNModel):
             left = np.concatenate([[PAD] * (self.window - len(left)), left])
         if len(right) < self.window:
             right = np.concatenate([right, [PAD] * (self.window - len(right))])
-        out, = self.rnn_model.predict([np.array([left]), np.array([right])])
-        return out
+        m = self.rnn_model
+        feed_dict = {m.left_input: left, m.right_input: right}
+        return self.sess.run(m.hidden_output, feed_dict=feed_dict)
 
 
 class DNNModelOrder(WordsOrderMixin, DNNModel):

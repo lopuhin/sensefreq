@@ -129,7 +129,7 @@ class Model:
                              window=window, hidden_size=hidden_size)
 
         # Merge left and right LSTM
-        output = tf.concat(1, [left_rnn, right_rnn])
+        self.hidden_output = tf.concat(1, [left_rnn, right_rnn])
 
         # Output NCE softmax
         output_size = 2 * hidden_size  # TODO - additional dim reduction layer
@@ -137,7 +137,7 @@ class Model:
             tf.truncated_normal([n_features, output_size],
                                 stddev=1. / np.sqrt(embedding_size)))
         softmax_biaces = tf.Variable(tf.zeros([n_features]))
-        logits = tf.matmul(output, tf.transpose(softmax_weights)) + \
+        logits = tf.matmul(self.hidden_output, tf.transpose(softmax_weights)) +\
                  softmax_biaces
         self.loss = tf.reduce_mean(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -148,7 +148,7 @@ class Model:
             self.train_loss = tf.reduce_mean(tf.nn.nce_loss(
                 weights=softmax_weights,
                 biases=softmax_biaces,
-                inputs=output,
+                inputs=self.hidden_output,
                 labels=tf.expand_dims(self.label, 1),
                 num_sampled=nce_sample,
                 num_classes=n_features,
