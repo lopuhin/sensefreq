@@ -249,10 +249,11 @@ class RNNModel(DNNModel):
         corpus = rnn_params.pop('corpus')
         n_features = rnn_params['n_features']
         _, words = rnn.get_features(corpus, n_features=n_features)
-        self.rnn_model = rnn.Model(**rnn_params)
-        self.sess = tf.Session()
-        saver = tf.train.Saver()
-        saver.restore(self.sess, weights)
+        with tf.Graph().as_default():
+            self.sess = tf.Session()
+            self.rnn_model = rnn.Model(**rnn_params)
+            saver = tf.train.Saver()
+            saver.restore(self.sess, weights)
         self.vectorizer = rnn.Vectorizer(words, n_features)
         kwargs['window'] = rnn_params['window']
         super().__init__(*args, **kwargs)
@@ -266,8 +267,14 @@ class RNNModel(DNNModel):
         if len(right) < self.window:
             right = np.concatenate([right, [PAD] * (self.window - len(right))])
         m = self.rnn_model
-        feed_dict = {m.left_input: left, m.right_input: right}
-        return self.sess.run(m.hidden_output, feed_dict=feed_dict)
+        feed_dict = {m.left_input: np.array([left]),
+                     m.right_input: np.array([right])}
+        out = self.sess.run(m.hidden_output, feed_dict=feed_dict)
+        return out[0]
+
+    def close(self):
+        if hasattr(self, 'sess'):
+            self.sess.close()
 
 
 class DNNModelOrder(WordsOrderMixin, DNNModel):
@@ -604,6 +611,7 @@ def main():
             estimates.append(estimate)
             train_accuracy.append(model.get_train_accuracy(verbose=False))
             word_freq_errors.append(max_freq_error)
+            model.close()
         accuracies.extend(test_accuracy)
         freq_errors.extend(word_freq_errors)
         mfs_baselines.append(mfs_baseline)

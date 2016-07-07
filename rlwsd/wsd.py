@@ -75,6 +75,9 @@ class SupervisedModel:
         folder = folder or MODELS_ROOT
         return os.path.join(folder, word)
 
+    def close(self):
+        pass
+
 
 class SupervisedW2VModel(SupervisedModel):
     supersample = False
