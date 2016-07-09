@@ -238,7 +238,7 @@ class DNNModel(SupervisedW2VModel):
 
 class RNNModel(DNNModel):
     n_models = 1
-    supersample = True
+    supersample = False
     nb_epoch = 40
 
     def __init__(self, *args, **kwargs):
@@ -266,11 +266,22 @@ class RNNModel(DNNModel):
             left = np.concatenate([[PAD] * (self.window - len(left)), left])
         if len(right) < self.window:
             right = np.concatenate([right, [PAD] * (self.window - len(right))])
-        m = self.rnn_model
-        feed_dict = {m.left_input: np.array([left]),
-                     m.right_input: np.array([right])}
-        out = self.sess.run(m.hidden_output, feed_dict=feed_dict)
+        out = self.sess.run(self.rnn_model.hidden_output,
+                            feed_dict=self.feed_dict(left, right))
+        # self.print_predictions(left, right)
         return out[0]
+
+    def print_predictions(self, left, right, n_top=5):
+        pred = self.sess.run(self.rnn_model.prediction,
+                             feed_dict=self.feed_dict(left, right))
+        top_n = np.argpartition(pred[0], -n_top)[-n_top:]
+        words = lambda idxs: [self.vectorizer.idx_word.get(idx, '<UNK>')
+                              for idx in idxs if idx != self.vectorizer.PAD]
+        print(' '.join(words(left)), words(top_n), ' '.join(words(right)))
+
+    def feed_dict(self, left, right):
+        return {self.rnn_model.left_input: np.array([left]),
+                self.rnn_model.right_input: np.array([right])}
 
     def close(self):
         if hasattr(self, 'sess'):

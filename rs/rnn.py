@@ -51,6 +51,7 @@ class Vectorizer:
         words = words[:n_features - 2]  # for UNK and PAD
         self.word_idx = {word: idx for idx, word in enumerate(words, 2)}
         self.word_idx[self.PAD_WORD] = self.PAD
+        self.idx_word = {idx: word for word, idx in self.word_idx.items()}
 
     def __call__(self, context: List[str]) -> List[int]:
         return np.array([self.word_idx.get(w, self.UNK) for w in context],
@@ -144,6 +145,7 @@ class Model:
         self.loss = tf.reduce_mean(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=logits, labels=self.label))
+        self.prediction = tf.nn.softmax(logits)
         if loss == 'softmax':
             self.train_loss = self.loss
         elif loss == 'nce':
