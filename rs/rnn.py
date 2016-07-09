@@ -107,7 +107,7 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 class Model:
     def __init__(self, n_features: int, embedding_size: int, hidden_size: int,
                  window: int, nce_sample: int, rec_unit: str, loss: str,
-                 lr: float):
+                 hidden2_size: int, lr: float):
         # Inputs and outputs
         self.left_input = tf.placeholder(
             tf.int32, shape=[None, window], name='left')
@@ -123,16 +123,18 @@ class Model:
             embedding, tf.reverse(self.right_input, dims=[False, True]))
 
         # LSTM
-        left_rnn = self.rnn('left_rnn', left_embedding, rec_unit,
-                            window=window, hidden_size=hidden_size)
-        right_rnn = self.rnn('right_rnn', right_embedding, rec_unit,
-                             window=window, hidden_size=hidden_size)
+        rnn_params = dict(
+            rec_unit=rec_unit, window=window,
+            hidden_size=hidden_size, hidden2_size=hidden2_size)
+        left_rnn = self.rnn('left_rnn', left_embedding, **rnn_params)
+        right_rnn = self.rnn('right_rnn', right_embedding,  **rnn_params)
 
         # Merge left and right LSTM
         self.hidden_output = tf.concat(1, [left_rnn, right_rnn])
 
         # Output NCE softmax
-        output_size = 2 * hidden_size  # TODO - additional dim reduction layer
+        output_size = 2 * (hidden2_size or hidden_size)
+        # TODO - additional dim reduction layer
         softmax_weights = tf.Variable(
             tf.truncated_normal([n_features, output_size],
                                 stddev=1. / np.sqrt(embedding_size)))
@@ -164,15 +166,23 @@ class Model:
             .minimize(self.train_loss, global_step=self.step))
 
     def rnn(self, scope: str, input, rec_unit: str, *,
-            window: int, hidden_size: int):
+            window: int, hidden_size: int, hidden2_size: int):
         batch_size = array_ops.shape(input)[0]
         output = None
         with variable_scope.variable_scope(scope) as varscope:
             if rec_unit == 'lstm':
                 cell = tf.nn.rnn_cell.BasicLSTMCell(
                     hidden_size, state_is_tuple=True)
+                if hidden2_size:
+                    cell2 = tf.nn.rnn_cell.BasicLSTMCell(
+                        hidden2_size, state_is_tuple=True)
+                    cell = tf.nn.rnn_cell.MultiRNNCell(
+                        [cell, cell2], state_is_tuple=True)
             elif rec_unit == 'gru':
                 cell = tf.nn.rnn_cell.GRUCell(hidden_size)
+                if hidden2_size:
+                    cell2 = tf.nn.rnn_cell.GRUCell(hidden2_size)
+                    cell = tf.nn.rnn_cell.MultiRNNCell([cell, cell2])
             else:
                 raise ValueError('unknown cell type: {}'.format(rec_unit))
             state = cell.zero_state(batch_size, tf.float32)
@@ -234,6 +244,7 @@ def main():
     arg('--n-features', type=int, default=50000)
     arg('--embedding-size', type=int, default=128)
     arg('--hidden-size', type=int, default=64)
+    arg('--hidden2-size', type=int)
     arg('--rec-unit', choices=['lstm', 'gru'], default='lstm')
     arg('--loss', choices=['softmax', 'nce'], default='nce')
     arg('--nce-sample', type=int, default=1024)
@@ -257,6 +268,7 @@ def main():
             n_features=args.n_features,
             embedding_size=args.embedding_size,
             hidden_size=args.hidden_size,
+            hidden2_size=args.hidden2_size,
             rec_unit=args.rec_unit,
             loss=args.loss,
             window=args.window,
