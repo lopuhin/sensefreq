@@ -6,7 +6,7 @@ import json
 import os
 import pickle
 import math
-from typing import List, Iterator, Tuple
+from typing import List, Iterator, Tuple, Optional
 
 import tensorflow as tf
 from tensorflow.python.ops import array_ops, variable_scope
@@ -183,7 +183,7 @@ class Model:
         return output
 
     def train_epoch(self, sess, *, train_data_iter, samples_per_epoch: int,
-                    summary_writer: tf.train.SummaryWriter):
+                    summary_writer: Optional[tf.train.SummaryWriter]):
         losses = []
         progress = 0
         bar = make_progressbar(samples_per_epoch)
@@ -191,7 +191,8 @@ class Model:
             _, summary, step, loss = sess.run(
                 [self.train_op, self.summary_op, self.step, self.train_loss],
                 feed_dict=self.feed_dict(item))
-            summary_writer.add_summary(summary, step)
+            if summary_writer:
+                summary_writer.add_summary(summary, step)
             losses.append(loss)
             progress += len(item[-1])
             if progress < samples_per_epoch:
