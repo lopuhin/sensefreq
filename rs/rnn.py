@@ -108,7 +108,7 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 class Model:
     def __init__(self, n_features: int, embedding_size: int, hidden_size: int,
                  window: int, nce_sample: int, rec_unit: str, loss: str,
-                 hidden2_size: int, lr: float):
+                 hidden2_size: int, lr: float, clip: Optional[float]):
         # Inputs and outputs
         self.left_input = tf.placeholder(
             tf.int32, shape=[None, window], name='left')
@@ -163,9 +163,13 @@ class Model:
         tf.scalar_summary('train_loss', self.train_loss)
         self.summary_op = tf.merge_all_summaries()
         self.step = tf.Variable(0, name='global_step', trainable=False)
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate=lr)
+        gvs = optimizer.compute_gradients(self.train_loss)
+        if clip:
+            gvs = [(tf.clip_by_value(grad, -clip, clip), var)
+                   for grad, var in gvs]
         self.train_op = (
-            tf.train.GradientDescentOptimizer(learning_rate=lr)
-            .minimize(self.train_loss, global_step=self.step))
+            optimizer.apply_gradients(gvs, global_step=self.step))
 
     def rnn(self, scope: str, input, rec_unit: str, *,
             window: int, hidden_size: int, hidden2_size: int):
@@ -253,6 +257,7 @@ def main():
     arg('--window', type=int, default=10)
     arg('--batch-size', type=int, default=16)
     arg('--lr', type=float, default=1.0)
+    arg('--clip', type=float, default=5.0, help='clip gradients')
     arg('--n-epochs', type=int, default=1)
     arg('--random-masking', action='store_true')
 #   arg('--dropout', action='store_true')
@@ -276,6 +281,7 @@ def main():
             window=args.window,
             nce_sample=args.nce_sample,
             lr=args.lr,
+            clip=args.clip,
 #           dropout=args.dropout,
         )
         model = Model(**model_params)
