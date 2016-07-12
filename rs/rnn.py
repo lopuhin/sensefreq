@@ -108,33 +108,42 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 class Model:
     def __init__(self, n_features: int, embedding_size: int, hidden_size: int,
                  window: int, nce_sample: int, rec_unit: str, loss: str,
-                 hidden2_size: int, lr: float, clip: Optional[float]):
+                 hidden2_size: int, lr: float, clip: Optional[float],
+                 only_left: bool):
         # Inputs and outputs
         self.left_input = tf.placeholder(
             tf.int32, shape=[None, window], name='left')
-        self.right_input = tf.placeholder(
-            tf.int32, shape=[None, window], name='right')
+        self.only_left = only_left
+        if not only_left:
+            self.right_input = tf.placeholder(
+                tf.int32, shape=[None, window], name='right')
         self.label = tf.placeholder(np.int32, shape=[None], name='label')
 
         # Embeddings
         embedding = tf.Variable(
             tf.random_uniform([n_features, embedding_size], -1.0, 1.0))
         left_embedding = tf.nn.embedding_lookup(embedding, self.left_input)
-        right_embedding = tf.nn.embedding_lookup(
-            embedding, tf.reverse(self.right_input, dims=[False, True]))
+        if not only_left:
+            right_embedding = tf.nn.embedding_lookup(
+                embedding, tf.reverse(self.right_input, dims=[False, True]))
 
         # LSTM
         rnn_params = dict(
             rec_unit=rec_unit, window=window,
             hidden_size=hidden_size, hidden2_size=hidden2_size)
         left_rnn = self.rnn('left_rnn', left_embedding, **rnn_params)
-        right_rnn = self.rnn('right_rnn', right_embedding,  **rnn_params)
+        if not only_left:
+            right_rnn = self.rnn('right_rnn', right_embedding,  **rnn_params)
 
         # Merge left and right LSTM
-        self.hidden_output = tf.concat(1, [left_rnn, right_rnn])
+        if not only_left:
+            self.hidden_output = tf.concat(1, [left_rnn, right_rnn])
+        else:
+            self.hidden_output = left_rnn
 
         # Output NCE softmax
-        output_size = 2 * (hidden2_size or hidden_size)
+        output_size = \
+            (2 if not only_left else 1) * (hidden2_size or hidden_size)
         # TODO - additional dim reduction layer
         softmax_weights = tf.Variable(
             tf.truncated_normal([n_features, output_size],
@@ -223,11 +232,10 @@ class Model:
 
     def feed_dict(self, item):
         (left, right), output = item
-        return {
-            self.left_input: left,
-            self.right_input: right,
-            self.label: output,
-        }
+        feed = {self.left_input: left, self.label: output}
+        if not self.only_left:
+            feed[self.right_input] = right
+        return feed
 
 
 def make_progressbar(max_value: int):
@@ -255,6 +263,7 @@ def main():
     arg('--loss', choices=['softmax', 'nce'], default='nce')
     arg('--nce-sample', type=int, default=1024)
     arg('--window', type=int, default=10)
+    arg('--only-left', action='store_true', help='use only left context')
     arg('--batch-size', type=int, default=16)
     arg('--lr', type=float, default=1.0)
     arg('--clip', type=float, default=5.0, help='clip gradients')
@@ -279,6 +288,7 @@ def main():
             rec_unit=args.rec_unit,
             loss=args.loss,
             window=args.window,
+            only_left=args.only_left,
             nce_sample=args.nce_sample,
             lr=args.lr,
             clip=args.clip,
