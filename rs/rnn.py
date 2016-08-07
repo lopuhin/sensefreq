@@ -341,13 +341,13 @@ def main():
     # tf_config.allow_soft_placement = True
     # tf_config.gpu_options.allow_growth = True
     with tf.Session(config=tf_config) as sess:
-        sess.run(tf.initialize_all_variables())
-        if args.save:
-            saver = tf.train.Saver()
-            summary_writer = tf.train.SummaryWriter(
-                args.save + '_summaries', flush_secs=10)
+        saver = tf.train.Saver()
+        if args.resume:
+            saver.restore(sess, args.resume)
         else:
-            saver = summary_writer = None
+            sess.run(tf.initialize_all_variables())
+        summary_writer = tf.train.SummaryWriter(
+            args.save + '_summaries', flush_secs=10) if args.save else None
         for epoch in range(1, args.n_epochs + 1):
             model.train_epoch(
                 sess=sess,
