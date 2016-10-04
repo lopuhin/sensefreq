@@ -54,15 +54,20 @@ class Vectorizer:
         self.idx_word = {idx: word for word, idx in self.word_idx.items()}
         if pos_filter:
             pos_set = {p.upper() for p in pos_filter.split(',')}
-            self.accepted_words = {
-                w for w in words if get_pos(w).intersection(pos_set)}
+            self.out_word_idx = {
+                word: idx for idx, word in enumerate(
+                    w for w in words if get_pos(w).intersection(pos_set))}
+            self.out_idx_word = {
+                idx: word for word, idx in self.out_word_idx.items()}
             print('POS set: {}, {} words accepted out of {}'.format(
-                pos_set, len(self.accepted_words), len(words)))
+                pos_set, len(self.out_word_idx), len(words)))
         else:
-            self.accepted_words = None
+            self.out_word_idx = self.word_idx
+            self.out_idx_word = self.idx_word
 
-    def __call__(self, context: List[str]) -> List[int]:
-        return np.array([self.word_idx.get(w, self.UNK) for w in context],
+    def __call__(self, context: List[str], is_out=False) -> List[int]:
+        word_idx = self.out_word_idx if is_out else self.word_idx
+        return np.array([word_idx.get(w, self.UNK) for w in context],
                         dtype=np.int32)
 
     def with_ids(self, ctx: List[str]):
@@ -70,18 +75,16 @@ class Vectorizer:
             '{}[{}]'.format(w, self.word_idx[w] if w in self.word_idx else '-')
             for w in ctx)
 
-    def accept_word(self, word):
-        if self.accepted_words is not None:
-            return word in self.accepted_words
-        return True
+    def accept_output_word(self, word):
+        return word in self.out_word_idx
 
 
 def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
              batch_size: int, random_masking: bool
              ) -> Iterator[Tuple[List[np.ndarray], np.ndarray]]:
 
-    def to_arr(contexts, idx: int) -> np.ndarray:
-        return np.array([vectorizer(ctx[idx]) for ctx in contexts])
+    def to_arr(contexts, idx: int, is_out=False) -> np.ndarray:
+        return np.array([vectorizer(ctx[idx], is_out) for ctx in contexts])
 
     buffer_max_size = 100000
     buffer = []
@@ -94,12 +97,12 @@ def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
             right = buffer[-window:]
             if random_masking:
                 left, right = random_mask(left, right, Vectorizer.PAD_WORD)
-            if vectorizer.accept_word(output[0]):
+            if vectorizer.accept_output_word(output[0]):
                 batch.append((left, right, output))
         if len(batch) == batch_size:
             np.random.shuffle(batch)
             left, right = to_arr(batch, 0), to_arr(batch, 1)
-            output = to_arr(batch, 2)[:,0]
+            output = to_arr(batch, 2, is_out=True)[:,0]
             batch[:] = []
             yield [left, right], output
         if len(buffer) > buffer_max_size:
@@ -120,7 +123,8 @@ def random_mask(left: List[str], right: List[str], pad: str)\
 
 
 class Model:
-    def __init__(self, n_features: int, embedding_size: int, hidden_size: int,
+    def __init__(self, *, n_features: int, n_classes: int,
+                 embedding_size: int, hidden_size: int,
                  window: int, nce_sample: int, rec_unit: str, loss: str,
                  hidden2_size: int, lr: float, clip: Optional[float],
                  only_left: bool):
@@ -161,9 +165,9 @@ class Model:
             (2 if not only_left else 1) * (hidden2_size or hidden_size)
         # TODO - additional dim reduction layer
         softmax_weights = tf.Variable(
-            tf.truncated_normal([n_features, output_size],
+            tf.truncated_normal([n_classes, output_size],
                                 stddev=1. / np.sqrt(embedding_size)))
-        softmax_biases = tf.Variable(tf.zeros([n_features]))
+        softmax_biases = tf.Variable(tf.zeros([n_classes]))
         logits = (tf.matmul(self.hidden_output, tf.transpose(softmax_weights)) +
                   softmax_biases)
         self.loss = tf.reduce_mean(
@@ -179,7 +183,7 @@ class Model:
                 inputs=self.hidden_output,
                 labels=tf.expand_dims(self.label, 1),
                 num_sampled=nce_sample,
-                num_classes=n_features,
+                num_classes=n_classes,
             ))
         else:
             raise ValueError('unexpected loss: {}'.format(loss))
@@ -236,7 +240,7 @@ class Model:
             losses.append(loss)
             progress += len(item[-1])
             if progress < samples_per_epoch:
-                bar.update(progress, loss=np.mean(losses[-500:]))
+                bar.update(progress, loss=np.mean(losses[-1000:]))
             else:
                 bar.finish()
                 break
@@ -262,11 +266,13 @@ class Model:
             pred = sess.run(self.prediction,
                             feed_dict=self.feed_dict(((left, right), None)))
             top_n = np.argpartition(pred[0], -n_top)[-n_top:]
-            words = lambda idxs: [vectorizer.idx_word.get(idx, '<UNK>')
-                                  for idx in idxs if idx != vectorizer.PAD]
-            print(' '.join(words(left[0])),
-                  words(top_n), words(output),
-                  ' '.join(words(right[0])))
+            words = lambda idx_word, idx_lst: [
+                idx_word.get(idx, '<UNK>')
+                for idx in idx_lst if idx != vectorizer.PAD]
+            print(' '.join(words(vectorizer.idx_word, left[0])),
+                  words(vectorizer.out_idx_word, top_n),
+                  words(vectorizer.out_idx_word, output),
+                  ' '.join(words(vectorizer.idx_word, right[0])))
 
 
 def make_progressbar(max_value: int):
@@ -312,9 +318,13 @@ def main():
     args = parser.parse_args()
     print(vars(args))
 
+    n_tokens, words = get_features(args.corpus, n_features=args.n_features)
+    vectorizer = Vectorizer(words, args.n_features, pos_filter=args.pos_filter)
+
     with printing_done('Building model...'):
         model_params = dict(
             n_features=args.n_features,
+            n_classes=max(vectorizer.out_idx_word) + 1,
             embedding_size=args.embedding_size,
             hidden_size=args.hidden_size,
             hidden2_size=args.hidden2_size,
@@ -337,8 +347,6 @@ def main():
             with open(args.save + '.json', 'w') as f:
                 json.dump(model_params, f, indent=True)
 
-    n_tokens, words = get_features(args.corpus, n_features=args.n_features)
-    vectorizer = Vectorizer(words, args.n_features, pos_filter=args.pos_filter)
     data = lambda corpus: data_gen(
         corpus,
         vectorizer=vectorizer,
