@@ -70,12 +70,11 @@ def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
     def to_arr(contexts, idx: int) -> np.ndarray:
         return np.array([vectorizer(ctx[idx]) for ctx in contexts])
 
-    buffer_max_size = 10000
+    buffer_max_size = 100000
     buffer = []
     batch = []
     for word in corpus_reader(corpus):
         buffer.append(word)
-        # TODO - some shuffling?
         if len(buffer) > 2 * window:
             left = buffer[-2 * window - 1 : -window - 1]
             output = buffer[-window - 1 : -window]
@@ -84,6 +83,7 @@ def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
                 left, right = random_mask(left, right, Vectorizer.PAD_WORD)
             batch.append((left, right, output))
         if len(batch) == batch_size:
+            np.random.shuffle(batch)
             left, right = to_arr(batch, 0), to_arr(batch, 0)
             output = to_arr(batch, 2)[:,0]
             batch[:] = []
