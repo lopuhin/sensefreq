@@ -14,7 +14,7 @@ import numpy as np
 import progressbar
 
 from rs.utils import smart_open
-from rs.rnn_utils import printing_done, repeat_iter
+from rs.rnn_utils import printing_done, repeat_iter, get_pos
 
 
 def corpus_reader(corpus: str) -> Iterator[str]:
@@ -47,11 +47,19 @@ class Vectorizer:
     UNK = 1
     PAD_WORD = '<PAD>'
 
-    def __init__(self, words: [str], n_features: int):
+    def __init__(self, words: [str], n_features: int, pos_filter: str=None):
         words = words[:n_features - 2]  # for UNK and PAD
         self.word_idx = {word: idx for idx, word in enumerate(words, 2)}
         self.word_idx[self.PAD_WORD] = self.PAD
         self.idx_word = {idx: word for word, idx in self.word_idx.items()}
+        if pos_filter:
+            pos_set = {p.upper() for p in pos_filter.split(',')}
+            self.accepted_words = {
+                w for w in words if get_pos(w).intersection(pos_set)}
+            print('POS set: {}, {} words accepted out of {}'.format(
+                pos_set, len(self.accepted_words), len(words)))
+        else:
+            self.accepted_words = None
 
     def __call__(self, context: List[str]) -> List[int]:
         return np.array([self.word_idx.get(w, self.UNK) for w in context],
@@ -61,6 +69,11 @@ class Vectorizer:
         return ' '.join(
             '{}[{}]'.format(w, self.word_idx[w] if w in self.word_idx else '-')
             for w in ctx)
+
+    def accept_word(self, word):
+        if self.accepted_words is not None:
+            return word in self.accepted_words
+        return True
 
 
 def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
@@ -81,7 +94,8 @@ def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
             right = buffer[-window:]
             if random_masking:
                 left, right = random_mask(left, right, Vectorizer.PAD_WORD)
-            batch.append((left, right, output))
+            if vectorizer.accept_word(output[0]):
+                batch.append((left, right, output))
         if len(batch) == batch_size:
             np.random.shuffle(batch)
             left, right = to_arr(batch, 0), to_arr(batch, 1)
@@ -277,7 +291,7 @@ def main():
     arg('--hidden-size', type=int, default=64)
     arg('--hidden2-size', type=int)
     arg('--rec-unit', choices=['lstm', 'gru'], default='lstm')
-    arg('--loss', choices=['softmax', 'nce'], default='nce')
+    arg('--loss', choices=['softmax', 'nce'], default='softmax')
     arg('--nce-sample', type=int, default=1024)
     arg('--window', type=int, default=10)
     arg('--only-left', action='store_true', help='use only left context')
@@ -294,6 +308,7 @@ def main():
     arg('--resume')
     arg('--resume-epoch', type=int)
     arg('--sample', action='store_true')
+    arg('--pos-filter', help='comma-separated, mystem format')
     args = parser.parse_args()
     print(vars(args))
 
@@ -323,7 +338,7 @@ def main():
                 json.dump(model_params, f, indent=True)
 
     n_tokens, words = get_features(args.corpus, n_features=args.n_features)
-    vectorizer = Vectorizer(words, args.n_features)
+    vectorizer = Vectorizer(words, args.n_features, pos_filter=args.pos_filter)
     data = lambda corpus: data_gen(
         corpus,
         vectorizer=vectorizer,
