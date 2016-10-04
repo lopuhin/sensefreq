@@ -84,7 +84,7 @@ def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
             batch.append((left, right, output))
         if len(batch) == batch_size:
             np.random.shuffle(batch)
-            left, right = to_arr(batch, 0), to_arr(batch, 0)
+            left, right = to_arr(batch, 0), to_arr(batch, 1)
             output = to_arr(batch, 2)[:,0]
             batch[:] = []
             yield [left, right], output
