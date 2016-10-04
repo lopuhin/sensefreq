@@ -123,6 +123,7 @@ class Model:
         embedding = tf.Variable(
             tf.random_uniform([n_features, embedding_size], -1.0, 1.0))
         left_embedding = tf.nn.embedding_lookup(embedding, self.left_input)
+        right_embedding = right_rnn = None
         if not only_left:
             right_embedding = tf.nn.embedding_lookup(
                 embedding, tf.reverse(self.right_input, dims=[False, True]))
@@ -148,9 +149,9 @@ class Model:
         softmax_weights = tf.Variable(
             tf.truncated_normal([n_features, output_size],
                                 stddev=1. / np.sqrt(embedding_size)))
-        softmax_biaces = tf.Variable(tf.zeros([n_features]))
-        logits = tf.matmul(self.hidden_output, tf.transpose(softmax_weights)) +\
-                 softmax_biaces
+        softmax_biases = tf.Variable(tf.zeros([n_features]))
+        logits = (tf.matmul(self.hidden_output, tf.transpose(softmax_weights)) +
+                  softmax_biases)
         self.loss = tf.reduce_mean(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=logits, labels=self.label))
@@ -160,7 +161,7 @@ class Model:
         elif loss == 'nce':
             self.train_loss = tf.reduce_mean(tf.nn.nce_loss(
                 weights=softmax_weights,
-                biases=softmax_biaces,
+                biases=softmax_biases,
                 inputs=self.hidden_output,
                 labels=tf.expand_dims(self.label, 1),
                 num_sampled=nce_sample,
@@ -232,10 +233,26 @@ class Model:
 
     def feed_dict(self, item):
         (left, right), output = item
-        feed = {self.left_input: left, self.label: output}
+        feed = {self.left_input: left}
+        if output is not None:
+            feed[self.label] = output
         if not self.only_left:
             feed[self.right_input] = right
         return feed
+
+    def print_valid_samples(self, sess, vectorizer, valid_data, samples=5, n_top=5):
+        for (b_left, b_right), b_output in islice(valid_data(), samples):
+            idx = np.random.randint(len(b_output))
+            left, right, output = [
+                x[idx: idx + 1] for x in [b_left, b_right, b_output]]
+            pred = sess.run(self.prediction,
+                            feed_dict=self.feed_dict(((left, right), None)))
+            top_n = np.argpartition(pred[0], -n_top)[-n_top:]
+            words = lambda idxs: [vectorizer.idx_word.get(idx, '<UNK>')
+                                  for idx in idxs if idx != vectorizer.PAD]
+            print(' '.join(words(left[0])),
+                  words(top_n), words(output),
+                  ' '.join(words(right[0])))
 
 
 def make_progressbar(max_value: int):
@@ -276,6 +293,7 @@ def main():
     arg('--save')
     arg('--resume')
     arg('--resume-epoch', type=int)
+    arg('--sample', action='store_true')
     args = parser.parse_args()
     print(vars(args))
 
@@ -355,6 +373,8 @@ def main():
                 samples_per_epoch=args.epoch_size or n_tokens,
                 summary_writer=summary_writer,
             )
+            if args.sample:
+                model.print_valid_samples(sess, vectorizer, valid_data)
             print('Epoch {}, valid loss: {:.3f}'.format(
                 epoch, model.get_valid_loss(sess, valid_data)))
             if args.save:
