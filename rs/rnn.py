@@ -86,7 +86,7 @@ def data_gen(corpus, *, vectorizer: Vectorizer, window: int,
     def to_arr(contexts, idx: int, is_out=False) -> np.ndarray:
         return np.array([vectorizer(ctx[idx], is_out) for ctx in contexts])
 
-    buffer_max_size = 100000
+    buffer_max_size = 1000000
     buffer = []
     batch = []
     for word in corpus_reader(corpus):
