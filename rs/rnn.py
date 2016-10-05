@@ -127,7 +127,7 @@ class Model:
                  embedding_size: int, hidden_size: int,
                  window: int, nce_sample: int, rec_unit: str, loss: str,
                  hidden2_size: int, lr: float, clip: Optional[float],
-                 only_left: bool):
+                 only_left: bool, dim_reduction: bool):
         # Inputs and outputs
         self.left_input = tf.placeholder(
             tf.int32, shape=[None, window], name='left')
@@ -153,16 +153,25 @@ class Model:
         left_rnn = self.rnn('left_rnn', left_embedding, **rnn_params)
         if not only_left:
             right_rnn = self.rnn('right_rnn', right_embedding,  **rnn_params)
+        output_size = hidden2_size or hidden_size
 
         # Merge left and right LSTM
         if not only_left:
-            self.hidden_output = tf.concat(1, [left_rnn, right_rnn])
+            lstm_out = tf.concat(1, [left_rnn, right_rnn])
+            if dim_reduction:
+                dim_reduction_weights = tf.Variable(
+                    tf.truncated_normal([2 * output_size, output_size],
+                                        stddev=1. / np.sqrt(output_size)))
+                dim_reduction_biases = tf.Variable(tf.zeros(output_size))
+                self.hidden_output = tf.nn.xw_plus_b(
+                    lstm_out, dim_reduction_weights, dim_reduction_biases)
+            else:
+                self.hidden_output = lstm_out
+                output_size = 2 * (hidden2_size or hidden_size)
         else:
             self.hidden_output = left_rnn
 
         # Output NCE softmax
-        output_size = \
-            (2 if not only_left else 1) * (hidden2_size or hidden_size)
         # TODO - additional dim reduction layer
         softmax_weights = tf.Variable(
             tf.truncated_normal([n_classes, output_size],
@@ -301,6 +310,7 @@ def main():
     arg('--nce-sample', type=int, default=1024)
     arg('--window', type=int, default=10)
     arg('--only-left', action='store_true', help='use only left context')
+    arg('--dim-reduction', action='store_true', help='before softmax')
     arg('--batch-size', type=int, default=16)
     arg('--lr', type=float, default=1.0)
     arg('--clip', type=float, default=5.0, help='clip gradients')
@@ -332,6 +342,7 @@ def main():
             loss=args.loss,
             window=args.window,
             only_left=args.only_left,
+            dim_reduction=args.dim_reduction,
             nce_sample=args.nce_sample,
             lr=args.lr,
             clip=args.clip,
