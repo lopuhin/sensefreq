@@ -163,8 +163,8 @@ class Model:
                     tf.truncated_normal([2 * output_size, output_size],
                                         stddev=1. / np.sqrt(output_size)))
                 dim_reduction_biases = tf.Variable(tf.zeros(output_size))
-                self.hidden_output = tf.nn.xw_plus_b(
-                    lstm_out, dim_reduction_weights, dim_reduction_biases)
+                self.hidden_output = tf.nn.sigmoid(tf.nn.xw_plus_b(
+                    lstm_out, dim_reduction_weights, dim_reduction_biases))
             else:
                 self.hidden_output = lstm_out
                 output_size = 2 * (hidden2_size or hidden_size)
