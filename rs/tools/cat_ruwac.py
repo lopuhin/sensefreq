@@ -9,7 +9,7 @@ tags_re = re.compile(r'<[^<]+?>')
 word_re = re.compile(r'(\w[\w\-]*\w|\w)', re.U)
 
 
-def sentences_iter(filename):
+def sentences_iter(filename, only_words=False):
     with smart_open(filename, 'rb') as f:
         sentence = []
         for line in f:
@@ -19,7 +19,7 @@ def sentences_iter(filename):
                 continue
             word = word.strip().lower()
             word = tags_re.sub('', word)
-            if word and word_re.match(word):
+            if word and (not only_words or word_re.match(word)):
                 sentence.append(word)
             if tag == 'SENT':
                 if sentence:
@@ -29,12 +29,14 @@ def sentences_iter(filename):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('filename')
-    parser.add_argument('out')
+    arg = parser.add_argument
+    arg('filename')
+    arg('out')
+    arg('--only-words')
     args = parser.parse_args()
 
     with open(args.out, 'w') as f:
-        for sent in sentences_iter(args.filename):
+        for sent in sentences_iter(args.filename, only_words=args.only_words):
             f.write(' '.join(sent))
             f.write('\n')
 
