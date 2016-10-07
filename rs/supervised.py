@@ -254,6 +254,7 @@ class RNNModel(DNNModel):
             self.rnn_model = rnn.Model(**rnn_params)
             saver = tf.train.Saver()
             saver.restore(self.sess, weights)
+        # TODO - save and load pos_filter
         self.vectorizer = rnn.Vectorizer(words, n_features)
         kwargs['window'] = rnn_params['window']
         super().__init__(*args, **kwargs)
@@ -275,9 +276,12 @@ class RNNModel(DNNModel):
         pred = self.sess.run(self.rnn_model.prediction,
                              feed_dict=self.feed_dict(left, right))
         top_n = np.argpartition(pred[0], -n_top)[-n_top:]
-        words = lambda idxs: [self.vectorizer.idx_word.get(idx, '<UNK>')
-                              for idx in idxs if idx != self.vectorizer.PAD]
-        print(' '.join(words(left)), words(top_n), ' '.join(words(right)))
+        vec = self.vectorizer
+        words = lambda idx_word, idx_lst: [
+            idx_word.get(idx, '<UNK>') for idx in idx_lst if idx != vec.PAD]
+        print(' '.join(words(vec.idx_word, left)),
+              words(vec.out_idx_word, top_n),
+              ' '.join(words(vec.idx_word, right)))
 
     def feed_dict(self, left, right):
         return {self.rnn_model.left_input: np.array([left]),
