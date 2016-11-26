@@ -47,7 +47,7 @@ def cluster(context_vectors_filename, labeled_dir, n_runs=4, **kwargs):
 
 
 def _cluster(context_vectors_filename, labeled_dir,
-        n_senses, method, print_clusters, **_):
+             n_senses, method, print_clusters, **_):
     m = load(context_vectors_filename)
     word = m['word']
     classifier = getattr(cluster_methods, method)(m, n_senses)
@@ -211,6 +211,9 @@ def build_context_vectors(contexts_filename, word, out_filename, **_):
                     w,
                     os.path.join(out_filename, w + '.pkl'))
     else:
+        if os.path.exists(out_filename):
+            print('Output file {} exists, skipping'.format(out_filename))
+            return
         print(word)
         weights = load_weights(word)
         vectors = get_context_vectors(word, contexts_filename, weights)
@@ -224,12 +227,8 @@ def build_context_vectors(contexts_filename, word, out_filename, **_):
 
 def get_context_vectors(word, contexts_filename, weights):
     contexts = list(iter_contexts(contexts_filename))
-    words = list({w for ctx in contexts for w in ctx})
-    w2v_cache = dict(zip(words, [
-        np.array(v, dtype=np.float32) if v else None
-        for v in w2v_vecs(words)]))
     return [(ctx, context_vector(
-        word, ctx, weights=weights, w2v_cache=w2v_cache)) for ctx in contexts]
+        word, ctx, weights=weights)) for ctx in contexts]
 
 
 def iter_contexts(contexts_filename):
@@ -246,12 +245,12 @@ def iter_contexts(contexts_filename):
 def main():
     description = '''
 To build context vectors:
-    ./cluster.py contexts.txt word context_vectors.pkl
-or  ./cluster.py contexts_folder/ word_list vectors_folder/
+    ./rs/cluster.py contexts.txt word context_vectors.pkl
+or  ./rs/cluster.py contexts_folder/ word_list vectors_folder/
 To cluster context vectors:
-    ./cluster.py context_vectors.pkl labeled_folder/
-or  ./cluster.py contexts.txt labeled_folder/
-or  ./cluster.py contexts_or_vectors_folder/ labeled_folder/
+    ./rs/cluster.py context_vectors.pkl labeled_folder/
+or  ./rs/cluster.py contexts.txt labeled_folder/
+or  ./rs/cluster.py contexts_or_vectors_folder/ labeled_folder/
     '''
     parser = argparse.ArgumentParser(description=description)
     arg = parser.add_argument

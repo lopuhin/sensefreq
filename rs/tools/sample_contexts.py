@@ -6,8 +6,8 @@ import random
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('filename')
-    parser.add_argument('output')
+    parser.add_argument('filename', help='can be a directory')
+    parser.add_argument('output', help='can be a directory')
     parser.add_argument('--max-count', type=int, default=100000)
     args = parser.parse_args()
     if os.path.isdir(args.filename):
