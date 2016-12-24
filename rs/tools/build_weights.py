@@ -4,13 +4,14 @@ import argparse
 import math
 from collections import defaultdict
 
-from rlwsd.w2v_client import w2v_counts, w2v_total_count
+from rlwsd.utils import normalize
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('input')
-    parser.add_argument('output')
+    parser.add_argument('input', help='can be a directory')
+    parser.add_argument('dictionary')
+    parser.add_argument('output', help='can be a directory')
     # TODO - support window?
     args = parser.parse_args()
     if os.path.isdir(args.input):
@@ -20,14 +21,18 @@ def main():
             for f in os.listdir(args.input) if f.endswith('.txt')]
     else:
         targets = [(args.input, args.output)]
+    with open(args.dictionary) as f:
+        dictionary = {
+            normalize(w): int(count) for w, count in (
+                line.strip().split() for line in f)}
     for input_filename, output_filename in targets:
-        write_cdict(input_filename, output_filename)
+        write_cdict(input_filename, output_filename, dictionary)
 
 
-def write_cdict(input_filename, output_filename):
+def write_cdict(input_filename, output_filename, dictionary):
     analyse = False
     min_count = 4
-    total_count = w2v_total_count()
+    total_count = sum(dictionary.values())
     ff = lambda x: '%.5f' % x
     with open(input_filename, 'r') as in_f:
         counts = defaultdict(int)
@@ -40,7 +45,7 @@ def write_cdict(input_filename, output_filename):
                 counts[w] += 1
         contexts_count = sum(counts.values())
         words = list(counts)
-        global_counts = dict(zip(words, w2v_counts(words)))
+        global_counts = {w: dictionary[w] for w in words}
         counts = [(w, c, global_counts[w]) for w, c in counts.items()
                   if c >= min_count and global_counts.get(w) is not None]
         with open(output_filename, 'w') as out_f:

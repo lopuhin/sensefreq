@@ -157,7 +157,7 @@ def compare_statistics(summary1, summary2):
 class WordHandler(BaseHandler):
     def get(self, ctx_path, word):
         ctx = self.load(word, ctx_path)
-        contexts = ctx['contexts'][:100]
+        contexts = ctx['contexts']
         parsed = get_ad_word(word, self.ad_root)
         sense_by_id = {m['id']: m for m in parsed['meanings']}
         counts = Counter(ans for _, ans in contexts)
