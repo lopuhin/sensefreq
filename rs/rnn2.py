@@ -58,36 +58,30 @@ def batches(reader: CorpusReader, *, batch_size: int, window: int):
         start_indices = np.arange(len(tokens) - context_size)
         np.random.shuffle(start_indices)
         for s in range(0, len(start_indices), batch_size):
-            xs = []
-            ys = []
+            xs, ys = [], []
             for start_idx in start_indices[s : s + batch_size]:
-                context = tokens[start_idx : start_idx + context_size].copy()
+                context = tokens[start_idx : start_idx + context_size]
                 ys.append(context[window])
-                context[window] = reader.vocab.target_id
-                xs.append(context)
+                xs.append(np.concatenate([context[:window],
+                                          context[window + 1:]]))
             yield np.array(xs, dtype=np.int32), np.array(ys, dtype=np.int32)
 
 
 @attr.s
 class HyperParams:
-    window = attr.ib(default=5)
+    window = attr.ib(default=10)
     emb_size = attr.ib(default=512)
     state_size = attr.ib(default=2048)
     output_size = attr.ib(default=512)
     num_sampled = attr.ib(default=4096)
     learning_rate = attr.ib(default=0.1)
 
-    @property
-    def num_steps(self):
-        return self.window * 2 + 1
-
 
 class Model:
     def __init__(self, *, vocab_size: int, hps: HyperParams):
         self.hps = hps
         self.vocab_size = vocab_size
-        self.xs = tf.placeholder(np.int32, shape=[None, self.hps.num_steps])
-        # self.ws = tf.placeholder(tf.int32, shape=[None, self.hps.num_steps])
+        self.xs = tf.placeholder(np.int32, shape=[None, self.hps.window * 2])
         self.ys = tf.placeholder(np.int32, shape=[None])
         # self.batch_size = tf.placeholder(tf.int32, [])
         tf.add_to_collection('input_xs', self.xs)
@@ -106,11 +100,17 @@ class Model:
             'emb', shape=[self.vocab_size, self.hps.emb_size],
             initializer=initializer)
         xs = tf.nn.embedding_lookup(emb_var, self.xs)
-        cell = rnn_cell.LSTMCell(
-            self.hps.state_size, num_proj=self.hps.output_size)
-        rnn_inputs = [tf.squeeze(v, [1]) for v in tf.split(1, self.hps.num_steps, xs)]
-        rnn_outputs, _ = rnn.rnn(cell, rnn_inputs, dtype=tf.float32)
-        rnn_output = rnn_outputs[-1]
+        cell = rnn_cell.LSTMCell(self.hps.state_size,
+                                 num_proj=self.hps.output_size // 2)
+        wnd = self.hps.window
+        rnn_inputs = [tf.squeeze(v, [1]) for v in tf.split(1, 2 * wnd, xs)]
+        with tf.variable_scope('left_rnn'):
+            left_rnn_outputs, _ = rnn.rnn(
+                cell, rnn_inputs[:wnd], dtype=tf.float32)
+        with tf.variable_scope('right_rnn'):
+            right_rnn_outputs, _ = rnn.rnn(
+                cell, list(reversed(rnn_inputs[wnd:])), dtype=tf.float32)
+        rnn_output = tf.concat(1, [left_rnn_outputs[-1], right_rnn_outputs[-1]])
         softmax_w = tf.get_variable(
             'softmax_w', shape=[self.vocab_size, self.hps.output_size],
             initializer=initializer)
@@ -140,10 +140,10 @@ class Model:
                         feed_dict={self.xs: xs, self.ys: ys})
                     losses.append(loss)
                     t1 = time.time()
-                    if t1 - t0 > 60 or t1 - t00 < 30 and t1 - t0 > 5:
+                    dt = t1 - t0
+                    if dt > 60 or (t1 - t00 < 60 and dt > 5):
                         logging.info('Loss: {:.3f}, speed: {:,} wps'.format(
-                            np.mean(losses),
-                            int(len(losses) * batch_size / (t1 - t0))))
+                            np.mean(losses), int(len(losses) * batch_size / dt)))
                         losses = []
                         t0 = t1
 
