@@ -83,12 +83,15 @@ class HyperParams:
     output_size = attr.ib(default=512)
     num_sampled = attr.ib(default=4096)
     learning_rate = attr.ib(default=0.1)
+    max_grad_norm = attr.ib(default=10.0)
+    batch_size = attr.ib(default=128)
 
     def update(self, hps_string: str):
-        for pair in hps_string.split(','):
-            k, v = pair.split('=')
-            v = float(v) if '.' in v else int(v)
-            setattr(self, k, v)
+        if hps_string:
+            for pair in hps_string.split(','):
+                k, v = pair.split('=')
+                v = float(v) if '.' in v else int(v)
+                setattr(self, k, v)
 
 
 class Model:
@@ -97,16 +100,15 @@ class Model:
         self.vocab_size = vocab_size
         self.xs = tf.placeholder(np.int32, shape=[None, self.hps.window * 2])
         self.ys = tf.placeholder(np.int32, shape=[None])
-        # self.batch_size = tf.placeholder(tf.int32, [])
         tf.add_to_collection('input_xs', self.xs)
         tf.add_to_collection('input_ys', self.ys)
-        # tf.add_to_collection('batch_size', self.batch_size)
 
         self.loss = self.forward()
         tf.summary.scalar('loss', self.loss)
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         optimizer = tf.train.AdagradOptimizer(self.hps.learning_rate)
-        self.train_op = optimizer.minimize(self.loss, self.global_step)
+        gradients = self.backward()
+        self.train_op = optimizer.apply_gradients(gradients, self.global_step)
         self.summary_op = tf.summary.merge_all()
 
     def forward(self):
@@ -119,10 +121,10 @@ class Model:
                                  num_proj=self.hps.output_size // 2)
         wnd = self.hps.window
         rnn_inputs = [tf.squeeze(v, [1]) for v in tf.split(1, 2 * wnd, xs)]
-        with tf.variable_scope('left_rnn'):
+        with tf.variable_scope('rnn_left'):
             left_rnn_outputs, _ = rnn.rnn(
                 cell, rnn_inputs[:wnd], dtype=tf.float32)
-        with tf.variable_scope('right_rnn'):
+        with tf.variable_scope('rnn_right'):
             right_rnn_outputs, _ = rnn.rnn(
                 cell, list(reversed(rnn_inputs[wnd:])), dtype=tf.float32)
         rnn_output = tf.concat(1, [left_rnn_outputs[-1], right_rnn_outputs[-1]])
@@ -141,8 +143,36 @@ class Model:
             num_classes=self.vocab_size)
         return tf.reduce_mean(loss)
 
-    def train(self, reader: CorpusReader, *, epochs: int, batch_size: int,
-              save_path: str):
+    def backward(self):
+        get_trainable = (
+            lambda x: tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, x))
+        emb_vars = get_trainable('emb')
+        rnn_vars = get_trainable('rnn.*')
+        softmax_vars = get_trainable('softmax.*')
+        all_vars = emb_vars + rnn_vars + softmax_vars
+        assert len(all_vars) == len(get_trainable('.*'))
+        all_grads = tf.gradients(self.loss, all_vars)
+
+        emb_grads = all_grads[:len(emb_vars)]
+        # A scaling trick from https://github.com/rafaljozefowicz/lm
+        for i, grad in enumerate(emb_grads):
+            assert isinstance(grad, tf.IndexedSlices)
+            emb_grads[i] = tf.IndexedSlices(
+                grad.values * self.hps.batch_size,
+                grad.indices,
+                grad.dense_shape)
+
+        rnn_grads = all_grads[len(emb_vars):][:len(rnn_vars)]
+        softmax_grads = all_grads[-len(softmax_vars):]
+
+        rnn_grads, rnn_norm = tf.clip_by_global_norm(
+            rnn_grads, self.hps.max_grad_norm)
+
+        clipped_grads = emb_grads + rnn_grads + softmax_grads
+        assert len(clipped_grads) == len(all_grads)
+        return list(zip(clipped_grads, all_vars))
+
+    def train(self, reader: CorpusReader, *, epochs: int, save_path: str):
         sv = tf.train.Supervisor(
             logdir=save_path,
             summary_op=None,  # Automatic summaries don't work with placeholders
@@ -153,15 +183,15 @@ class Model:
         with sv.managed_session() as sess:
             for epoch in range(epochs):
                 logger.info('Epoch {}'.format(epoch + 1))
-                if not self._run_epoch(sv, sess, reader, batch_size):
+                if not self._run_epoch(sv, sess, reader):
                     break
 
     def _run_epoch(self, sv: tf.train.Supervisor, sess: tf.Session,
-                   reader: CorpusReader, batch_size: int):
+                   reader: CorpusReader):
         losses = []
         t0 = t00 = time.time()
         for i, (xs, ys) in enumerate(batches(
-                reader, batch_size=batch_size, window=self.hps.window)):
+                reader, batch_size=self.hps.batch_size, window=self.hps.window)):
             if sv.should_stop():
                 return False
             fetches = {'loss': self.loss, 'train': self.train_op}
@@ -175,7 +205,7 @@ class Model:
             dt = t1 - t0
             if dt > 60 or (t1 - t00 < 60 and dt > 5):
                 logger.info('Loss: {:.3f}, speed: {:,} wps'.format(
-                    np.mean(losses), int(len(losses) * batch_size / dt)))
+                    np.mean(losses), int(len(losses) * self.hps.batch_size / dt)))
                 losses = []
                 t0 = t1
         return True
@@ -197,7 +227,6 @@ def main():
         'Path to directory the directory for saving logs and model checkpoints'
     ))
     arg('--epochs', type=int, default=10)
-    arg('--batch-size', type=int, default=128)
     arg('--hps', type=str, help='Change hyperparameters in k1=v1,k2=v2 format')
     args = parser.parse_args()
 
@@ -206,8 +235,7 @@ def main():
     hps = HyperParams()
     hps.update(args.hps)
     model = Model(hps=hps, vocab_size=len(reader.vocab))
-    model.train(reader, epochs=args.epochs, batch_size=args.batch_size,
-                save_path=args.save_path)
+    model.train(reader, epochs=args.epochs, save_path=args.save_path)
 
 
 if __name__ == '__main__':
