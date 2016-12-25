@@ -10,6 +10,14 @@ import tensorflow as tf
 from tensorflow.python.ops import rnn, rnn_cell
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+ch.setFormatter(logging.Formatter(
+    '%(asctime)s [%(levelname)s] %(module)s: %(message)s'))
+logger.addHandler(ch)
+
+
 class Vocabulary:
     UNK = '<UNK>'
     TARGET = '<TARGET>'
@@ -90,9 +98,10 @@ class Model:
 
         self.loss = self.forward()
         tf.summary.scalar('loss', self.loss)
-        global_step = tf.Variable(0, name='global_step', trainable=False)
+        self.global_step = tf.Variable(0, name='global_step', trainable=False)
         optimizer = tf.train.AdagradOptimizer(self.hps.learning_rate)
-        self.train_op = optimizer.minimize(self.loss, global_step=global_step)
+        self.train_op = optimizer.minimize(self.loss, self.global_step)
+        self.summary_op = tf.summary.merge_all()
 
     def forward(self):
         initializer = tf.uniform_unit_scaling_initializer()
@@ -126,26 +135,44 @@ class Model:
             num_classes=self.vocab_size)
         return tf.reduce_mean(loss)
 
-    def train(self, reader: CorpusReader, *, epochs: int, batch_size: int):
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
+    def train(self, reader: CorpusReader, *, epochs: int, batch_size: int,
+              save_path: str):
+        sv = tf.train.Supervisor(
+            logdir=save_path,
+            summary_op=None,  # Automatic summaries don't work with placeholders
+            global_step=self.global_step,
+            save_summaries_secs=30,
+            save_model_secs=60 * 10,
+        )
+        with sv.managed_session() as sess:
             for epoch in range(epochs):
-                logging.info('Epoch {}'.format(epoch + 1))
+                logger.info('Epoch {}'.format(epoch + 1))
+                if not self._run_epoch(sv, sess, reader, batch_size):
+                    break
+
+    def _run_epoch(self, sv: tf.train.Supervisor, sess: tf.Session,
+                   reader: CorpusReader, batch_size: int):
+        losses = []
+        t0 = t00 = time.time()
+        for i, (xs, ys) in enumerate(batches(
+                reader, batch_size=batch_size, window=self.hps.window)):
+            if sv.should_stop():
+                return False
+            fetches = {'loss': self.loss, 'train': self.train_op}
+            if i % 20 == 0:
+                fetches['summary'] = self.summary_op
+            fetched = sess.run(fetches, feed_dict={self.xs: xs, self.ys: ys})
+            losses.append(fetched['loss'])
+            if 'summary' in fetched:
+                sv.summary_computed(sess, fetched['summary'])
+            t1 = time.time()
+            dt = t1 - t0
+            if dt > 60 or (t1 - t00 < 60 and dt > 5):
+                logger.info('Loss: {:.3f}, speed: {:,} wps'.format(
+                    np.mean(losses), int(len(losses) * batch_size / dt)))
                 losses = []
-                t0 = t00 = time.time()
-                for i, (xs, ys) in enumerate(batches(
-                        reader, batch_size=batch_size, window=self.hps.window)):
-                    _, loss = sess.run(
-                        [self.train_op, self.loss],
-                        feed_dict={self.xs: xs, self.ys: ys})
-                    losses.append(loss)
-                    t1 = time.time()
-                    dt = t1 - t0
-                    if dt > 60 or (t1 - t00 < 60 and dt > 5):
-                        logging.info('Loss: {:.3f}, speed: {:,} wps'.format(
-                            np.mean(losses), int(len(losses) * batch_size / dt)))
-                        losses = []
-                        t0 = t1
+                t0 = t1
+        return True
 
 
 def main():
@@ -160,20 +187,18 @@ def main():
         'Path to vocabulary: tab-separated word and count on each line, '
         'including "<UNK>" symbol.'
     ))
-    arg('save_path', type=Path, help=(
+    arg('save_path', type=str, help=(
         'Path to directory the directory for saving logs and model checkpoints'
     ))
     arg('--epochs', type=int, default=10)
     arg('--batch-size', type=int, default=128)
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(module)s: %(message)s')
     vocab = Vocabulary(args.vocab)
     reader = CorpusReader(args.corpus_root, vocab)
     model = Model(hps=HyperParams(), vocab_size=len(reader.vocab))
-    model.train(reader, epochs=args.epochs, batch_size=args.batch_size)
+    model.train(reader, epochs=args.epochs, batch_size=args.batch_size,
+                save_path=args.save_path)
 
 
 if __name__ == '__main__':
