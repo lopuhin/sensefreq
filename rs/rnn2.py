@@ -151,7 +151,7 @@ class Model:
         softmax_vars = get_trainable('softmax.*')
         all_vars = emb_vars + rnn_vars + softmax_vars
         assert len(all_vars) == len(get_trainable('.*'))
-        all_grads = tf.gradients(self.loss, all_vars)
+        all_grads = tf.gradients(self.hps.window * 2 * self.loss, all_vars)
 
         emb_grads = all_grads[:len(emb_vars)]
         # A scaling trick from https://github.com/rafaljozefowicz/lm
