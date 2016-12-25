@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import argparse
+from itertools import islice
 import logging
 from pathlib import Path
+import os
 import time
 
 import attr
@@ -54,12 +56,13 @@ class CorpusReader:
         if shuffle_paths:
             np.random.shuffle(paths)
         for path in paths:
+            logging.info('Opened {}'.format(path))
             lines = path.read_text(encoding='utf8').split('\n')
             yield [self.vocab.vectorize(line) for line in lines]
 
 
-def batches(reader: CorpusReader, *, batch_size: int, window: int):
-    for line_batch in reader.iter():
+def batches(reader: CorpusReader, batch_size: int, window: int, **iter_kwargs):
+    for line_batch in reader.iter(**iter_kwargs):
         tokens = np.fromiter((w for line in line_batch for w in line),
                              dtype=np.int32)
         context_size = 2 * window + 1
@@ -134,13 +137,18 @@ class Model:
         softmax_bias = tf.get_variable(
             'softmax_bias', shape=[self.vocab_size],
             initializer=tf.zeros_initializer)
-        # tf.nn.softmax(tf.matmul(rnn_output, tf.transpose(softmax_w)) + biases)
-        loss = tf.nn.sampled_softmax_loss(
-            softmax_w, softmax_bias,
-            inputs=rnn_output,
-            labels=tf.expand_dims(self.ys, axis=1),
-            num_sampled=self.hps.num_sampled,
-            num_classes=self.vocab_size)
+        if self.hps.num_sampled:
+            loss = tf.nn.sampled_softmax_loss(
+                softmax_w, softmax_bias,
+                inputs=rnn_output,
+                labels=tf.expand_dims(self.ys, axis=1),
+                num_sampled=self.hps.num_sampled,
+                num_classes=self.vocab_size)
+        else:
+            logits = (tf.matmul(rnn_output, tf.transpose(softmax_w)) +
+                      softmax_bias)
+            loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+                logits, self.ys)
         return tf.reduce_mean(loss)
 
     def backward(self):
@@ -183,15 +191,17 @@ class Model:
         with sv.managed_session() as sess:
             for epoch in range(epochs):
                 logger.info('Epoch {}'.format(epoch + 1))
-                if not self._run_epoch(sv, sess, reader):
+                if not self._train_epoch(sv, sess, reader):
                     break
 
-    def _run_epoch(self, sv: tf.train.Supervisor, sess: tf.Session,
+    def _train_epoch(self, sv: tf.train.Supervisor, sess: tf.Session,
                    reader: CorpusReader):
         losses = []
         t0 = t00 = time.time()
         for i, (xs, ys) in enumerate(batches(
-                reader, batch_size=self.hps.batch_size, window=self.hps.window)):
+                reader,
+                batch_size=self.hps.batch_size,
+                window=self.hps.window)):
             if sv.should_stop():
                 return False
             fetches = {'loss': self.loss, 'train': self.train_op}
@@ -205,10 +215,49 @@ class Model:
             dt = t1 - t0
             if dt > 60 or (t1 - t00 < 60 and dt > 5):
                 logger.info('Loss: {:.3f}, speed: {:,} wps'.format(
-                    np.mean(losses), int(len(losses) * self.hps.batch_size / dt)))
+                    np.mean(losses),
+                    int(len(losses) * self.hps.batch_size / dt)))
                 losses = []
                 t0 = t1
         return True
+
+    def eval(self, reader: CorpusReader, save_path: str, batches_limit=100):
+        saver = tf.train.Saver()
+        with tf.Session() as sess:
+            last_global_step = None
+            while True:
+                ckpt = tf.train.get_checkpoint_state(save_path)
+                if not ckpt or not ckpt.model_checkpoint_path:
+                    logger.info('Waiting for first checkpoint')
+                    time.sleep(60)
+                    continue
+                saver.restore(sess, ckpt.model_checkpoint_path)
+                global_step = self.global_step.eval()
+                if global_step == last_global_step:
+                    logger.info('Waiting for new checkpoint')
+                    time.sleep(60)
+                    continue
+                last_global_step = global_step
+                np.random.seed(0)
+                loss = np.mean([
+                    sess.run(self.loss, feed_dict={self.xs: xs, self.ys: ys})
+                    for xs, ys in islice(batches(
+                        reader,
+                        batch_size=self.hps.batch_size,
+                        window=self.hps.window,
+                        only='valid.*',
+                        shuffle_paths=False), batches_limit)])
+                logger.info(
+                    'Loss: {:.3f}, perplexity: {:.1f}'.format(loss, np.exp(loss)))
+                fw = tf.summary.FileWriter(save_path)
+                summary = tf.Summary()
+                summary.value.add(
+                    tag='eval/log_perplexity', simple_value=float(loss))
+                summary.value.add(
+                    tag='eval/perplexity', simple_value=float(np.exp(loss)))
+                fw.add_summary(summary, global_step)
+                fw.flush()
+
 
 
 def main():
@@ -226,6 +275,7 @@ def main():
     arg('save_path', type=str, help=(
         'Path to directory the directory for saving logs and model checkpoints'
     ))
+    arg('--mode', default='train', choices=('train', 'eval'))
     arg('--epochs', type=int, default=10)
     arg('--hps', type=str, help='Change hyperparameters in k1=v1,k2=v2 format')
     args = parser.parse_args()
@@ -234,8 +284,15 @@ def main():
     reader = CorpusReader(args.corpus_root, vocab)
     hps = HyperParams()
     hps.update(args.hps)
+    is_eval = args.mode == 'eval'
+    if is_eval:
+        os.environ['CUDA_VISIBLE_DEVICES'] = ''
+        hps.num_sampled = 0
     model = Model(hps=hps, vocab_size=len(reader.vocab))
-    model.train(reader, epochs=args.epochs, save_path=args.save_path)
+    if is_eval:
+        model.eval(reader, save_path=args.save_path)
+    else:
+        model.train(reader, epochs=args.epochs, save_path=args.save_path)
 
 
 if __name__ == '__main__':
