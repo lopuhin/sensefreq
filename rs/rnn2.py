@@ -249,10 +249,9 @@ class Model:
                         shuffle_paths=False), batches_limit)])
                 logger.info(
                     'Loss: {:.3f}, perplexity: {:.1f}'.format(loss, np.exp(loss)))
-                fw = tf.summary.FileWriter(save_path)
+                fw = tf.summary.FileWriter(os.path.join(save_path, 'eval'))
                 summary = tf.Summary()
-                summary.value.add(
-                    tag='eval/log_perplexity', simple_value=float(loss))
+                summary.value.add(tag='eval/loss', simple_value=float(loss))
                 summary.value.add(
                     tag='eval/perplexity', simple_value=float(np.exp(loss)))
                 fw.add_summary(summary, global_step)
