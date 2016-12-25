@@ -75,7 +75,7 @@ def batches(reader: CorpusReader, *, batch_size: int, window: int):
             yield np.array(xs, dtype=np.int32), np.array(ys, dtype=np.int32)
 
 
-@attr.s
+@attr.s(slots=True)
 class HyperParams:
     window = attr.ib(default=10)
     emb_size = attr.ib(default=512)
@@ -83,6 +83,12 @@ class HyperParams:
     output_size = attr.ib(default=512)
     num_sampled = attr.ib(default=4096)
     learning_rate = attr.ib(default=0.1)
+
+    def update(self, hps_string: str):
+        for pair in hps_string.split(','):
+            k, v = pair.split('=')
+            v = float(v) if '.' in v else int(v)
+            setattr(self, k, v)
 
 
 class Model:
@@ -192,11 +198,14 @@ def main():
     ))
     arg('--epochs', type=int, default=10)
     arg('--batch-size', type=int, default=128)
+    arg('--hps', type=str, help='Change hyperparameters in k1=v1,k2=v2 format')
     args = parser.parse_args()
 
     vocab = Vocabulary(args.vocab)
     reader = CorpusReader(args.corpus_root, vocab)
-    model = Model(hps=HyperParams(), vocab_size=len(reader.vocab))
+    hps = HyperParams()
+    hps.update(args.hps)
+    model = Model(hps=hps, vocab_size=len(reader.vocab))
     model.train(reader, epochs=args.epochs, batch_size=args.batch_size,
                 save_path=args.save_path)
 
