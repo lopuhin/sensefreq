@@ -3,7 +3,6 @@ import argparse
 from itertools import islice
 import logging
 from pathlib import Path
-import os
 import time
 
 import attr
@@ -56,7 +55,7 @@ class CorpusReader:
         if shuffle_paths:
             np.random.shuffle(paths)
         for path in paths:
-            logging.info('Opened {}'.format(path))
+            logger.info('Opened {}'.format(path))
             lines = path.read_text(encoding='utf8').split('\n')
             yield [self.vocab.vectorize(line) for line in lines]
 
@@ -249,6 +248,7 @@ class Model:
                         shuffle_paths=False), batches_limit)])
                 logger.info(
                     'Loss: {:.3f}, perplexity: {:.1f}'.format(loss, np.exp(loss)))
+                import os
                 fw = tf.summary.FileWriter(os.path.join(save_path, 'eval'))
                 summary = tf.Summary()
                 summary.value.add(tag='eval/loss', simple_value=float(loss))
@@ -285,6 +285,7 @@ def main():
     hps.update(args.hps)
     is_eval = args.mode == 'eval'
     if is_eval:
+        import os
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
         hps.num_sampled = 0
     model = Model(hps=hps, vocab_size=len(reader.vocab))
