@@ -228,9 +228,10 @@ class Model:
             fetches = {'loss': self.loss, 'train': self.train_op}
             if i % 20 == 0:
                 fetches['summary'] = self.summary_op
+            batch_size = l_xs.shape[0]
             fetched = sess.run(fetches, feed_dict={
-                self.l_xs: l_xs, self.l_length: full_length,
-                self.r_xs: r_xs, self.r_length: full_length,
+                self.l_xs: l_xs, self.l_length: full_length[:batch_size],
+                self.r_xs: r_xs, self.r_length: full_length[:batch_size],
                 self.ys: ys,
             })
             losses.append(fetched['loss'])
