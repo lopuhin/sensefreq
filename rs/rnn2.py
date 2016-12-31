@@ -4,11 +4,11 @@ from itertools import islice
 import logging
 from pathlib import Path
 import time
+from typing import List, Tuple
 
 import attr
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.ops import rnn, rnn_cell
 
 
 logger = logging.getLogger(__name__)
@@ -35,11 +35,13 @@ class Vocabulary:
 
     def vectorize(self, text: str) -> np.ndarray:
         tokens = text.split()
+        return np.array([self.get_id(w) for w in tokens], dtype=np.int32)
+
+    def get_id(self, w):
         if self.unk_id is not None:
-            ids = [self.word2id.get(w, self.unk_id) for w in tokens]
+            return self.word2id.get(w, self.unk_id)
         else:
-            ids = [self.word2id[w] for w in tokens]
-        return np.array(ids, dtype=np.int32)
+            return self.word2id[w]
 
     def __len__(self):
         return len(self.id2word)
@@ -71,13 +73,15 @@ def batches(reader: CorpusReader, batch_size: int, window: int, **iter_kwargs):
         # TODO - needs more testing, maybe it shouldn't be completely random
         start_indices = start_indices[:int(len(start_indices) / window)]
         for s in range(0, len(start_indices), batch_size):
-            xs, ys = [], []
+            l_xs, r_xs, ys = [], [], []
             for start_idx in start_indices[s : s + batch_size]:
                 context = tokens[start_idx : start_idx + context_size]
                 ys.append(context[window])
-                xs.append(np.concatenate([context[:window],
-                                          context[window + 1:]]))
-            yield np.array(xs, dtype=np.int32), np.array(ys, dtype=np.int32)
+                l_xs.append(context[:window])
+                r_xs.append(context[window + 1:])
+            yield (np.array(l_xs, dtype=np.int32),
+                   np.array(r_xs, dtype=np.int32),
+                   np.array(ys, dtype=np.int32))
 
 
 @attr.s(slots=True)
@@ -103,9 +107,15 @@ class Model:
     def __init__(self, *, vocab_size: int, hps: HyperParams):
         self.hps = hps
         self.vocab_size = vocab_size
-        self.xs = tf.placeholder(np.int32, shape=[None, self.hps.window * 2])
+        self.l_xs = tf.placeholder(np.int32, shape=[None, self.hps.window])
+        self.r_xs = tf.placeholder(np.int32, shape=[None, self.hps.window])
+        self.r_length = tf.placeholder(np.int32, shape=[None])
+        self.l_length = tf.placeholder(np.int32, shape=[None])
         self.ys = tf.placeholder(np.int32, shape=[None])
-        tf.add_to_collection('input_xs', self.xs)
+        tf.add_to_collection('input_l_xs', self.l_xs)
+        tf.add_to_collection('input_r_xs', self.r_xs)
+        tf.add_to_collection('input_l_length', self.l_length)
+        tf.add_to_collection('input_r_length', self.r_length)
         tf.add_to_collection('input_ys', self.ys)
 
         self.loss = self.forward()
@@ -121,24 +131,33 @@ class Model:
         emb_var = tf.get_variable(
             'emb', shape=[self.vocab_size, self.hps.emb_size],
             initializer=initializer)
-        xs = tf.nn.embedding_lookup(emb_var, self.xs)
-        cell = rnn_cell.LSTMCell(self.hps.state_size,
-                                 num_proj=self.hps.output_size // 2)
+        xs = tf.nn.embedding_lookup(emb_var, tf.concat(1, [self.l_xs, self.r_xs]))
+        cell = tf.nn.rnn_cell.LSTMCell(self.hps.state_size,
+                                       num_proj=self.hps.output_size // 2)
         wnd = self.hps.window
-        rnn_inputs = [tf.squeeze(v, [1]) for v in tf.split(1, 2 * wnd, xs)]
         with tf.variable_scope('rnn_left'):
-            left_rnn_outputs, _ = rnn.rnn(
-                cell, rnn_inputs[:wnd], dtype=tf.float32)
+            left_rnn_outputs, _ = tf.nn.dynamic_rnn(
+                cell, xs[:, :wnd],
+                sequence_length=self.l_length,
+                dtype=tf.float32)
         with tf.variable_scope('rnn_right'):
-            right_rnn_outputs, _ = rnn.rnn(
-                cell, list(reversed(rnn_inputs[wnd:])), dtype=tf.float32)
-        rnn_output = tf.concat(1, [left_rnn_outputs[-1], right_rnn_outputs[-1]])
+            right_rnn_outputs, _ = tf.nn.dynamic_rnn(
+                cell, tf.reverse_sequence(xs[:, wnd:], self.r_length, 1),
+                sequence_length=self.r_length,
+                dtype=tf.float32)
+        rnn_output = tf.concat(1, [
+            last_relevant(left_rnn_outputs, self.l_length),
+            last_relevant(right_rnn_outputs, self.r_length)])
+        tf.add_to_collection('rnn_output', rnn_output)
         softmax_w = tf.get_variable(
             'softmax_w', shape=[self.vocab_size, self.hps.output_size],
             initializer=initializer)
         softmax_bias = tf.get_variable(
             'softmax_bias', shape=[self.vocab_size],
             initializer=tf.zeros_initializer)
+        logits = tf.matmul(rnn_output, tf.transpose(softmax_w)) + softmax_bias
+        softmax = tf.nn.softmax(logits)
+        tf.add_to_collection('softmax', softmax)
         if self.hps.num_sampled:
             loss = tf.nn.sampled_softmax_loss(
                 softmax_w, softmax_bias,
@@ -147,8 +166,6 @@ class Model:
                 num_sampled=self.hps.num_sampled,
                 num_classes=self.vocab_size)
         else:
-            logits = (tf.matmul(rnn_output, tf.transpose(softmax_w)) +
-                      softmax_bias)
             loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits, self.ys)
         return tf.reduce_mean(loss)
@@ -200,7 +217,9 @@ class Model:
                      reader: CorpusReader):
         losses = []
         t0 = t00 = time.time()
-        for i, (xs, ys) in enumerate(batches(
+        full_length = np.array([self.hps.window] * self.hps.batch_size,
+                               dtype=np.int32)
+        for i, (l_xs, r_xs, ys) in enumerate(batches(
                 reader,
                 batch_size=self.hps.batch_size,
                 window=self.hps.window)):
@@ -209,7 +228,11 @@ class Model:
             fetches = {'loss': self.loss, 'train': self.train_op}
             if i % 20 == 0:
                 fetches['summary'] = self.summary_op
-            fetched = sess.run(fetches, feed_dict={self.xs: xs, self.ys: ys})
+            fetched = sess.run(fetches, feed_dict={
+                self.l_xs: l_xs, self.l_length: full_length,
+                self.r_xs: r_xs, self.r_length: full_length,
+                self.ys: ys,
+            })
             losses.append(fetched['loss'])
             if 'summary' in fetched:
                 sv.summary_computed(sess, fetched['summary'])
@@ -260,6 +283,48 @@ class Model:
                 fw.add_summary(summary, global_step)
                 fw.flush()
 
+
+def last_relevant(output, length):
+    batch_size = tf.shape(output)[0]
+    max_length = tf.shape(output)[1]
+    out_size = int(output.get_shape()[2])
+    index = tf.range(0, batch_size) * max_length + (length - 1)
+    flat = tf.reshape(output, [-1, out_size])
+    relevant = tf.gather(flat, index)
+    return relevant
+
+
+class LoadedModel:
+    def __init__(self, vocab_path: Path, model_path: Path):
+        self.vocabulary = Vocabulary(vocab_path)
+        config = tf.ConfigProto(allow_soft_placement=True)
+        self.session = tf.Session(config=config)
+        saver = tf.train.import_meta_graph('{}.meta'.format(model_path))
+        saver.restore(self.session, str(model_path))
+        self.l_xs, = tf.get_collection('input_l_xs')
+        self.r_xs, = tf.get_collection('input_r_xs')
+        self.l_length, = tf.get_collection('input_l_length')
+        self.r_length, = tf.get_collection('input_r_length')
+        self.rnn_output, = tf.get_collection('rnn_output')
+        self.softmax, = tf.get_collection('softmax')
+
+    def contexts_vectors(
+            self, contexts: List[Tuple[List[str], List[str]]]) -> np.ndarray:
+        window = int(self.l_xs.get_shape()[1])
+        batch_size = len(contexts)
+        l_xs, r_xs = [np.zeros([batch_size, window], dtype=np.int32)
+                      for _ in range(2)]
+        l_length = np.array([len(l) for l, _ in contexts], dtype=np.int32)
+        r_length = np.array([len(r) for _, r in contexts], dtype=np.int32)
+        for row_i, (l, _) in enumerate(contexts):
+            l_xs[row_i, :len(l)] = [self.vocabulary.get_id(w) for w in l]
+        for row_i, (_, r) in enumerate(contexts):
+            r_xs[row_i, :len(r)] = [self.vocabulary.get_id(w) for w in r]
+        feed_dict = {
+            self.l_xs: l_xs, self.l_length: l_length,
+            self.r_xs: r_xs, self.r_length: r_length,
+        }
+        return self.session.run(self.rnn_output, feed_dict=feed_dict)
 
 
 def main():
