@@ -82,12 +82,12 @@ def batches(reader: CorpusReader, batch_size: int, window: int, **iter_kwargs):
 
 @attr.s(slots=True)
 class HyperParams:
-    window = attr.ib(default=10)
+    window = attr.ib(default=15)
     emb_size = attr.ib(default=512)
     state_size = attr.ib(default=2048)
     output_size = attr.ib(default=512)
     num_sampled = attr.ib(default=4096)
-    learning_rate = attr.ib(default=0.1)
+    learning_rate = attr.ib(default=0.05)
     max_grad_norm = attr.ib(default=10.0)
     batch_size = attr.ib(default=128)
 
@@ -278,7 +278,7 @@ def main():
         'Path to directory the directory for saving logs and model checkpoints'
     ))
     arg('--mode', default='train', choices=('train', 'eval'))
-    arg('--epochs', type=int, default=10)
+    arg('--epochs', type=int, default=20)
     arg('--hps', type=str, help='Change hyperparameters in k1=v1,k2=v2 format')
     args = parser.parse_args()
 
