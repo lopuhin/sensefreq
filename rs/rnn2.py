@@ -217,9 +217,7 @@ class Model:
                      reader: CorpusReader):
         losses = []
         t0 = t00 = time.time()
-        full_length = np.array([self.hps.window] * self.hps.batch_size,
-                               dtype=np.int32)
-        for i, (l_xs, r_xs, ys) in enumerate(batches(
+        for i, item in enumerate(batches(
                 reader,
                 batch_size=self.hps.batch_size,
                 window=self.hps.window)):
@@ -228,12 +226,7 @@ class Model:
             fetches = {'loss': self.loss, 'train': self.train_op}
             if i % 20 == 0:
                 fetches['summary'] = self.summary_op
-            batch_size = l_xs.shape[0]
-            fetched = sess.run(fetches, feed_dict={
-                self.l_xs: l_xs, self.l_length: full_length[:batch_size],
-                self.r_xs: r_xs, self.r_length: full_length[:batch_size],
-                self.ys: ys,
-            })
+            fetched = sess.run(fetches, feed_dict=self._feed_dict(item))
             losses.append(fetched['loss'])
             if 'summary' in fetched:
                 sv.summary_computed(sess, fetched['summary'])
@@ -246,6 +239,16 @@ class Model:
                 losses = []
                 t0 = t1
         return True
+
+    def _feed_dict(self, item):
+        l_xs, r_xs, ys = item
+        batch_size = l_xs.shape[0]
+        lengths = np.array([self.hps.window] * batch_size, dtype=np.int32)
+        return {
+            self.l_xs: l_xs, self.l_length: lengths,
+            self.r_xs: r_xs, self.r_length: lengths,
+            self.ys: ys,
+        }
 
     def eval(self, reader: CorpusReader, save_path: str, batches_limit=100):
         saver = tf.train.Saver()
@@ -266,8 +269,8 @@ class Model:
                 last_global_step = global_step
                 np.random.seed(0)
                 loss = np.mean([
-                    sess.run(self.loss, feed_dict={self.xs: xs, self.ys: ys})
-                    for xs, ys in islice(batches(
+                    sess.run(self.loss, feed_dict=self._feed_dict(item))
+                    for item in islice(batches(
                         reader,
                         batch_size=self.hps.batch_size,
                         window=self.hps.window,
