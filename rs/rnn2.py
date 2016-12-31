@@ -67,6 +67,9 @@ def batches(reader: CorpusReader, batch_size: int, window: int, **iter_kwargs):
         context_size = 2 * window + 1
         start_indices = np.arange(len(tokens) - context_size)
         np.random.shuffle(start_indices)
+        # Randomly leave only 1 / window to reduce overfitting
+        # TODO - needs more testing, maybe it shouldn't be completely random
+        start_indices = start_indices[:int(len(start_indices) / window)]
         for s in range(0, len(start_indices), batch_size):
             xs, ys = [], []
             for start_idx in start_indices[s : s + batch_size]:
@@ -194,7 +197,7 @@ class Model:
                     break
 
     def _train_epoch(self, sv: tf.train.Supervisor, sess: tf.Session,
-                   reader: CorpusReader):
+                     reader: CorpusReader):
         losses = []
         t0 = t00 = time.time()
         for i, (xs, ys) in enumerate(batches(
