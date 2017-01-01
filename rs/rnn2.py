@@ -107,8 +107,8 @@ class Model:
     def __init__(self, *, vocab_size: int, hps: HyperParams):
         self.hps = hps
         self.vocab_size = vocab_size
-        self.l_xs = tf.placeholder(np.int32, shape=[None, self.hps.window])
-        self.r_xs = tf.placeholder(np.int32, shape=[None, self.hps.window])
+        self.l_xs = tf.placeholder(np.int32, shape=[None, None])
+        self.r_xs = tf.placeholder(np.int32, shape=[None, None])
         self.r_length = tf.placeholder(np.int32, shape=[None])
         self.l_length = tf.placeholder(np.int32, shape=[None])
         self.ys = tf.placeholder(np.int32, shape=[None])
@@ -134,15 +134,15 @@ class Model:
         xs = tf.nn.embedding_lookup(emb_var, tf.concat(1, [self.l_xs, self.r_xs]))
         cell = tf.nn.rnn_cell.LSTMCell(self.hps.state_size,
                                        num_proj=self.hps.output_size // 2)
-        wnd = self.hps.window
+        l_size = tf.shape(self.l_xs)[1]
         with tf.variable_scope('rnn_left'):
             left_rnn_outputs, _ = tf.nn.dynamic_rnn(
-                cell, xs[:, :wnd],
+                cell, xs[:, :l_size],
                 sequence_length=self.l_length,
                 dtype=tf.float32)
         with tf.variable_scope('rnn_right'):
             right_rnn_outputs, _ = tf.nn.dynamic_rnn(
-                cell, tf.reverse_sequence(xs[:, wnd:], self.r_length, 1),
+                cell, tf.reverse_sequence(xs[:, l_size:], self.r_length, 1),
                 sequence_length=self.r_length,
                 dtype=tf.float32)
         rnn_output = tf.concat(1, [
@@ -326,14 +326,11 @@ class LoadedModel:
 
     def feed_dict(
             self, contexts: List[Tuple[List[str], List[str]]]) -> Dict:
-        wnd = int(self.l_xs.get_shape()[1])
-        # TODO - don't do that!
-        contexts = [(left[-wnd:], right[:wnd]) for left, right in contexts]
-        batch_size = len(contexts)
-        l_xs, r_xs = [np.zeros([batch_size, wnd], dtype=np.int32)
-                      for _ in range(2)]
         l_length = np.array([len(l) for l, _ in contexts], dtype=np.int32)
         r_length = np.array([len(r) for _, r in contexts], dtype=np.int32)
+        batch_size = len(contexts)
+        l_xs = np.zeros([batch_size, l_length.max()], dtype=np.int32)
+        r_xs = np.zeros([batch_size, r_length.max()], dtype=np.int32)
         for row_i, (l, _) in enumerate(contexts):
             l_xs[row_i, :len(l)] = [self.vocabulary.get_id(w) for w in l]
         for row_i, (_, r) in enumerate(contexts):
