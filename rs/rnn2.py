@@ -317,9 +317,12 @@ class LoadedModel:
         return self.session.run(self.rnn_output,
                                 feed_dict=self.feed_dict(contexts))
 
-    def predictions(self, contexts):
-        return self.session.run(self.softmax,
-                                feed_dict=self.feed_dict(contexts))
+    def predictions(self, contexts, top=10):
+        ctx_probs = self.session.run(self.softmax,
+                                     feed_dict=self.feed_dict(contexts))
+        return [[(self.vocabulary.id2word[id_], probs[id_])
+                 for id_ in argsort_k_largest(probs, top)]
+                for probs in ctx_probs]
 
     def feed_dict(
             self, contexts: List[Tuple[List[str], List[str]]]) -> Dict:
@@ -339,6 +342,14 @@ class LoadedModel:
             self.l_xs: l_xs, self.l_length: l_length,
             self.r_xs: r_xs, self.r_length: r_length,
         }
+
+
+def argsort_k_largest(x, k):
+    if k >= len(x):
+        return np.argsort(x)[::-1]
+    indices = np.argpartition(x, -k)[-k:]
+    values = x[indices]
+    return indices[np.argsort(-values)]
 
 
 def main():
