@@ -1,19 +1,17 @@
 from pathlib import Path
 import pickle
+from typing import List
 
 import nltk
 import numpy as np
 from sklearn.utils import shuffle
+from sklearn.metrics import log_loss
 from sklearn.model_selection import cross_val_score
 from sklearn.neighbors import KNeighborsClassifier, NearestCentroid
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
 
 from rs.rnn2 import LoadedModel
-
-
-def tokenize(s):
-    return nltk.wordpunct_tokenize(s.lower().replace('"', ''))
 
 
 def export_context_vectors(model: LoadedModel, word: str,
@@ -25,6 +23,14 @@ def export_context_vectors(model: LoadedModel, word: str,
                 for (left, _, right), _ in ctx[1]]
     cv = model.contexts_vectors(contexts)
     pred = model.predictions(contexts)
+    probs = model.session.run(
+        model.softmax, feed_dict=model.feed_dict(contexts))
+    words = [preprocess(word) for _, word, _ in ctx[1]]
+    labels = np.arange(probs.shape[1])
+    losses = [log_loss(y_true=[model.vocabulary.get_id(w)],
+                       y_pred=probs[i:i + 1],
+                       labels=labels)
+              for i, w in enumerate(words)]
     with open('cv-{}.pkl'.format(word), 'wb') as f:
         pickle.dump({
             'word': word,
@@ -34,7 +40,16 @@ def export_context_vectors(model: LoadedModel, word: str,
             'pred': pred,
             'ctx': ctx,
             'contexts': contexts,
+            'losses': losses,
         }, f)
+
+
+def preprocess(s: str) -> str:
+    return s.lower().replace('"', '')
+
+
+def tokenize(s: str) -> List[str]:
+    return nltk.wordpunct_tokenize(preprocess(s))
 
 
 def save_embeddings(cv_path: Path, output: Path):
