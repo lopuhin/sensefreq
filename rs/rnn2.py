@@ -4,7 +4,7 @@ from itertools import islice
 import logging
 from pathlib import Path
 import time
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import attr
 import numpy as np
@@ -314,9 +314,20 @@ class LoadedModel:
 
     def contexts_vectors(
             self, contexts: List[Tuple[List[str], List[str]]]) -> np.ndarray:
-        window = int(self.l_xs.get_shape()[1])
+        return self.session.run(self.rnn_output,
+                                feed_dict=self.feed_dict(contexts))
+
+    def predictions(self, contexts):
+        return self.session.run(self.softmax,
+                                feed_dict=self.feed_dict(contexts))
+
+    def feed_dict(
+            self, contexts: List[Tuple[List[str], List[str]]]) -> Dict:
+        wnd = int(self.l_xs.get_shape()[1])
+        # TODO - don't do that!
+        contexts = [(left[-wnd:], right[:wnd]) for left, right in contexts]
         batch_size = len(contexts)
-        l_xs, r_xs = [np.zeros([batch_size, window], dtype=np.int32)
+        l_xs, r_xs = [np.zeros([batch_size, wnd], dtype=np.int32)
                       for _ in range(2)]
         l_length = np.array([len(l) for l, _ in contexts], dtype=np.int32)
         r_length = np.array([len(r) for _, r in contexts], dtype=np.int32)
@@ -324,11 +335,10 @@ class LoadedModel:
             l_xs[row_i, :len(l)] = [self.vocabulary.get_id(w) for w in l]
         for row_i, (_, r) in enumerate(contexts):
             r_xs[row_i, :len(r)] = [self.vocabulary.get_id(w) for w in r]
-        feed_dict = {
+        return {
             self.l_xs: l_xs, self.l_length: l_length,
             self.r_xs: r_xs, self.r_length: r_length,
         }
-        return self.session.run(self.rnn_output, feed_dict=feed_dict)
 
 
 def main():
