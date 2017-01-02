@@ -25,7 +25,7 @@ def export_context_vectors(model: LoadedModel, word: str,
     pred = model.predictions(contexts)
     probs = model.session.run(
         model.softmax, feed_dict=model.feed_dict(contexts))
-    words = [preprocess(word) for _, word, _ in ctx[1]]
+    words = [preprocess(word) for (_, word, _), _ in ctx[1]]
     labels = np.arange(probs.shape[1])
     losses = [log_loss(y_true=[model.vocabulary.get_id(w)],
                        y_pred=probs[i:i + 1],
