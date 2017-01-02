@@ -99,4 +99,5 @@ def evaluate_clf(cv_path: Path):
                 metric='cosine', algorithm='brute', n_neighbors=3),
             NearestCentroid(metric='cosine'),
             ]:
+        print(type(clf))
         eval_clf(clf)

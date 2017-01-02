@@ -132,8 +132,7 @@ class Model:
             'emb', shape=[self.vocab_size, self.hps.emb_size],
             initializer=initializer)
         xs = tf.nn.embedding_lookup(emb_var, tf.concat(1, [self.l_xs, self.r_xs]))
-        cell = tf.nn.rnn_cell.LSTMCell(self.hps.state_size,
-                                       num_proj=self.hps.output_size // 2)
+        cell = tf.nn.rnn_cell.LSTMCell(self.hps.state_size)
         l_size = tf.shape(self.l_xs)[1]
         with tf.variable_scope('rnn_left'):
             left_rnn_outputs, _ = tf.nn.dynamic_rnn(
@@ -145,9 +144,16 @@ class Model:
                 cell, tf.reverse_sequence(xs[:, l_size:], self.r_length, 1),
                 sequence_length=self.r_length,
                 dtype=tf.float32)
-        rnn_output = tf.concat(1, [
+        rnn_full_output = tf.concat(1, [
             last_relevant(left_rnn_outputs, self.l_length),
             last_relevant(right_rnn_outputs, self.r_length)])
+        rnn_proj_w = tf.get_variable(
+            'rnn_proj_w', shape=[2 * self.hps.state_size, self.hps.output_size],
+            initializer=initializer)
+        rnn_proj_bias = tf.get_variable(
+            'rnn_proj_bias', shape=[self.hps.output_size],
+            initializer=tf.zeros_initializer)
+        rnn_output = tf.matmul(rnn_full_output, rnn_proj_w) + rnn_proj_bias
         tf.add_to_collection('rnn_output', rnn_output)
         softmax_w = tf.get_variable(
             'softmax_w', shape=[self.vocab_size, self.hps.output_size],
