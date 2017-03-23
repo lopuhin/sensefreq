@@ -510,29 +510,32 @@ def load_weights(word, root='.', lemmatize=True):
         print('Weight file "%s" not found' % filename, file=sys.stderr)
 
 
-def show_tsne(model, answers, senses, word):
+def show_tsne(model, answers, senses, word, n_run):
     vectors = np.array([v for v in (model.cv(x) for x, _, _ in answers)
                         if v is not None])
     distances = cdist(vectors, vectors, 'cosine')
     distances[distances < 0] = 0
     kwargs = {}
-    marker_size = 8
+    marker_size = 12
     if len(answers) <= 150:
         kwargs.update(dict(perplexity=10, method='exact', learning_rate=200))
         marker_size = 16
     ts = TSNE(2, metric='precomputed', **kwargs)
     reduced_vecs = ts.fit_transform(distances)
     colors = list('rgbcmyk') + ['orange', 'purple', 'gray']
+    colors = ['0.95', '0.65', '0.35']
+    markers = 'o^svx><Dp8'
     ans_colors = {ans: colors[int(ans) - 1] for ans in senses}
+    ans_markers = {ans: markers[int(ans) - 1] for ans in senses}
     seen_answers = set()
     plt.clf()
-    plt.rc('legend', fontsize=9)
+    plt.rc('legend', fontsize=12)
     font = {'family': 'Verdana', 'weight': 'normal'}
     plt.rc('font', **font)
     for (_, ans, model_ans), rv in zip(answers, reduced_vecs):
         color = ans_colors[ans]
         seen_answers.add(ans)
-        marker = 'o' # if ans == model_ans else 'x'
+        marker = ans_markers[ans]  # 'o' # if ans == model_ans else 'x'
         plt.plot(rv[0], rv[1],
                  marker=marker, color=color, markersize=marker_size)
     plt.axes().get_xaxis().set_visible(False)
@@ -540,8 +543,8 @@ def show_tsne(model, answers, senses, word):
     legend = [mpatches.Patch(color=ans_colors[ans], label=label[:25])
         for ans, label in senses.items() if ans in seen_answers]
     plt.legend(handles=legend)
-    plt.title(word)
-    filename = word + '.pdf'
+    # plt.title(word)
+    filename = '{}_mark_{}.pdf'.format(word, n_run)
     print('saving tSNE clustering to', filename)
     plt.savefig(filename)
 
@@ -617,9 +620,13 @@ def main():
             accuracy, max_freq_error, _js_div, estimate, answers = evaluate(
                 model, test_data)
             if args.tsne:
-                show_tsne(model, answers,
-                          senses={s: label for s, (label, _) in senses.items()},
-                          word=word)
+                for n_run in range(16):
+                    try:
+                        show_tsne(model, answers,
+                                  senses={s: label for s, (label, _) in senses.items()},
+                                  word=word, n_run=n_run)
+                    except Exception:
+                        import traceback; traceback.print_exc()
             if args.write_errors:
                 write_errors(answers, i, filename, senses)
             test_accuracy.append(accuracy)
