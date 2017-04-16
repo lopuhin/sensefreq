@@ -18,6 +18,7 @@ from sklearn.manifold import TSNE
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 import sklearn.linear_model
 import sklearn.naive_bayes
+from sklearn.semi_supervised import LabelSpreading
 import tensorflow as tf
 
 from rlwsd.utils import word_re, v_closeness, sorted_senses
@@ -414,6 +415,33 @@ class DNNSKLearnModel(TextSKLearnModel):
         return [probs.argmax()]
 
 
+class LabelSpreadingModel(SupervisedW2VModel):
+    def fit_with_test(self, test_data):
+        xs, ys = [], []
+        self.ans_mapping = []
+        for ans, cvs in self.context_vectors.items():
+            xs.extend(cvs)
+            if ans not in self.ans_mapping:
+                y = len(self.ans_mapping)
+                self.ans_mapping.append(ans)
+            else:
+                y = self.ans_mapping.index(ans)
+            ys.extend(y for _ in cvs)
+        for ctx in test_data:
+            xs.append(self.cv(ctx))
+            ys.append(-1)  # unlabeled
+        self.ls_clf = LabelSpreading(kernel='knn', n_neighbors=11)
+        self.ls_clf.fit(xs, ys)
+
+    def __call__(self, x, ans=None, with_confidence=False):
+        v = self.cv(x)
+        probs = self.ls_clf.predict_proba([v])[0]
+        pred = probs.argmax()
+        m_ans = self.ans_mapping[pred]
+        # TODO - get confidence as difference between probs[pred] and next
+        return (m_ans, 0.0) if with_confidence else m_ans
+
+
 class SupervisedWrapper(SupervisedW2VModel):
     """ Supervised wrapper around cluster.Method.
     """
@@ -440,9 +468,11 @@ def print_cross_errors(senses, answers):
 def evaluate(model, test_data):
     answers = []
     confidences = []
-    for x, ans in test_data:
-        model_ans, confidence = model(x, ans, with_confidence=True)
-        answers.append((x, ans, model_ans))
+    if hasattr(model, 'fit_with_test'):
+        model.fit_with_test([ctx for ctx, _ in test_data])
+    for ctx, ans in test_data:
+        model_ans, confidence = model(ctx, ans, with_confidence=True)
+        answers.append((ctx, ans, model_ans))
         confidences.append(confidence)
     estimate = get_accuracy_estimate(confidences, model.confidence_threshold)
     n_correct = sum(ans == model_ans for _, ans, model_ans in answers)
