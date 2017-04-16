@@ -452,7 +452,8 @@ def evaluate(model, test_data):
     max_freq_error = max(abs(freqs[s] - model_freqs[s]) for s in all_senses)
     js_div = jensen_shannon_divergence(
         [freqs[s] for s in all_senses], [model_freqs[s] for s in all_senses])
-    return (n_correct / len(answers), max_freq_error, js_div, estimate, answers)
+    accuracy = n_correct / len(answers)
+    return accuracy, max_freq_error, js_div, estimate, answers
 
 
 def _get_freqs(answers):
@@ -579,8 +580,9 @@ def main():
     else:
         semeval2007_data = None
         if os.path.isdir(args.path):
-            filenames = [os.path.join(args.path, f) for f in os.listdir(args.path)
-                        if f.endswith('.txt')]
+            filenames = [
+                os.path.join(args.path, f) for f in os.listdir(args.path)
+                if f.endswith('.txt')]
         else:
             filenames = [args.path]
         filenames.sort()
@@ -597,14 +599,14 @@ def main():
             word = filename.split('/')[-1].split('.')[0]
         if args.only and word != args.only:
             continue
-        weights = None if (args.no_weights or args.w2v_weights) else \
-                  load_weights(word, args.weights_root, lemmatize=lemmatize)
+        weights = (None if (args.no_weights or args.w2v_weights) else
+                   load_weights(word, args.weights_root, lemmatize=lemmatize))
         test_accuracy, train_accuracy, estimates, word_freq_errors = \
             [], [], [], []
         if args.semeval2007:
             senses, test_data, train_data = semeval2007_data[word]
-           #print('%s: %d senses, %d test, %d train' % (
-           #    word, len(senses), len(test_data), len(train_data)))
+            # print('%s: %d senses, %d test, %d train' % (
+            #    word, len(senses), len(test_data), len(train_data)))
             mfs_baseline = get_mfs_baseline(test_data + train_data)
         else:
             train_data, test_data = None, None

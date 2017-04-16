@@ -156,7 +156,8 @@ class SphericalModel(SupervisedW2VModel):
 
     def __init__(self, *args, **kwargs):
         super(SphericalModel, self).__init__(*args, **kwargs)
-        self.sense_vectors = {ans: cvs.mean(axis=0)
+        self.sense_vectors = {
+            ans: cvs.mean(axis=0)
             for ans, cvs in self.context_vectors.items()
             if cvs.any()}
 
