@@ -549,20 +549,27 @@ def show_tsne(model, answers, senses, word):
 def main():
     parser = argparse.ArgumentParser()
     arg = parser.add_argument
-    arg('path')
+    arg('path', help='Path to folder with labeled contexts or to a single file')
     arg('--write-errors', action='store_true')
-    arg('--n-train', type=int, default=50)
+    arg('--n-train', type=int, default=50,
+        help='number of contexts to use for training')
     arg('--verbose', action='store_true')
-    arg('--n-runs', type=int, default=10)
-    arg('--tsne', action='store_true')
+    arg('--n-runs', type=int, default=10,
+        help='average over given number of runs')
+    arg('--tsne', action='store_true',
+        help='save t-SNE embeddings of contexts')
     arg('--window', type=int, default=10)
-    arg('--only')
+    arg('--only', help='run only for this word')
     arg('--semeval2007', action='store_true')
-    arg('--weights-root', default='.')
-    arg('--no-weights', action='store_true')
-    arg('--w2v-weights', action='store_true')
-    arg('--method', default='SphericalModel')
-    arg('--no-lemm', action='store_true')
+    arg('--weights-root', default='.',
+        help='path to parent of "cdict" folder with weights')
+    arg('--no-weights', action='store_true', help='ignore weights')
+    arg('--w2v-weights', action='store_true',
+        help='use weights from w2v model')
+    arg('--method', default='SphericalModel',
+        help='classification method')
+    arg('--no-lemm', action='store_true',
+        help='do not do lemmatization')
     args = parser.parse_args()
     lemmatize = not args.no_lemm
 
