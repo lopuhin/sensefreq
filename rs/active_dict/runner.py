@@ -50,9 +50,13 @@ def evaluate_word(word, ad_root, labeled_root,
         os.path.join(labeled_root, word + '.txt'))
     mfs_baseline = get_mfs_baseline(test_data)
     ad_word_data = get_ad_word(word, ad_root)
-    if not ad_word_data: return
+    if not ad_word_data:
+        print('No AD data for {}'.format(word))
+        return
     model = train_model(word, ad_word_data, ad_root, **model_params)
-    if not model: return
+    if not model:
+        print('No model')
+        return
     test_accuracy, max_freq_error, js_div, estimate, answers = \
         evaluate(model, test_data)
     if tsne:
@@ -242,7 +246,7 @@ def main():
         if os.path.exists(args.word_or_filename):
             evaluate_words(args.word_or_filename, **params)
         else:
-            evaluate_word(args.word_or_filename, print_errors=True, **params)
+            evaluate_word(args.word_or_filename, **params)
     elif args.action == 'run':
         run_on_words(args.word_or_filename, **params)
     elif args.action == 'summary':
