@@ -39,17 +39,17 @@ Building weights
 ----------------
 
 You need two things - a large corpora as a text file (lemmatized, only words),
-and a running word2vec model build from this corpora
+and a word2vec model build from this corpora
 (it is used only for counts).
 
-Firt, generate contexts for all words (this will take a lot of space and time
+First, generate contexts for all words (this will take a lot of space and time
 and might require raising the open file limit).
 Corpus may be in a ``gz`` archive::
 
     ./rs/tools/extract_contexts.py \
         corpus.txt.gz ad-root/contexts/ --wordlist ad-root/words.txt
 
-Next, build weight files:
+Next, build weight files::
 
     ./rs/tools/build_weights.py ad-root/contexts/ ad-root/cdict/
 
@@ -74,3 +74,4 @@ The last argument is the path to the folder with contexts sampled from corpora::
 
     ./rs/active_dict/runner.py run ad-root/ ad-root/ruTenTen/
     ./rs/active_dict/runner.py summary ad-root/ ad-root/ruTenTen/
+
