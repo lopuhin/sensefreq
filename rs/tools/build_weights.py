@@ -4,14 +4,17 @@ import argparse
 import math
 from collections import defaultdict
 
+import tqdm
+
 from rlwsd.utils import normalize
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('input', help='can be a directory')
-    parser.add_argument('dictionary')
-    parser.add_argument('output', help='can be a directory')
+    arg = parser.add_argument
+    arg('input', help='can be a directory')
+    arg('dictionary')
+    arg('output', help='can be a directory')
     # TODO - support window?
     args = parser.parse_args()
     if os.path.isdir(args.input):
@@ -25,7 +28,7 @@ def main():
         dictionary = {
             normalize(w): int(count) for w, count in (
                 line.strip().split() for line in f)}
-    for input_filename, output_filename in targets:
+    for input_filename, output_filename in tqdm.tqdm(targets):
         write_cdict(input_filename, output_filename, dictionary)
 
 

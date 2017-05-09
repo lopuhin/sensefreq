@@ -39,8 +39,7 @@ Building weights
 ----------------
 
 You need two things - a large corpora as a text file (lemmatized, only words),
-and a word2vec model build from this corpora
-(it is used only for counts).
+and a frequency dictionary for this corpora (the format is "word count" on each line).
 
 First, generate contexts for all words (this will take a lot of space and time
 and might require raising the open file limit).
@@ -51,7 +50,7 @@ Corpus may be in a ``gz`` archive::
 
 Next, build weight files::
 
-    ./rs/tools/build_weights.py ad-root/contexts/ ad-root/cdict/
+    ./rs/tools/build_weights.py ad-root/contexts/ corpus.dict.txt ad-root/cdict/
 
 
 Getting contexts sample
