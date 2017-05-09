@@ -12,3 +12,4 @@ tensorflow
 keras==1.0.3
 h5py
 progressbar2==3.7.0
+tqdm==4.11.2
