@@ -19,14 +19,12 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 import sklearn.linear_model
 import sklearn.naive_bayes
 from sklearn.semi_supervised import LabelSpreading
-import tensorflow as tf
 
 from rlwsd.utils import word_re, v_closeness, sorted_senses
 from rlwsd.wsd import (
     SupervisedW2VModel, SupervisedModel, SphericalModel, context_vector)
 from rs.utils import lemmatize_s, avg, jensen_shannon_divergence
 from rs.semeval2007 import load_semeval2007
-from rs import rnn
 
 
 def get_ans_test_train(filename, n_train=None, test_ratio=None):
@@ -243,6 +241,8 @@ class RNNModel(DNNModel):
     nb_epoch = 40
 
     def __init__(self, *args, **kwargs):
+        import tensorflow as tf
+        from rs import rnn
         model_path = 'rnn.json'  # TODO - where do we get it?
         with open(model_path) as f:
             rnn_params = json.load(f)
