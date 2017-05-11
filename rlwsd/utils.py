@@ -26,7 +26,10 @@ def tokenize_s(s):
 
 
 def normalize(w):
-    return digit_re.sub(u'2', w.lower())
+    w = w.lower()
+    w = digit_re.sub(u'2', w)
+    w = w.replace('ё', 'е')
+    return w
 
 
 def unitvec(vec):

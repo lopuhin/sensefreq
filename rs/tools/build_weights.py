@@ -45,7 +45,7 @@ def write_cdict(input_filename, output_filename, dictionary):
                 continue
             seen.add(line)
             for w in line.strip().split():
-                counts[w] += 1
+                counts[normalize(w)] += 1
         contexts_count = sum(counts.values())
         words = list(counts)
         global_counts = {w: dictionary[w] for w in words}
