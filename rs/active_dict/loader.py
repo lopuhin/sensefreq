@@ -69,7 +69,7 @@ def _get_contexts(m):
               re.sub(r'[\[\]]', '', meaning))
     contexts.append(_normalize(meaning))
     for e in m.get('government', []):
-        contexts.extend(_normalize(e['example']).split(';'))
+        contexts.extend(_normalize(e.get('example', '')).split(';'))
     return list(filter(None, [_normalize(c).strip() for c in contexts]))
 
 
