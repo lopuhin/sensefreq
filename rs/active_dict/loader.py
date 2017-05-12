@@ -63,13 +63,13 @@ def _get_contexts(m):
                 sep = ';'
             ctx = _normalize(ctx, rm_snips=rm_snips)
             contexts.extend(ctx.split(sep))
-    meaning = m['definition']
-    meaning = re.sub(r'\s[А-Я]\d\b', '', # remove "A1" etc
-              # meaning usually has useful examples in []
-              re.sub(r'[\[\]]', '', meaning))
-    contexts.append(_normalize(meaning))
+    contexts.append(
+        re.sub(r'\s[А-Я]\d\b', '', # remove "A1" etc
+               # meaning usually has useful examples in []
+               re.sub(r'[\[\]]', '', m.get('definition', ''))))
     for e in m.get('government', []):
-        contexts.extend(_normalize(e.get('example', '')).split(';'))
+        if isinstance(e, dict):
+            contexts.extend(_normalize(e.get('example', '')).split(';'))
     return list(filter(None, [_normalize(c).strip() for c in contexts]))
 
 
