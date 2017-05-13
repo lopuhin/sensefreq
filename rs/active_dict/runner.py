@@ -69,9 +69,7 @@ def evaluate_word(word, ad_root, labeled_root,
            test_accuracy, max_freq_error, js_div, estimate
 
 
-def evaluate_words(filename, **params):
-    with open(filename, 'r') as f:
-        words = [l.strip() for l in f]
+def evaluate_words(words, **params):
     all_metrics = []
     metric_names = ['MFS', 'Train', 'Test', 'Freq'] #, 'JSD', 'Estimate']
     wjust = 20
@@ -244,9 +242,11 @@ def main():
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
         if os.path.exists(args.word_or_filename):
-            evaluate_words(args.word_or_filename, **params)
+            with open(args.word_or_filename, 'rt') as f:
+                words = [l.strip() for l in f]
         else:
-            evaluate_word(args.word_or_filename, **params)
+            words = [args.word_or_filename]
+        evaluate_words(words, **params)
     elif args.action == 'run':
         run_on_words(args.word_or_filename, **params)
     elif args.action == 'summary':
