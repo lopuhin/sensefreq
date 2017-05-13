@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-import sys
+import argparse
 import os.path
 
 import msgpackrpc
-from gensim.models import Word2Vec
+from gensim.models import Word2Vec, KeyedVectors
 
 from .utils import MODELS_ROOT
 
@@ -12,12 +12,14 @@ WORD2VEC_PORT = 18800
 
 
 class Word2VecServer(object):
-    def __init__(self, filename=None):
-        filename = filename or os.path.join(MODELS_ROOT, 'w2v.pkl')
-        if filename.endswith('.bin'):
-            self.model = Word2Vec.load_word2vec_format(filename, binary=True)
+    def __init__(self, path=None):
+        path = path or os.path.join(MODELS_ROOT, 'w2v.pkl')
+        if path.endswith('.bin'):
+            self.model = Word2Vec.load_word2vec_format(path, binary=True)
+        elif os.path.exists(path + '.syn1.npy'):
+            self.model = Word2Vec.load(path)
         else:
-            self.model = Word2Vec.load(filename)
+            self.model = KeyedVectors.load(path)
         self._total_count = sum(x.count for x in self.model.vocab.values())
 
     def call(self, method, *args):
@@ -56,7 +58,10 @@ def to_unicode(x):
 
 
 def main():
-    server = msgpackrpc.Server(Word2VecServer(*sys.argv[1:2]))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('path', nargs='?')
+    args = parser.parse_args()
+    server = msgpackrpc.Server(Word2VecServer(path=args.path))
     server.listen(msgpackrpc.Address('localhost', WORD2VEC_PORT))
     print('running...')
     server.start()

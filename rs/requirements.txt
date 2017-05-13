@@ -1,5 +1,5 @@
 Cython>=0.21
-gensim>=0.10.1
+gensim>=2.0.0
 pymystem3>=0.1.1
 profilehooks==1.8.0
 statprof==0.1.2
