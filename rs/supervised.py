@@ -50,8 +50,15 @@ def get_labeled_ctx(filename):
     If there are two annotators, return only contexts
     where both annotators agree on the meaning and it is defined.
     """
+    # TODO - move this stuff to rl_wsd_labeled
+    if filename.endswith('.json'):
+        with open(filename, 'rt') as f:
+            senses, w_d = json.load(f)
+            other = max(senses, key=int)
+            w_d = [(ctx, s) for ctx, s in w_d if s not in {'0', other}]
+            return senses, w_d
     w_d = []
-    with open(filename, 'r') as f:
+    with open(filename, 'rt') as f:
         senses = {}
         other = None
         for i, line in enumerate(f, 1):
@@ -612,7 +619,7 @@ def main():
         if os.path.isdir(args.path):
             filenames = [
                 os.path.join(args.path, f) for f in os.listdir(args.path)
-                if f.endswith('.txt')]
+                if f.endswith('.txt') or f.endswith('.json')]
         else:
             filenames = [args.path]
         filenames.sort()
