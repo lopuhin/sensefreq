@@ -37,7 +37,8 @@ def main():
 
         print('{}: {} senses, {} contexts'.format(word, len(senses), len(contexts)))
         args.output.joinpath('{}.json'.format(word)).write_text(
-            json.dumps([senses, contexts], indent=True, ensure_ascii=False),
+            json.dumps([senses, contexts],
+                       indent=True, ensure_ascii=False, sort_keys=True),
             encoding='utf8')
 
 
