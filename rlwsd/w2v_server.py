@@ -2,8 +2,9 @@
 import argparse
 import os.path
 
-import msgpackrpc
 from gensim.models import Word2Vec, KeyedVectors
+import msgpackrpc
+from sklearn.decomposition import PCA
 
 from .utils import MODELS_ROOT
 
@@ -12,7 +13,7 @@ WORD2VEC_PORT = 18800
 
 
 class Word2VecServer(object):
-    def __init__(self, path=None):
+    def __init__(self, path=None, center=False, pca_center=0):
         path = path or os.path.join(MODELS_ROOT, 'w2v.pkl')
         if path.endswith('.bin'):
             self.model = Word2Vec.load_word2vec_format(path, binary=True)
@@ -20,6 +21,13 @@ class Word2VecServer(object):
             self.model = Word2Vec.load(path)
         else:
             self.model = KeyedVectors.load(path)
+        if center:
+            self.model.syn0 -= self.model.syn0.mean(axis=0)
+        if pca_center:
+            pca = PCA(n_components=2)
+            pca.fit(self.model.syn0[::5, :])  # FIXME - just to save memory
+            for c in pca.components_:
+                self.model.syn0 -= c
         self._total_count = sum(x.count for x in self.model.vocab.values())
 
     def call(self, method, *args):
@@ -59,9 +67,13 @@ def to_unicode(x):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('path', nargs='?')
+    arg = parser.add_argument
+    arg('path', nargs='?')
+    arg('--center', action='store_true')
+    arg('--pca', action='store_true')
     args = parser.parse_args()
-    server = msgpackrpc.Server(Word2VecServer(path=args.path))
+    server = msgpackrpc.Server(
+        Word2VecServer(path=args.path, center=args.center, pca_center=args.pca))
     server.listen(msgpackrpc.Address('localhost', WORD2VEC_PORT))
     print('running...')
     server.start()
