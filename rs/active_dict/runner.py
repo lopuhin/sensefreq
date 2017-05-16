@@ -242,7 +242,8 @@ def get_ad_train_data(word, ad_word_data):
                     append_to = after
                 elif text != '\n':
                     append_to.append(text)
-            before, after = ''.join(before).strip(), ''.join(after).strip()
+            before, after = [''.join(x).strip().replace('\xad', '')
+                             for x in [before, after]]
             train_data.append(((before, mid or word, after), ans))
     return train_data
 
