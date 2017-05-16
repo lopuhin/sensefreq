@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 from __future__ import print_function
-import os.path
 import argparse
-import random
-import json
-import csv
-import sys
-from operator import itemgetter
 from collections import Counter
+import csv
+import json
+from operator import itemgetter
+import os.path
+from pathlib import Path
+import random
+import sys
 
 from rs.utils import avg
 from rlwsd.utils import mystem
@@ -51,11 +52,11 @@ def evaluate_word(word, ad_root, labeled_root,
     mfs_baseline = get_mfs_baseline(test_data)
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data:
-        print('No AD data for {}'.format(word))
+        # print('No AD data for {}'.format(word))
         return
     model = train_model(word, ad_word_data, ad_root, **model_params)
     if not model:
-        print('No model')
+        # print('No model')
         return
     test_accuracy, max_freq_error, js_div, estimate, answers = \
         evaluate(model, test_data)
@@ -75,13 +76,14 @@ def evaluate_words(words, **params):
     wjust = 20
     print(u'\t'.join(['Word'.ljust(wjust)] + metric_names))
     for word in sorted(words):
-        metrics = evaluate_word(word, **params)[:len(metric_names)]
+        metrics = evaluate_word(word, **params)
         if metrics is not None:
+            metrics = metrics[:len(metric_names)]
             all_metrics.append(metrics)
             print(u'%s\t%s' % (
                 word.ljust(wjust), '\t'.join('%.2f' % v for v in metrics)))
         else:
-            print(u'%s\tmissing' % word)
+            pass  # print(u'%s\tmissing' % word)
     print(u'%s\t%s' % ('Avg.'.ljust(wjust), '\t'.join(
         '%.3f' % avg(metrics[i] for metrics in all_metrics)
         for i, _ in enumerate(metric_names))))
@@ -218,7 +220,7 @@ def main():
     arg = parser.add_argument
     arg('action', choices=['run', 'summary', 'evaluate'])
     arg('ad_root')
-    arg('word_or_filename')
+    arg('word_or_filename', nargs='?')
     arg('--window', type=int, default=10)
     arg('--min-contexts', type=int, default=100,
         help='(for run) skip files with less contexts')
@@ -241,15 +243,22 @@ def main():
             'labeled_root', 'print_errors', 'tsne']})
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
-        if os.path.exists(args.word_or_filename):
+        if not args.word_or_filename:
+            words = [p.stem for pattern in ['*.txt', '*.json']
+                     for p in Path(args.labeled_root).glob(pattern)]
+        elif os.path.exists(args.word_or_filename):
             with open(args.word_or_filename, 'rt') as f:
                 words = [l.strip() for l in f]
         else:
             words = [args.word_or_filename]
         evaluate_words(words, **params)
     elif args.action == 'run':
+        if not args.word_or_filename:
+            parser.error('Please specify word_or_filename')
         run_on_words(args.word_or_filename, **params)
     elif args.action == 'summary':
+        if not args.word_or_filename:
+            parser.error('Please specify word_or_filename')
         summary(args.ad_root, args.word_or_filename)
 
 
