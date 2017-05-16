@@ -83,7 +83,7 @@ def evaluate_word(word, ad_root, labeled_root,
         # show_tsne(model, [(x, ans, ans) for x, ans in train_data], senses, word)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
-    return (mfs_baseline, model.get_train_accuracy(verbose=False),
+    return (len(senses), mfs_baseline, model.get_train_accuracy(verbose=False),
             test_accuracy, max_freq_error, js_div, estimate)
 
 
@@ -102,7 +102,7 @@ def get_coarse_sense_mapping(senses):
 
 def evaluate_words(words, **params):
     all_metrics = []
-    metric_names = ['MFS', 'Train', 'Test', 'Freq'] #, 'JSD', 'Estimate']
+    metric_names = ['senses', 'MFS', 'Train', 'Test', 'Freq'] #, 'JSD', 'Estimate']
     wjust = 20
     print(u'\t'.join(['Word'.ljust(wjust)] + metric_names))
     for word in sorted(words):
@@ -111,7 +111,8 @@ def evaluate_words(words, **params):
             metrics = metrics[:len(metric_names)]
             all_metrics.append(metrics)
             print(u'%s\t%s' % (
-                word.ljust(wjust), '\t'.join('%.2f' % v for v in metrics)))
+                word.ljust(wjust), '\t'.join(
+                    ('%d' if isinstance(v, int) else '%.2f') % v for v in metrics)))
         else:
             pass  # print(u'%s\tmissing' % word)
     print(u'%s\t%s' % ('Avg.'.ljust(wjust), '\t'.join(
