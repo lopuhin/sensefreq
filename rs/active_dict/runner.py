@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import argparse
-from collections import Counter
+from collections import Counter, defaultdict
 import csv
 import json
 from operator import itemgetter
 import os.path
 from pathlib import Path
 import random
+import re
 import sys
 
 from rs.utils import avg
@@ -20,10 +21,9 @@ from rs.cluster import get_context_vectors
 from rs import cluster_methods, supervised
 
 
-def train_model(word, ad_word_data, ad_root, method=None, **model_params):
+def train_model(word, train_data, ad_root, method=None, **model_params):
     weights = None if model_params.pop('no_weights', None) else load_weights(
         word, root=ad_root, lemmatize=model_params.get('lemmatize'))
-    train_data = get_ad_train_data(word, ad_word_data)
     model = None
     if train_data:
         method = getattr(supervised, method,
@@ -46,7 +46,7 @@ def train_model(word, ad_word_data, ad_root, method=None, **model_params):
 
 
 def evaluate_word(word, ad_root, labeled_root,
-                  print_errors=False, tsne=False, **model_params):
+                  print_errors=False, tsne=False, coarse=False, **model_params):
     word_path = labeled_root.joinpath(word + '.json')
     if not word_path.exists():
         word_path = labeled_root.joinpath(word + '.txt')
@@ -54,11 +54,26 @@ def evaluate_word(word, ad_root, labeled_root,
     mfs_baseline = get_mfs_baseline(test_data)
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data:
-        # print('No AD data for {}'.format(word))
+        print(word, 'no AD data', sep='\t')
         return
-    model = train_model(word, ad_word_data, ad_root, **model_params)
+    ad_senses = {str(i): m['name']
+                 for i, m in enumerate(ad_word_data['meanings'], 1)}
+    if set(ad_senses) != set(senses):
+        print(word, 'AD/labeled sense mismatch', sep='\t')
+        return
+    train_data = get_ad_train_data(word, ad_word_data)
+    if coarse:
+        sense_mapping = get_coarse_sense_mapping(ad_senses)
+        inverse_mapping = defaultdict(list)
+        for old_id, new_id in sense_mapping.items():
+            inverse_mapping[new_id].append(old_id)
+        senses = {new_id: '; '.join(senses[old_id] for old_id in old_ids)
+                  for new_id, old_ids in inverse_mapping.items()}
+        train_data = [(ctx, sense_mapping[old_id]) for ctx, old_id in train_data]
+        test_data = [(ctx, sense_mapping[old_id]) for ctx, old_id in test_data]
+    model = train_model(word, train_data, ad_root, **model_params)
     if not model:
-        # print('No model')
+        print(word, 'no model', sep='\t')
         return
     test_accuracy, max_freq_error, js_div, estimate, answers = \
         evaluate(model, test_data)
@@ -70,6 +85,19 @@ def evaluate_word(word, ad_root, labeled_root,
         _print_errors(test_accuracy, answers, ad_word_data, senses)
     return (mfs_baseline, model.get_train_accuracy(verbose=False),
             test_accuracy, max_freq_error, js_div, estimate)
+
+
+def get_coarse_sense_mapping(senses):
+    mapping = defaultdict(list)
+    for sense_id, sense_name in sorted(senses.items()):
+        key = tuple(re.findall(r'\d+(?:\.\d+)?\b', sense_name.split(':', 1)[0]))
+        assert key, sense_name
+        coarse_key = tuple(s.split('.', 1)[0] for s in key)
+        mapping[coarse_key].append(sense_id)
+    return {old_sense_id: str(new_sense_id)
+            for new_sense_id, (_, old_sense_ids)
+            in enumerate(sorted(mapping.items()), 1)
+            for old_sense_id in old_sense_ids}
 
 
 def evaluate_words(words, **params):
@@ -117,8 +145,10 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
     elif not contexts or (min_contexts and len(contexts) < min_contexts):
         return
     ad_word_data = get_ad_word(word, ad_root)
-    if ad_word_data is None: return
-    model = train_model(word, ad_word_data, ad_root, **params)
+    if ad_word_data is None:
+        return
+    train_data = get_ad_train_data(word, ad_word_data)
+    model = train_model(word, train_data, ad_root, **params)
     if model is None: return
     result = []
     confidences = []
@@ -236,13 +266,14 @@ def main():
     arg('--w2v-weights', action='store_true')
     arg('--no-lemm', action='store_true')
     arg('--method', default='SphericalModel')
+    arg('--coarse', action='store_true', help='merge fine-grained senses')
     args = parser.parse_args()
     params = {k: getattr(args, k) for k in [
         'ad_root', 'window', 'verbose', 'no_weights', 'w2v_weights', 'method']}
     params['lemmatize'] = not args.no_lemm
     if args.action == 'evaluate':
         params.update({k: getattr(args, k) for k in [
-            'labeled_root', 'print_errors', 'tsne']})
+            'labeled_root', 'print_errors', 'tsne', 'coarse']})
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
         if not args.word_or_filename:
@@ -254,14 +285,15 @@ def main():
         else:
             words = [args.word_or_filename]
         evaluate_words(words, **params)
-    elif args.action == 'run':
+    else:
+        if args.coarse:
+            parser.error('--coarse supported only for "evaluate" action')
         if not args.word_or_filename:
             parser.error('Please specify word_or_filename')
-        run_on_words(args.word_or_filename, **params)
-    elif args.action == 'summary':
-        if not args.word_or_filename:
-            parser.error('Please specify word_or_filename')
-        summary(args.ad_root, args.word_or_filename)
+        if args.action == 'run':
+            run_on_words(args.word_or_filename, **params)
+        elif args.action == 'summary':
+            summary(args.ad_root, args.word_or_filename)
 
 
 if __name__ == '__main__':
