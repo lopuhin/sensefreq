@@ -47,8 +47,10 @@ def train_model(word, ad_word_data, ad_root, method=None, **model_params):
 
 def evaluate_word(word, ad_root, labeled_root,
                   print_errors=False, tsne=False, **model_params):
-    senses, test_data = get_labeled_ctx(
-        os.path.join(labeled_root, word + '.txt'))
+    word_path = labeled_root.joinpath(word + '.json')
+    if not word_path.exists():
+        word_path = labeled_root.joinpath(word + '.txt')
+    senses, test_data = get_labeled_ctx(str(word_path))
     mfs_baseline = get_mfs_baseline(test_data)
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data:
@@ -66,8 +68,8 @@ def evaluate_word(word, ad_root, labeled_root,
         # show_tsne(model, [(x, ans, ans) for x, ans in train_data], senses, word)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
-    return mfs_baseline, model.get_train_accuracy(verbose=False), \
-           test_accuracy, max_freq_error, js_div, estimate
+    return (mfs_baseline, model.get_train_accuracy(verbose=False),
+            test_accuracy, max_freq_error, js_div, estimate)
 
 
 def evaluate_words(words, **params):
@@ -229,7 +231,7 @@ def main():
     arg('--verbose', action='store_true')
     arg('--print-errors', action='store_true')
     arg('--tsne', action='store_true')
-    arg('--labeled-root')
+    arg('--labeled-root', type=Path)
     arg('--no-weights', action='store_true')
     arg('--w2v-weights', action='store_true')
     arg('--no-lemm', action='store_true')
@@ -245,7 +247,7 @@ def main():
             parser.error('Please specify --labeled-root')
         if not args.word_or_filename:
             words = [p.stem for pattern in ['*.txt', '*.json']
-                     for p in Path(args.labeled_root).glob(pattern)]
+                     for p in args.labeled_root.glob(pattern)]
         elif os.path.exists(args.word_or_filename):
             with open(args.word_or_filename, 'rt') as f:
                 words = [l.strip() for l in f]
