@@ -20,6 +20,7 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 import sklearn.linear_model
 import sklearn.naive_bayes
 from sklearn.semi_supervised import LabelSpreading
+from xgboost import XGBClassifier
 
 from rlwsd.utils import word_re, v_closeness, sorted_senses
 from rlwsd.wsd import (
@@ -263,7 +264,6 @@ class W2VSklearnModel(SupervisedW2VModel):
         self.senses = list(self.context_vectors.keys())
         xs, ys = get_w2v_xs_ys(
             self.senses, self.context_vectors, one_hot=False)
-        xs -= xs.min()
         self.clf = self.get_classifier()
         self.clf.fit(xs, ys)
 
@@ -288,6 +288,16 @@ class W2VBayesModel(W2VSklearnModel):
 class W2VSVMModel(W2VSklearnModel):
     def get_classifier(self):
         return sklearn.linear_model.SGDClassifier()
+
+
+class W2VLogRegModel(W2VSklearnModel):
+    def get_classifier(self):
+        return sklearn.linear_model.LogisticRegressionCV()
+
+
+class W2VXGBoostModel(W2VSklearnModel):
+    def get_classifier(self):
+        return XGBClassifier(n_estimators=100, max_depth=2)
 
 
 class TextSKLearnModel(SupervisedModel):
