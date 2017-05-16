@@ -6,3 +6,4 @@ venv
 rlwsd/models/
 .idea
 t
+.ipynb_checkpoints
