@@ -12,6 +12,7 @@ from operator import itemgetter
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+from rl_wsd_labeled import get_contexts as get_labeled_ctx
 from scipy.spatial.distance import cdist
 from sklearn.mixture import GMM
 from sklearn.manifold import TSNE
@@ -42,54 +43,6 @@ def get_ans_test_train(filename, n_train=None, test_ratio=None):
         {ans: (meaning, counts[ans]) for ans, meaning in senses.items()},
         w_d[:n_test],
         w_d[n_test:])
-
-
-def get_labeled_ctx(filename):
-    """ Read results from file with labeled data.
-    Skip undefined or "other" senses.
-    If there are two annotators, return only contexts
-    where both annotators agree on the meaning and it is defined.
-    """
-    # TODO - move this stuff to rl_wsd_labeled
-    if filename.endswith('.json'):
-        with open(filename, 'rt') as f:
-            senses, w_d = json.load(f)
-            other = max(senses, key=int)
-            w_d = [(ctx, s) for ctx, s in w_d if s not in {'0', other}]
-            return senses, w_d
-    w_d = []
-    with open(filename, 'rt') as f:
-        senses = {}
-        other = None
-        for i, line in enumerate(f, 1):
-            row = list(filter(None, line.strip().split('\t')))
-            try:
-                if line.startswith('\t'):
-                    if len(row) == 3:
-                        meaning, ans, ans2 = row
-                        assert ans == ans2
-                    else:
-                        meaning, ans = row
-                    if ans != '0':
-                        senses[ans] = meaning
-                else:
-                    if other is None:
-                        other = str(len(senses))
-                        del senses[other]
-                    if len(row) == 5:
-                        before, word, after, ans1, ans2 = row
-                        if ans1 == ans2:
-                            ans = ans1
-                        else:
-                            continue
-                    else:
-                        before, word, after, ans = row
-                    if ans != '0' and ans != other:
-                        w_d.append(((before, word, after), ans))
-            except ValueError:
-                print('error on line', i, file=sys.stderr)
-                raise
-    return senses, w_d
 
 
 class WordsOrderMixin(SupervisedW2VModel):
@@ -654,7 +607,7 @@ def main():
                 senses, test_data, train_data = \
                     get_ans_test_train(filename, n_train=args.n_train)
             if not test_data or not train_data:
-                print('No train or test data for {}, skipping'.format(word))
+                # print('No train or test data for {}, skipping'.format(word))
                 continue
             model = model_class(
                 train_data, weights=weights, verbose=args.verbose,
