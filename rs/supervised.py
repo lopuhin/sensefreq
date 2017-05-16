@@ -162,7 +162,7 @@ def build_dnn_model(in_dim, out_dim):
 
 class DNNModel(SupervisedW2VModel):
     supersample = True
-    nb_epoch = 100
+    epochs = 100
     n_models = 1
     confidence_threshold = 0.17
 
@@ -176,7 +176,7 @@ class DNNModel(SupervisedW2VModel):
     def _build_fit_model(self, xs, ys):
         in_dim, out_dim = xs.shape[1], ys.shape[1]
         model = build_dnn_model(in_dim, out_dim)
-        model.fit(xs, ys, epochs=self.nb_epoch, verbose=0)
+        model.fit(xs, ys, epochs=self.epochs, verbose=0)
         return model
 
     def __call__(self, x, c_ans=None, with_confidence=False):
@@ -424,6 +424,29 @@ class SupervisedWrapper(SupervisedW2VModel):
         cluster = self.model.predict([v])[0]
         m_ans = str(self.model.mapping.get(cluster))
         return (m_ans, 0.0) if with_confidence else m_ans
+
+
+class VotingModel:
+    confidence_threshold = 1.0
+
+    def __init__(self, *args, **kwargs):
+        self.models = [cls(*args, **kwargs) for cls in [
+            SphericalModel, DNNModel, KNearestModel]]
+
+    def __call__(self, *args, **kwargs):
+        results = [m(*args, **kwargs) for m in self.models]
+        with_confidence = kwargs.get('with_confidence')
+        if with_confidence:
+            answers = [x[0] for x in results]
+        else:
+            answers = results
+        (answer, votes), = Counter(answers).most_common(1)
+        if votes == 1:
+            answer = answers[0]
+        return (answer, 1.0) if with_confidence else answer
+
+    def get_train_accuracy(self, verbose=None):
+        return 0
 
 
 def print_cross_errors(senses, answers):
