@@ -152,8 +152,8 @@ def build_dnn_model(in_dim, out_dim):
 #   model.add(Dropout(0.5))
     model.add(Dense(
         input_dim=in_dim,
-        output_dim=out_dim, activation='softmax',
-        W_regularizer=l2(0.01),
+        units=out_dim, activation='softmax',
+        kernel_regularizer=l2(0.01),
 #       b_constraint=maxnorm(0),
         ))
     model.compile(loss='categorical_crossentropy', optimizer='adam')
@@ -162,8 +162,8 @@ def build_dnn_model(in_dim, out_dim):
 
 class DNNModel(SupervisedW2VModel):
     supersample = True
-    nb_epoch = 1000
-    n_models = 5
+    nb_epoch = 100
+    n_models = 1
     confidence_threshold = 0.17
 
     def __init__(self, *args, **kwargs):
@@ -176,7 +176,7 @@ class DNNModel(SupervisedW2VModel):
     def _build_fit_model(self, xs, ys):
         in_dim, out_dim = xs.shape[1], ys.shape[1]
         model = build_dnn_model(in_dim, out_dim)
-        model.fit(xs, ys, nb_epoch=self.nb_epoch, verbose=0)
+        model.fit(xs, ys, epochs=self.nb_epoch, verbose=0)
         return model
 
     def __call__(self, x, c_ans=None, with_confidence=False):
