@@ -20,6 +20,7 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 import sklearn.linear_model
 import sklearn.naive_bayes
 from sklearn.semi_supervised import LabelSpreading
+from xgboost import XGBClassifier
 
 from rlwsd.utils import word_re, v_closeness, sorted_senses
 from rlwsd.wsd import (
@@ -296,7 +297,6 @@ class W2VLogRegModel(W2VSklearnModel):
 
 class W2VXGBoostModel(W2VSklearnModel):
     def get_classifier(self):
-        from xgboost import XGBClassifier
         return XGBClassifier(n_estimators=100, max_depth=2)
 
 

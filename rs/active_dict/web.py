@@ -44,14 +44,9 @@ class WordsHandler(BaseHandler):
         summary = self.load('summary', ctx_path)
         words_senses = []
         homonyms = self.get_argument('homonyms', None)
-        pos = self.get_argument('pos', None)
-        pos_set = set()
         for word, winfo in summary.items():
-            pos_set.add(winfo['pos'])
             if (homonyms == 'yes' and not winfo['is_homonym']) or \
                (homonyms == 'no' and winfo['is_homonym']):
-                continue
-            if pos is not None and pos != winfo['pos']:
                 continue
             words_senses.append(dict(
                 winfo,
@@ -64,8 +59,6 @@ class WordsHandler(BaseHandler):
             ctx_path=ctx_path,
             words_senses=words_senses,
             homonyms=homonyms,
-            pos=pos,
-            pos_list=sorted(pos_set),
             default_max_senses=12,
             **statistics(words_senses)
             )

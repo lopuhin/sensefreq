@@ -4,52 +4,32 @@
 
 <h1>{{ ctx_path }}</h1>
 
-
 <p>
-    Part of speech:
-    {% if pos is None %}
-        <b>all</b>
-    {% else %}
-        <a href="{{ handler.reverse_url('words', ctx_path) }}">all</a>
-    {% end %}
+Homonyms:
+{% if homonyms is None %}
+<b>all</b>
+{% else %}
+<a href="{{ handler.reverse_url('words', ctx_path) }}">
+    all</a>
+{% end %}
 
-    |
+|
 
-    {% for i, pos_name in enumerate(pos_list) %}
-        {% if pos == pos_name %}
-            <b>{{ pos_name }}</b>
-        {% else %}
-            <a href="{{ handler.reverse_url('words', ctx_path) }}?pos={{ pos_name }}">
-                {{ pos_name }}</a>
-        {% end %}
-        {% if i != len(pos_list) - 1 %} | {% end %}
-    {% end %}
+{% if homonyms == 'yes' %}
+<b>yes</b>
+{% else %}
+<a href="{{ handler.reverse_url('words', ctx_path) }}?homonyms=yes">
+    yes</a>
+{% end %}
 
-</p>
+|
 
-<p>
-    Homonyms:
-    {% if homonyms is None %}
-        <b>all</b>
-    {% else %}
-        <a href="{{ handler.reverse_url('words', ctx_path) }}">all</a>
-    {% end %}
-
-    |
-
-    {% if homonyms == 'yes' %}
-        <b>yes</b>
-    {% else %}
-        <a href="{{ handler.reverse_url('words', ctx_path) }}?homonyms=yes">yes</a>
-    {% end %}
-
-    |
-
-    {% if homonyms == 'no' %}
-        <b>no</b>
-    {% else %}
-        <a href="{{ handler.reverse_url('words', ctx_path) }}?homonyms=no">no</a>
-    {% end %}
+{% if homonyms == 'no' %}
+<b>no</b>
+{% else %}
+<a href="{{ handler.reverse_url('words', ctx_path) }}?homonyms=no">
+    no</a>
+{% end %}
 
 </p>
 
