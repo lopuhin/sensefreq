@@ -47,7 +47,7 @@ def train_model(word, train_data, ad_root, method=None, **model_params):
 
 def evaluate_word(word, ad_root, labeled_root,
                   print_errors=False, tsne=False, coarse=False,
-                  alt_root=None, **model_params):
+                  alt_root=None, alt_senses=False, **model_params):
     word_path = labeled_root.joinpath(word + '.json')
     if not word_path.exists():
         word_path = labeled_root.joinpath(word + '.txt')
@@ -62,11 +62,10 @@ def evaluate_word(word, ad_root, labeled_root,
     if set(ad_senses) != set(senses):
         print(word, 'AD/labeled sense mismatch', sep='\t')
         return
+    train_data = get_ad_train_data(word, ad_word_data)
     if alt_root:
         senses, test_data, train_data = get_alt_senses_test_train_data(
-            alt_root, word, senses, test_data)
-    else:
-        train_data = get_ad_train_data(word, ad_word_data)
+            alt_root, word, senses, test_data, train_data, alt_senses=alt_senses)
     if coarse:
         sense_mapping = get_coarse_sense_mapping(ad_senses)
         inverse_mapping = defaultdict(list)
@@ -258,7 +257,8 @@ def _get_training_ctx(ctx, word):
     return before, mid or word, after
 
 
-def get_alt_senses_test_train_data(alt_root, word, senses, test_data):
+def get_alt_senses_test_train_data(alt_root, word, senses, test_data,
+                                   train_data, alt_senses=False):
     """ Load alternative dictionary train data.
     Example format:
     1
@@ -271,7 +271,7 @@ def get_alt_senses_test_train_data(alt_root, word, senses, test_data):
     Returns senses, test_data, train_data.
     """
     alt_def = alt_root.joinpath('{}.txt'.format(word)).read_text(encoding='utf8')
-    train_data = []
+    new_train_data = []
     sense_mapping = {}
     new_senses = {}
     for sense_id, alt_sense in enumerate(alt_def.split('\n\n'), 1):
@@ -281,12 +281,15 @@ def get_alt_senses_test_train_data(alt_root, word, senses, test_data):
             assert int(ad_id) > 0
             assert ad_id not in sense_mapping
             sense_mapping[ad_id] = sense_id
-        train_data.extend(filter(None, (
+        new_train_data.extend(filter(None, (
             (_get_training_ctx(ctx, word), sense_id) for ctx in examples)))
         new_senses[sense_id] = 'AD: {}'.format(ad_ids)
     test_data = [(ctx, sense_mapping[ad_id]) for ctx, ad_id in test_data
                  if ad_id in sense_mapping]
-    return senses, test_data, train_data
+    if alt_senses:
+        new_train_data = [(ctx, sense_mapping[ad_id]) for ctx, ad_id in train_data
+                          if ad_id in sense_mapping]
+    return new_senses, test_data, new_train_data
 
 
 def main():
@@ -310,13 +313,14 @@ def main():
     arg('--method', default='SphericalModel')
     arg('--coarse', action='store_true', help='merge fine-grained senses')
     arg('--alt-root', type=Path, help='alternative dictionary root')
+    arg('--alt-senses', action='store_true', help='use alternative senses for AD')
     args = parser.parse_args()
     params = {k: getattr(args, k) for k in [
         'ad_root', 'window', 'verbose', 'no_weights', 'w2v_weights', 'method']}
     params['lemmatize'] = not args.no_lemm
     if args.action == 'evaluate':
         params.update({k: getattr(args, k) for k in [
-            'labeled_root', 'print_errors', 'tsne', 'coarse', 'alt_root']})
+            'labeled_root', 'print_errors', 'tsne', 'coarse', 'alt_root', 'alt_senses']})
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
         if not args.word_or_filename:
