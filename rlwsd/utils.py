@@ -1,5 +1,6 @@
 import re
 import os.path
+import unicodedata
 
 import numpy as np
 from pymystem3 import Mystem
@@ -28,6 +29,7 @@ def tokenize_s(s):
 def normalize(w):
     w = w.lower()
     w = digit_re.sub(u'2', w)
+    w = unicodedata.normalize('NFKC', w)
     w = w.replace('ё', 'е')
     return w
 

@@ -46,7 +46,8 @@ def train_model(word, train_data, ad_root, method=None, **model_params):
 
 
 def evaluate_word(word, ad_root, labeled_root,
-                  print_errors=False, tsne=False, coarse=False, **model_params):
+                  print_errors=False, tsne=False, coarse=False,
+                  alt_root=None, **model_params):
     word_path = labeled_root.joinpath(word + '.json')
     if not word_path.exists():
         word_path = labeled_root.joinpath(word + '.txt')
@@ -61,7 +62,11 @@ def evaluate_word(word, ad_root, labeled_root,
     if set(ad_senses) != set(senses):
         print(word, 'AD/labeled sense mismatch', sep='\t')
         return
-    train_data = get_ad_train_data(word, ad_word_data)
+    if alt_root:
+        senses, test_data, train_data = get_alt_senses_test_train_data(
+            alt_root, word, senses, test_data)
+    else:
+        train_data = get_ad_train_data(word, ad_word_data)
     if coarse:
         sense_mapping = get_coarse_sense_mapping(ad_senses)
         inverse_mapping = defaultdict(list)
@@ -234,19 +239,54 @@ def get_ad_train_data(word, ad_word_data):
     for m in ad_word_data['meanings']:
         ans = m['id']
         for ctx in m['contexts']:
-            before, mid, after = [], None, []
-            append_to = before
-            for item in mystem.analyze(ctx):
-                text = item['text']
-                if any(a['lex'] == word for a in item.get('analysis', [])):
-                    mid = text
-                    append_to = after
-                elif text != '\n':
-                    append_to.append(text)
-            before, after = [''.join(x).strip().replace('\xad', '')
-                             for x in [before, after]]
-            train_data.append(((before, mid or word, after), ans))
+            train_data.append((_get_training_ctx(ctx, word), ans))
     return train_data
+
+
+def _get_training_ctx(ctx, word):
+    before, mid, after = [], None, []
+    append_to = before
+    for item in mystem.analyze(ctx):
+        text = item['text']
+        if any(a['lex'] == word for a in item.get('analysis', [])):
+            mid = text
+            append_to = after
+        elif text != '\n':
+            append_to.append(text)
+    before, after = [''.join(x).strip().replace('\xad', '')
+                     for x in [before, after]]
+    return before, mid or word, after
+
+
+def get_alt_senses_test_train_data(alt_root, word, senses, test_data):
+    """ Load alternative dictionary train data.
+    Example format:
+    1
+    ex1
+    ex2
+
+    2,3
+    ex1
+
+    Returns senses, test_data, train_data.
+    """
+    alt_def = alt_root.joinpath('{}.txt'.format(word)).read_text(encoding='utf8')
+    train_data = []
+    sense_mapping = {}
+    new_senses = {}
+    for sense_id, alt_sense in enumerate(alt_def.split('\n\n'), 1):
+        sense_id = str(sense_id)
+        ad_ids, *examples = alt_sense.split('\n')
+        for ad_id in ad_ids.split(','):
+            assert int(ad_id) > 0
+            assert ad_id not in sense_mapping
+            sense_mapping[ad_id] = sense_id
+        train_data.extend(filter(None, (
+            (_get_training_ctx(ctx, word), sense_id) for ctx in examples)))
+        new_senses[sense_id] = 'AD: {}'.format(ad_ids)
+    test_data = [(ctx, sense_mapping[ad_id]) for ctx, ad_id in test_data
+                 if ad_id in sense_mapping]
+    return senses, test_data, train_data
 
 
 def main():
@@ -269,13 +309,14 @@ def main():
     arg('--no-lemm', action='store_true')
     arg('--method', default='SphericalModel')
     arg('--coarse', action='store_true', help='merge fine-grained senses')
+    arg('--alt-root', type=Path, help='alternative dictionary root')
     args = parser.parse_args()
     params = {k: getattr(args, k) for k in [
         'ad_root', 'window', 'verbose', 'no_weights', 'w2v_weights', 'method']}
     params['lemmatize'] = not args.no_lemm
     if args.action == 'evaluate':
         params.update({k: getattr(args, k) for k in [
-            'labeled_root', 'print_errors', 'tsne', 'coarse']})
+            'labeled_root', 'print_errors', 'tsne', 'coarse', 'alt_root']})
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
         if not args.word_or_filename:
