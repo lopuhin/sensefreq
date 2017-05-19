@@ -178,6 +178,8 @@ class WordHandler(BaseHandler):
 
 
 class PosListHandler(BaseHandler):
+    """ Show AD entries for specified part of speech.
+    """
     def get(self, pos):
         name_re = re.compile(r'(\w.*?)\d?\.json', re.U)
         only = self.get_argument('only', None)
