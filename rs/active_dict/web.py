@@ -34,7 +34,7 @@ class IndexHandler(BaseHandler):
                 context_paths.append(ctx_path)
         self.render(
             'templates/index.html',
-            context_paths=context_paths,
+            context_paths=sorted(context_paths),
             root='/download/',
             )
 
