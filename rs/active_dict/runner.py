@@ -167,7 +167,7 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
     return True
 
 
-def summary(ad_root, ctx_dir):
+def summary(ad_root, ctx_dir, pos):
     all_freqs = {}
     word_ipm = load_ipm(ad_root)
     for filename in os.listdir(ctx_dir):
@@ -188,6 +188,7 @@ def summary(ad_root, ctx_dir):
                     for ans, cnt in counts.items()},
                 'estimate': result.get('estimate'),
                 'is_homonym': w_meta.get('is_homonym', False),
+                'pos': pos,
                 'ipm': word_ipm.get(word, 0.0),
             }
     with open(os.path.join(ctx_dir, 'summary.json'), 'w') as f:
@@ -269,6 +270,7 @@ def main():
     arg('--no-lemm', action='store_true')
     arg('--method', default='SphericalModel')
     arg('--coarse', action='store_true', help='merge fine-grained senses')
+    arg('--pos', help='part of speech (for summary action)')
     args = parser.parse_args()
     params = {k: getattr(args, k) for k in [
         'ad_root', 'window', 'verbose', 'no_weights', 'w2v_weights', 'method']}
@@ -295,7 +297,9 @@ def main():
         if args.action == 'run':
             run_on_words(args.word_or_filename, **params)
         elif args.action == 'summary':
-            summary(args.ad_root, args.word_or_filename)
+            if not args.pos:
+                parser.error('Please specify --pos')
+            summary(args.ad_root, args.word_or_filename, args.pos)
 
 
 if __name__ == '__main__':
