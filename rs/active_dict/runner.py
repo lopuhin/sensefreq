@@ -163,7 +163,7 @@ def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
             'contexts': result,
             'estimate': get_accuracy_estimate(
                 confidences, model.confidence_threshold),
-            }, f)
+            }, f, ensure_ascii=False)
     return True
 
 
@@ -191,7 +191,7 @@ def summary(ad_root, ctx_dir):
                 'ipm': word_ipm.get(word, 0.0),
             }
     with open(os.path.join(ctx_dir, 'summary.json'), 'w') as f:
-        json.dump(all_freqs, f)
+        json.dump(all_freqs, f, ensure_ascii=False)
 
 
 def load_ipm(ad_root, only_pos='s'):
