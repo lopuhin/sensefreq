@@ -32,9 +32,16 @@ class IndexHandler(BaseHandler):
         for ctx_path in os.listdir(root):
             if os.path.isfile(os.path.join(root, ctx_path, 'summary.json')):
                 context_paths.append(ctx_path)
+        context_paths = sorted(context_paths)
         self.render(
             'templates/index.html',
-            context_paths=sorted(context_paths),
+            context_paths=context_paths,
+            compared=[(path1, path2)
+                      for path1 in context_paths
+                      for path2 in context_paths
+                      if path1 < path2 and path1.split()[0] != path2.split()[0]
+                      and path1.split()[1] == path2.split()[1]
+                    ],
             root='/download/',
             )
 
