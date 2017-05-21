@@ -65,7 +65,8 @@ def evaluate_word(word, ad_root, labeled_root,
     train_data = get_ad_train_data(word, ad_word_data)
     if alt_root:
         senses, test_data, train_data = get_alt_senses_test_train_data(
-            alt_root, word, senses, test_data, train_data, alt_senses=alt_senses)
+            alt_root=alt_root, word=word, test_data=test_data,
+            train_data=train_data, alt_senses=alt_senses)
     if coarse:
         sense_mapping = get_coarse_sense_mapping(ad_senses)
         inverse_mapping = defaultdict(list)
@@ -257,7 +258,7 @@ def _get_training_ctx(ctx, word):
     return before, mid or word, after
 
 
-def get_alt_senses_test_train_data(alt_root, word, senses, test_data,
+def get_alt_senses_test_train_data(alt_root, word, test_data,
                                    train_data, alt_senses=False):
     """ Load alternative dictionary train data.
     Example format:
@@ -278,8 +279,8 @@ def get_alt_senses_test_train_data(alt_root, word, senses, test_data,
         sense_id = str(sense_id)
         ad_ids, *examples = alt_sense.split('\n')
         for ad_id in ad_ids.split(','):
-            assert int(ad_id) > 0
-            assert ad_id not in sense_mapping
+            assert ad_id.isdigit(), (ad_id, word)
+            assert ad_id not in sense_mapping, (ad_id, word)
             sense_mapping[ad_id] = sense_id
         new_train_data.extend(filter(None, (
             (_get_training_ctx(ctx, word), sense_id) for ctx in examples)))
@@ -324,8 +325,11 @@ def main():
         if not args.labeled_root:
             parser.error('Please specify --labeled-root')
         if not args.word_or_filename:
-            words = [p.stem for pattern in ['*.txt', '*.json']
-                     for p in args.labeled_root.glob(pattern)]
+            if args.alt_root:
+                words = [p.stem for p in args.alt_root.glob('*.txt')]
+            else:
+                words = [p.stem for pattern in ['*.txt', '*.json']
+                         for p in args.labeled_root.glob(pattern)]
         elif os.path.exists(args.word_or_filename):
             with open(args.word_or_filename, 'rt') as f:
                 words = [l.strip() for l in f]
