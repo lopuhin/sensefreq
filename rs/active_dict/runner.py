@@ -52,7 +52,6 @@ def evaluate_word(word, ad_root, labeled_root,
     if not word_path.exists():
         word_path = labeled_root.joinpath(word + '.txt')
     senses, test_data = get_labeled_ctx(str(word_path))
-    mfs_baseline = get_mfs_baseline(test_data)
     ad_word_data = get_ad_word(word, ad_root)
     if not ad_word_data:
         print(word, 'no AD data', sep='\t')
@@ -76,6 +75,9 @@ def evaluate_word(word, ad_root, labeled_root,
                   for new_id, old_ids in inverse_mapping.items()}
         train_data = [(ctx, sense_mapping[old_id]) for ctx, old_id in train_data]
         test_data = [(ctx, sense_mapping[old_id]) for ctx, old_id in test_data]
+    mfs_baseline = get_mfs_baseline(train_data, test_data)
+    fs_baseline = get_fs_baseline(test_data)
+    random_baseline = 1 / len(senses)
     model = train_model(word, train_data, ad_root, **model_params)
     if not model:
         print(word, 'no model', sep='\t')
@@ -88,8 +90,13 @@ def evaluate_word(word, ad_root, labeled_root,
         # show_tsne(model, [(x, ans, ans) for x, ans in train_data], senses, word)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
-    return (len(senses), mfs_baseline, model.get_train_accuracy(verbose=False),
+    return (len(senses), mfs_baseline, fs_baseline, random_baseline,
+            model.get_train_accuracy(verbose=False),
             test_accuracy, max_freq_error, js_div, estimate)
+
+
+def get_fs_baseline(test_data):
+    return sum(ans == '1' for _, ans in test_data) / len(test_data)
 
 
 def get_coarse_sense_mapping(senses):
@@ -107,7 +114,7 @@ def get_coarse_sense_mapping(senses):
 
 def evaluate_words(words, **params):
     all_metrics = []
-    metric_names = ['senses', 'MFS', 'Train', 'Test', 'Freq'] #, 'JSD', 'Estimate']
+    metric_names = ['senses', 'MFS', 'FS', 'Random', 'Train', 'Test', 'Freq'] #, 'JSD', 'Estimate']
     wjust = 20
     print(u'\t'.join(['Word'.ljust(wjust)] + metric_names))
     for word in sorted(words):

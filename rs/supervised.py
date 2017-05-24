@@ -490,11 +490,9 @@ def get_accuracy_estimate(confidences, threshold):
     return sum(c > threshold for c in confidences) / len(confidences)
 
 
-def get_mfs_baseline(labeled_data):
-    sense_freq = defaultdict(int)
-    for __, ans in labeled_data:
-        sense_freq[ans] += 1
-    return float(max(sense_freq.values())) / len(labeled_data)
+def get_mfs_baseline(train_data, test_data):
+    (mfs, _), = Counter(ans for _, ans in train_data).most_common(1)
+    return sum(ans == mfs for _, ans in test_data) / len(test_data)
 
 
 def write_errors(answers, i, filename, senses):
@@ -624,16 +622,12 @@ def main():
             continue
         weights = (None if (args.no_weights or args.w2v_weights) else
                    load_weights(word, args.weights_root, lemmatize=lemmatize))
-        test_accuracy, train_accuracy, estimates, word_freq_errors = \
-            [], [], [], []
+        test_accuracy, train_accuracy, estimates, word_freq_errors, mfs = \
+            [], [], [], [], []
         if args.semeval2007:
             senses, test_data, train_data = semeval2007_data[word]
-            # print('%s: %d senses, %d test, %d train' % (
-            #    word, len(senses), len(test_data), len(train_data)))
-            mfs_baseline = get_mfs_baseline(test_data + train_data)
         else:
             train_data, test_data = None, None
-            mfs_baseline = get_mfs_baseline(get_labeled_ctx(filename)[1])
         for i in range(args.n_runs):
             random.seed(i)
             if not args.semeval2007:
@@ -642,6 +636,7 @@ def main():
             if not test_data or not train_data:
                 # print('No train or test data for {}, skipping'.format(word))
                 continue
+            mfs.append(get_mfs_baseline(train_data, test_data))
             model = model_class(
                 train_data, weights=weights, verbose=args.verbose,
                 window=args.window, w2v_weights=args.w2v_weights,
@@ -659,18 +654,20 @@ def main():
             train_accuracy.append(model.get_train_accuracy(verbose=False))
             word_freq_errors.append(max_freq_error)
             model.close()
+        if not test_accuracy:
+            continue
         accuracies.extend(test_accuracy)
         freq_errors.extend(word_freq_errors)
+        mfs_baseline = avg(mfs)
         mfs_baselines.append(mfs_baseline)
         avg_fmt = lambda x: '%.2f' % avg(x)
         #if args.n_runs > 1: avg_fmt = avg_w_bounds
-        if train_accuracy:
-            print(u'%s\t%d\t%.2f\t%s\t%s\t%s\t%s' % (
-                word.ljust(wjust), len(senses), mfs_baseline,
-                avg_fmt(train_accuracy),
-                avg_fmt(test_accuracy),
-                avg_fmt(word_freq_errors),
-                avg_fmt(estimates)))
+        print(u'%s\t%d\t%.2f\t%s\t%s\t%s\t%s' % (
+            word.ljust(wjust), len(senses), mfs_baseline,
+            avg_fmt(train_accuracy),
+            avg_fmt(test_accuracy),
+            avg_fmt(word_freq_errors),
+            avg_fmt(estimates)))
     if accuracies:
         print('%s\t\t%.3f\t\t%.3f\t%.3f' % (
             'Avg.'.ljust(wjust),
