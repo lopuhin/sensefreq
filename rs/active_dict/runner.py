@@ -12,7 +12,7 @@ import re
 import sys
 
 from rs.utils import avg
-from rlwsd.utils import mystem
+from rlwsd.utils import mystem, tokenize_s
 from rs.active_dict.loader import get_ad_word
 from rs.supervised import get_labeled_ctx, evaluate, load_weights, get_errors, \
     SupervisedWrapper, sorted_senses, get_accuracy_estimate, get_mfs_baseline, \
@@ -90,9 +90,13 @@ def evaluate_word(word, ad_root, labeled_root,
         # show_tsne(model, [(x, ans, ans) for x, ans in train_data], senses, word)
     if print_errors:
         _print_errors(test_accuracy, answers, ad_word_data, senses)
+    examples_per_sense = len(train_data) / len(senses)
+    words_per_sense = sum(len(tokenize_s(left) + tokenize_s(right))
+                          for (left, _, right), _ in train_data) / len(senses)
     return (len(senses), mfs_baseline, fs_baseline, random_baseline,
             model.get_train_accuracy(verbose=False),
-            test_accuracy, max_freq_error, js_div, estimate)
+            test_accuracy, max_freq_error, examples_per_sense, words_per_sense,
+            js_div, estimate)
 
 
 def get_fs_baseline(test_data):
@@ -114,7 +118,8 @@ def get_coarse_sense_mapping(senses):
 
 def evaluate_words(words, **params):
     all_metrics = []
-    metric_names = ['senses', 'MFS', 'FS', 'Random', 'Train', 'Test', 'Freq'] #, 'JSD', 'Estimate']
+    metric_names = ['senses', 'MFS', 'FS', 'Random', 'Train', 'Test', 'Freq',
+                    'ex/sense', 'w/sense'] #, 'JSD', 'Estimate']
     wjust = 20
     print(u'\t'.join(['Word'.ljust(wjust)] + metric_names))
     for word in sorted(words):
