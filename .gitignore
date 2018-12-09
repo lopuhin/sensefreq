@@ -7,3 +7,4 @@ rlwsd/models/
 .idea
 t
 .ipynb_checkpoints
+!rs/requirements.txt
