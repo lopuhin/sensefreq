@@ -43,7 +43,7 @@ and a frequency dictionary for this corpora (the format is "word count" on each 
 
 First, generate contexts for all words (this will take a lot of space and time
 and might require raising the open file limit).
-Corpus may be in a ``gz`` archive::
+Corpus may be in a ``gz`` or ``xz`` archive, check also ``--lines`` option::
 
     ./rs/tools/extract_contexts.py \
         corpus.txt.gz ad-root/contexts/ --wordlist ad-root/words.txt

@@ -3,6 +3,7 @@ import os
 import itertools
 import argparse
 import gzip
+import lzma
 
 import tqdm
 
@@ -32,7 +33,10 @@ def main():
         if os.path.isdir(args.corpus) else [args.corpus])
     fn = line_contexts_iter if args.lines else contexts_iter
     for fname in filenames:
-        open_fn = gzip.open if fname.endswith('.gz') else open
+        open_fn = {
+            'gz': gzip.open,
+            'xz': lzma.open,
+        }.get(fname.split('.')[-1], open)
         with open_fn(fname, 'rb') as f:
             for before, w, after in fn(f, words, window_size=args.window):
                 files[w].write('\t'.join([before, w, after]) + '\n')
@@ -42,9 +46,7 @@ def main():
 
 def contexts_iter(f, words, window_size):
     corpus_iter = (w for line in f for w in line.decode('utf-8').split())
-    canonical_words = {w: w for w in words}
-    for w in words:
-        canonical_words[w.replace('ё', 'е')] = w
+    canonical_words = _get_canonical_words(words)
     file_size = os.path.getsize(f.name)
     print('Total size: {:,} bytes'.format(file_size))
     pbar = tqdm.tqdm(total=file_size)
@@ -67,15 +69,25 @@ def contexts_iter(f, words, window_size):
     pbar.close()
 
 
+def _get_canonical_words(words):
+    canonical_words = {w: w for w in words}
+    for w in words:
+        canonical_words[w.replace('ё', 'е')] = w
+    return canonical_words
+
+
 def line_contexts_iter(f, words, window_size):
+    canonical_words = _get_canonical_words(words)
     for line in f:
+        line = line.decode('utf8')
         join = ' '.join
         chunk = line.split()
         for idx, w in enumerate(chunk):
-            if w in words:
+            canonical_w = canonical_words.get(w)
+            if canonical_w:
                 before = join(chunk[max(0, idx - window_size) : idx])
                 after = join(chunk[idx + 1 : idx + window_size + 1])
-                yield before, w, after
+                yield before, canonical_w, after
 
 
 if __name__ == '__main__':
