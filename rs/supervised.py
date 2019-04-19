@@ -527,7 +527,15 @@ def load_weights(word, root='.', lemmatize=True):
         root, 'cdict' if lemmatize else 'cdict-no-lemm', word + '.txt')
     if os.path.exists(filename):
         with open(filename, 'r') as f:
-            return {w: float(weight) for w, weight in (l.split() for l in f)}
+            weights = {}
+            for line in f:
+                try:
+                    w, weight = line.split()
+                except ValueError:
+                    pass
+                else:
+                    weights[w] = float(weight)
+            return weights
     else:
         print('Weight file "%s" not found' % filename, file=sys.stderr)
 
