@@ -48,6 +48,13 @@ Corpus may be in a ``gz`` or ``xz`` archive, check also ``--lines`` option::
     ./rs/tools/extract_contexts.py \
         corpus.txt.gz ad-root/contexts/ --wordlist ad-root/words.txt
 
+Or::
+
+    ./rs/tools/extract_contexts.py \
+        ~/corpora/all-stemmed.xz freq3-d-z/all-stemmed-contexts \
+        --wordlist ad-root/words.txt \
+        --lines
+
 Next, build weight files::
 
     ./rs/tools/build_weights.py ad-root/contexts/ corpus.dict.txt ad-root/cdict/
@@ -58,7 +65,9 @@ Getting contexts sample
 
 Contexts are sampled from RuTenTen corpora
 (using https://bitbucket.org/nosyrev/sketch-engine,
-``wsketch/get_concordance.py``), and from RNC. The number of contexts should
+``wsketch/get_concordance.py``),
+and from RNC (using ``~/web-adagram/rnc-sensefreq-words.ipynb``).
+The number of contexts should
 be at least 1000 (if possible), format is ``left ctx <TAB> word <TAB> right ctx``,
 the contexts should be at least 10 words wide on each side,
 and can span sentences.
