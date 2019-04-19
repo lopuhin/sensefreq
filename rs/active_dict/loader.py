@@ -41,7 +41,7 @@ def parse_ad_word(data_or_word_filename, with_contexts=True):
         'pos': data.get('pos'),
         'meanings': [
             {'id': str(i + 1),
-             'name': m['lexeme'],
+             'name': m.get('lexeme') or m.get('id'),
              'meaning': m.get('definition'),
              'contexts': _get_contexts(m) if with_contexts else None,
              }
