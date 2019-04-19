@@ -144,6 +144,8 @@ def run_on_words(ctx_dir, **params):
         success = run_on_word(ctx_filename, ctx_dir, **params)
         if not success:
             print('skip', ctx_filename, file=sys.stderr)
+        else:
+            print('done', ctx_filename, file=sys.stderr)
 
 
 def run_on_word(ctx_filename, ctx_dir, ad_root, **params):
