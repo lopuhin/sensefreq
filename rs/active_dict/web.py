@@ -209,6 +209,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('ad_root')
     parser.add_argument('--port', type=int, default=8000)
+    parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
     application = Application([
@@ -222,7 +223,7 @@ def main():
         **vars(args)
     )
     application.settings['ad_root'] = args.ad_root.rstrip(os.sep)
-    application.listen(args.port)
+    application.listen(args.port, args.host)
     print('Started on port {}'.format(args.port))
     tornado.ioloop.IOLoop.current().start()
 
