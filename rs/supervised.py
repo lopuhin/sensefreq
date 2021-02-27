@@ -14,7 +14,7 @@ import matplotlib.patches as mpatches
 import numpy as np
 from rl_wsd_labeled import get_contexts as get_labeled_ctx
 from scipy.spatial.distance import cdist
-from sklearn.mixture import GMM
+from sklearn.mixture import GaussianMixture as GMM
 from sklearn.manifold import TSNE
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 import sklearn.linear_model
